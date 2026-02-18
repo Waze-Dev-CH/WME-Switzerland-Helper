@@ -17,7 +17,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { distance, point } from "@turf/turf";
+import { booleanPointInPolygon, distance, point } from "@turf/turf";
 import type { MultiPolygon, Point as GeoPoint, Polygon } from "geojson";
 
 type VenueGeometry =
@@ -88,6 +88,11 @@ class StopGeometry {
 
     if (geometry.type === "Polygon") {
       const polygon = geometry as Polygon;
+
+      if (booleanPointInPolygon(stopPoint, polygon)) {
+        return 0;
+      }
+
       let minDistance = Infinity;
 
       for (const ring of polygon.coordinates) {
@@ -106,6 +111,11 @@ class StopGeometry {
 
     if (geometry.type === "MultiPolygon") {
       const multiPolygon = geometry as MultiPolygon;
+
+      if (booleanPointInPolygon(stopPoint, multiPolygon)) {
+        return 0;
+      }
+
       let minDistance = Infinity;
 
       for (const polygon of multiPolygon.coordinates) {
