@@ -4,7 +4,7 @@
   "name": "Node.js & TypeScript",
   // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
   "image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
-  "postCreateCommand": "npm install && npm install -g rollup",
+  "postCreateCommand": "${containerWorkspaceFolder}/.devcontainer/post-create-command.sh",
   "postStartCommand": "npm run watch",
   "shutdownAction": "stopContainer",
   "initializeCommand": "${localWorkspaceFolder}/.devcontainer/init.sh",
