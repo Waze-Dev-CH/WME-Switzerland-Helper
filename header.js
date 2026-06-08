@@ -16,4 +16,6 @@
 // @grant        unsafeWindow
 // @connect      api3.geo.admin.ch
 // @connect      data.sbb.ch
+// @connect      beta.waze.com
+// @connect      www.waze.com
 // ==/UserScript==
