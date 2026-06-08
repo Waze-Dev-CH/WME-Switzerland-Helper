@@ -12,17 +12,14 @@
 import { WmeSDK } from "wme-sdk-typings";
 import { TileLayer } from "./src/tileLayer";
 import { Layer } from "./src/layer";
-import { FeatureLayer } from "./src/featureLayer";
 import { PublicTransportStopsLayer } from "./src/publicTransportStopsLayer";
 import i18next from "./locales/i18n";
 import {
   SidebarSection,
   SidebarTab,
   Paragraph,
-  TextContent,
   SidebarItem,
 } from "./src/sidebar";
-import { saveLayerState, isLayerEnabled } from "./src/storage";
 
 const englishScriptName = "WME Switzerland helper";
 let scriptName = englishScriptName;
