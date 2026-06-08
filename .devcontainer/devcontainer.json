@@ -7,7 +7,7 @@
   "postCreateCommand": "npm install && npm install -g rollup",
   "postStartCommand": "npm run watch",
   "shutdownAction": "stopContainer",
-  "initializeCommand": "${localWorkspaceFolder}/.devcontainer/init.sh"
+  "initializeCommand": "${localWorkspaceFolder}/.devcontainer/init.sh",
   // Features to add to the dev container. More info: https://containers.dev/features.
   // "features": {},
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
@@ -18,4 +18,18 @@
   // "customizations": {},
   // Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
   // "remoteUser": "root"
+  "features": {
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {},
+    "ghcr.io/dirien/devcontainer-feature-codex/codex:0": {}
+  },
+  "mounts": [
+    "source=wme-switzerland-helper-node-home,target=/home/node/,type=volume"
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "openai.chatgpt"
+      ]
+    }
+  }
 }
