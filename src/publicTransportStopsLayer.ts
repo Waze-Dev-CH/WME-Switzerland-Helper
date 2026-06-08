@@ -698,15 +698,23 @@ class PublicTransportStopsLayer extends FeatureLayer {
       },
     });
     const result = await showWmeDialog({
-      message: `Il semble qu'il existe déjà ${matchingVenues.length} arrêt(s) avec ce nom.<br/>Nous les avons sélectionnés pour vous.<br/>Que voulez-vous faire?<br/>Sélectionner <pre style="display: inline;">Fusionner</pre> appliquera les informations aux anciens points sans créer le nouveau.`,
+      message: i18next.t("common:venueMatchDialog.message", {
+        count: matchingVenues.length,
+      }),
       buttons: [
-        { label: "Fusionner", value: "merge" },
+        { label: i18next.t("common:venueMatchDialog.merge"), value: "merge" },
         {
-          label: "Fusionner et mettre à jour les coordonnées",
+          label: i18next.t("common:venueMatchDialog.mergeWithCoords"),
           value: "merge-with-coords",
         },
-        { label: "Enregistrer le nouveau", value: "save" },
-        { label: "Annuler", value: "cancel" },
+        {
+          label: i18next.t("common:venueMatchDialog.saveNew"),
+          value: "save",
+        },
+        {
+          label: i18next.t("common:venueMatchDialog.cancel"),
+          value: "cancel",
+        },
       ],
     });
 

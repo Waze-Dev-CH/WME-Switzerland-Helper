@@ -29,5 +29,12 @@
     "message": "The venue \"{{name}}\" has no matching SBB stop. Do you want to delete it?",
     "confirm": "Delete",
     "cancel": "Cancel"
+  },
+  "venueMatchDialog": {
+    "message": "It seems {{count}} stop(s) with this name already exist.<br/>We have selected them for you.<br/>What would you like to do?<br/>Selecting <pre style=\"display: inline;\">Merge</pre> will apply the information to the existing stops without creating a new one.",
+    "merge": "Merge",
+    "mergeWithCoords": "Merge and update coordinates",
+    "saveNew": "Save new",
+    "cancel": "Cancel"
   }
 }

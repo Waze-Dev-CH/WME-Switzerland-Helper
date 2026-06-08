@@ -29,5 +29,12 @@
     "message": "Le lieu \"{{name}}\" n'a pas d'arrêt SBB correspondant. Voulez-vous le supprimer ?",
     "confirm": "Supprimer",
     "cancel": "Annuler"
+  },
+  "venueMatchDialog": {
+    "message": "Il semble qu'il existe déjà {{count}} arrêt(s) avec ce nom.<br/>Nous les avons sélectionnés pour vous.<br/>Que voulez-vous faire ?<br/>Sélectionner <pre style=\"display: inline;\">Fusionner</pre> appliquera les informations aux anciens points sans créer le nouveau.",
+    "merge": "Fusionner",
+    "mergeWithCoords": "Fusionner et mettre à jour les coordonnées",
+    "saveNew": "Enregistrer le nouveau",
+    "cancel": "Annuler"
   }
 }
