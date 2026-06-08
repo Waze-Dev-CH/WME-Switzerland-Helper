@@ -100,6 +100,7 @@ class PublicTransportStopsLayer extends FeatureLayer {
   private readonly clusterManager: ClusterManager;
   private readonly featureKinds: Map<string, FeatureKind>;
   private readonly clusterData: Map<string, ClusterDisplayData>;
+  private renderInProgress = false;
 
   constructor(
     args: PublicTransportStopsLayerConstructorArgs & { wmeSDK: WmeSDK },
@@ -192,81 +193,94 @@ class PublicTransportStopsLayer extends FeatureLayer {
   // --- render() override ---
 
   override async render(args: { wmeSDK: WmeSDK }): Promise<void> {
-    const { wmeSDK } = args;
+    if (this.renderInProgress) return;
+    this.renderInProgress = true;
+    try {
+      const { wmeSDK } = args;
 
-    if (!wmeSDK.LayerSwitcher.isLayerCheckboxChecked({ name: this.name })) return;
+      if (!wmeSDK.LayerSwitcher.isLayerCheckboxChecked({ name: this.name })) return;
 
-    const zoomLevel = wmeSDK.Map.getZoomLevel();
-    if (zoomLevel < this.minZoomLevel) return;
+      const zoomLevel = wmeSDK.Map.getZoomLevel();
+      if (zoomLevel < this.minZoomLevel) return;
 
-    const [sbbStops, wazeVenues] = await Promise.all([
-      this.collectAllSBBStops({ wmeSDK }),
-      this.wazeVenueFetcher.fetchVenues({ wmeSDK }),
-    ]);
+      const [sbbStops, wazeVenues] = await Promise.all([
+        this.collectAllSBBStops({ wmeSDK }),
+        this.wazeVenueFetcher.fetchVenues({ wmeSDK }),
+      ]);
 
-    // Phase 1: SBB stops without an exact WME venue match → orange
-    const orangeStops = sbbStops.filter((stop) => {
-      if (!stop.meansoftransport) return false;
-      const stopLonLat = this.stopLonLat(stop);
-      if (!stopLonLat) return false;
-      const { name } = this.nameFormatter.formatName(stop);
-      const categories = this.venueCategories({
-        meansoftransport: stop.meansoftransport,
+      // Phase 1: SBB stops without an exact WME venue match → orange
+      const orangeStops = sbbStops.filter((stop) => {
+        if (!stop.meansoftransport) return false;
+        const stopLonLat = this.stopLonLat(stop);
+        if (!stopLonLat) return false;
+        const { name } = this.nameFormatter.formatName(stop);
+        const categories = this.venueCategories({
+          meansoftransport: stop.meansoftransport,
+        });
+        return !this.venueMatcher.hasExactMatch({
+          venues: wazeVenues,
+          stopLon: stopLonLat.lon,
+          stopLat: stopLonLat.lat,
+          stopName: name,
+          categories,
+        });
       });
-      return !this.venueMatcher.hasExactMatch({
-        venues: wazeVenues,
-        stopLon: stopLonLat.lon,
-        stopLat: stopLonLat.lat,
-        stopName: name,
-        categories,
-      });
-    });
 
-    // Phase 2: WME transport venues with no matching SBB stop → red
-    const obsoleteVenues = wazeVenues.filter(
-      (venue) => !this.isCoveredBySBBStop({ venue, sbbStops }),
-    );
+      // Phase 2: WME transport venues with no matching SBB stop → red
+      const obsoleteVenues = wazeVenues.filter(
+        (venue) => !this.isCoveredBySBBStop({ venue, sbbStops }),
+      );
 
-    const desired =
-      zoomLevel < 15
-        ? this.buildClusteredFeatures({ orangeStops, obsoleteVenues, zoomLevel })
-        : this.buildIndividualFeatures({ orangeStops, obsoleteVenues });
+      const desired =
+        zoomLevel < 15
+          ? this.buildClusteredFeatures({ orangeStops, obsoleteVenues, zoomLevel })
+          : this.buildIndividualFeatures({ orangeStops, obsoleteVenues });
 
-    // Diff: remove stale features, add new ones
-    const newIds = new Set(desired.map((f) => f.id));
-    const staleIds = Array.from(this.visibleFeatureIds).filter(
-      (id) => !newIds.has(id),
-    );
+      // Diff: remove stale features, add new ones
+      const newIds = new Set(desired.map((f) => f.id));
+      const staleIds = Array.from(this.visibleFeatureIds).filter(
+        (id) => !newIds.has(id),
+      );
 
-    if (staleIds.length > 0) {
-      wmeSDK.Map.removeFeaturesFromLayer({ featureIds: staleIds, layerName: this.name });
-      for (const id of staleIds) {
-        this.visibleFeatureIds.delete(id);
-        this.features.delete(id);
-        this.featureKinds.delete(id);
-        this.clusterData.delete(id);
-      }
-    }
-
-    const toAdd = desired.filter((f) => !this.visibleFeatureIds.has(f.id));
-    if (toAdd.length > 0) {
-      wmeSDK.Map.addFeaturesToLayer({
-        features: toAdd.map((f) => f.sdkFeature),
-        layerName: this.name,
-      });
-      for (const f of toAdd) {
-        this.visibleFeatureIds.add(f.id);
-        this.features.set(f.id, f.record);
-        this.featureKinds.set(f.id, f.kind);
-        if (f.clusterDisplayData) {
-          this.clusterData.set(f.id, f.clusterDisplayData);
+      if (staleIds.length > 0) {
+        wmeSDK.Map.removeFeaturesFromLayer({ featureIds: staleIds, layerName: this.name });
+        for (const id of staleIds) {
+          this.visibleFeatureIds.delete(id);
+          this.features.delete(id);
+          this.featureKinds.delete(id);
+          this.clusterData.delete(id);
         }
       }
+
+      const toAdd = desired.filter((f) => !this.visibleFeatureIds.has(f.id));
+      if (toAdd.length > 0) {
+        wmeSDK.Map.addFeaturesToLayer({
+          features: toAdd.map((f) => f.sdkFeature),
+          layerName: this.name,
+        });
+        for (const f of toAdd) {
+          this.visibleFeatureIds.add(f.id);
+          this.features.set(f.id, f.record);
+          this.featureKinds.set(f.id, f.kind);
+          if (f.clusterDisplayData) {
+            this.clusterData.set(f.id, f.clusterDisplayData);
+          }
+        }
+      }
+    } finally {
+      this.renderInProgress = false;
     }
   }
 
   override refilterFeatures(args: { wmeSDK: WmeSDK }): void {
     void this.render(args);
+  }
+
+  override removeFromMap(args: { wmeSDK: WmeSDK }): void {
+    super.removeFromMap(args);
+    this.features.clear();
+    this.featureKinds.clear();
+    this.clusterData.clear();
   }
 
   // --- Click routing ---
@@ -585,7 +599,8 @@ class PublicTransportStopsLayer extends FeatureLayer {
     featureId: string | number;
   }): Promise<void> {
     const { wmeSDK, featureId } = args;
-    const stop = this.features.get(featureId) as TransportStop | undefined;
+    const id = String(featureId); // normalize to string — features map uses string keys
+    const stop = this.features.get(id) as TransportStop | undefined;
     if (!stop) return;
 
     const stopLonLat = this.stopLonLat(stop);
@@ -650,8 +665,8 @@ class PublicTransportStopsLayer extends FeatureLayer {
       },
     });
     this.removeFeature({ wmeSDK, featureId });
-    this.featureKinds.delete(String(featureId));
-    this.features.delete(featureId);
+    this.featureKinds.delete(id);
+    this.features.delete(id);
   }
 
   private handleZoomRequired(args: {
