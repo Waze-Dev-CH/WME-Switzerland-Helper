@@ -60,6 +60,7 @@ class ClusterManager {
       const nearby = sorted.filter(
         (item) =>
           !assigned.has(item.id) &&
+          item.kind === anchor.kind &&
           haversineDistance(anchor.lat, anchor.lon, item.lat, item.lon) <= radius,
       );
 
