@@ -58,11 +58,22 @@ class WazeVenueFetcher {
     const bbox = `${x1},${y1},${x2},${y2}`;
     const url = `${this.getApiBaseUrl()}/app/Features?bbox=${encodeURIComponent(bbox)}&v=2&apiV2=true&venueLevel=4&venueFilter=1,1,1,0`;
 
-    const response = await GM.xmlHttpRequest({
-      method: "GET",
-      url,
-      responseType: "json",
-    });
+    let response;
+    try {
+      response = await GM.xmlHttpRequest({
+        method: "GET",
+        url,
+        responseType: "json",
+      });
+    } catch (error) {
+      console.warn("[WazeVenueFetcher] Request failed:", error);
+      return [];
+    }
+
+    if (response.status !== 200) {
+      console.warn(`[WazeVenueFetcher] API returned ${response.status}`);
+      return [];
+    }
 
     const data = response.response as WazeApiResponse;
     const objects = data?.venues?.objects ?? [];
