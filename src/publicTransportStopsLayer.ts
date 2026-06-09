@@ -101,6 +101,11 @@ const ADD_VENUE_MIN_ZOOM = 16;
 // When a stop is clicked below that zoom, recenter and zoom in to this level.
 const ADD_VENUE_ZOOM_IN_LEVEL = 17;
 
+// Each grid cell fetches/considers venues for its bbox expanded by this margin
+// (degrees, ≈ 220 m) so a stop near a cell border still sees venues just across
+// it (within the 75 m match radius) — otherwise it would be wrongly orange.
+const CELL_MARGIN_DEG = 0.002;
+
 // Yields control to the browser so it can repaint/handle input between chunks.
 function yieldToEventLoop(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
@@ -254,18 +259,22 @@ class PublicTransportStopsLayer extends FeatureLayer {
     if (reuse) {
       const cache = this.cachedData!;
       sbbStops = cache.sbbStops;
-      cellVenues = cells.map((bbox) =>
-        Promise.resolve(
+      cellVenues = cells.map((bbox) => {
+        const expanded = this.expandBbox(bbox);
+        return Promise.resolve(
           cache.venues.filter((v) =>
-            this.isInBbox({ lonLat: this.getVenueCenter(v), bbox }),
+            this.isInBbox({ lonLat: this.getVenueCenter(v), bbox: expanded }),
           ),
-        ),
-      );
+        );
+      });
     } else {
       sbbStops = await this.collectAllSBBStops({ wmeSDK });
       if (this.isStale(generation)) return;
       cellVenues = cells.map((bbox) =>
-        this.wazeVenueFetcher.fetchVenuesForBbox({ wmeSDK, bbox }),
+        this.wazeVenueFetcher.fetchVenuesForBbox({
+          wmeSDK,
+          bbox: this.expandBbox(bbox),
+        }),
       );
     }
 
@@ -282,12 +291,19 @@ class PublicTransportStopsLayer extends FeatureLayer {
         for (const venue of apiVenues) fetchedVenues.set(String(venue.id), venue);
       }
 
-      const venues = this.mergeCellVenues({ apiVenues, sdkVenues, bbox });
+      // Venues within the expanded cell (includes those just across a border),
+      // used to match this cell's stops so border stops aren't wrongly orange.
+      const venues = this.mergeCellVenues({
+        apiVenues,
+        sdkVenues,
+        bbox: this.expandBbox(bbox),
+      });
       const cellStops = sbbStops.filter((stop) =>
         this.isInBbox({ lonLat: this.stopLonLat(stop), bbox }),
       );
 
-      // Orange: stops in this cell with no matching venue.
+      // Orange: stops in this cell with no matching venue (checked against the
+      // expanded venue set so a venue just across a border still counts).
       const orangeStops = await this.filterOrangeStops({
         sbbStops: cellStops,
         venues,
@@ -295,11 +311,14 @@ class PublicTransportStopsLayer extends FeatureLayer {
       });
       if (this.isStale(generation)) return;
 
-      // Red/obsolete: this cell's venues with no matching SBB stop. Matched
-      // against all stops (not just the cell) since a venue's stop can sit just
-      // across a cell border and a false delete-prompt is costly.
+      // Red/obsolete: venues owned by this (disjoint) cell with no matching SBB
+      // stop. Owned-by-center so each venue is checked once; matched against all
+      // stops since a venue's stop can sit just across a border.
+      const ownedVenues = venues.filter((v) =>
+        this.isInBbox({ lonLat: this.getVenueCenter(v), bbox }),
+      );
       const obsoleteVenues = await this.filterObsoleteVenues({
-        venues,
+        venues: ownedVenues,
         sbbStops,
         generation,
       });
@@ -400,6 +419,19 @@ class PublicTransportStopsLayer extends FeatureLayer {
       }
     }
     return Array.from(byId.values());
+  }
+
+  /** Grows a bbox by CELL_MARGIN_DEG on every side. */
+  private expandBbox(
+    bbox: [number, number, number, number],
+  ): [number, number, number, number] {
+    const [x1, y1, x2, y2] = bbox;
+    return [
+      x1 - CELL_MARGIN_DEG,
+      y1 - CELL_MARGIN_DEG,
+      x2 + CELL_MARGIN_DEG,
+      y2 + CELL_MARGIN_DEG,
+    ];
   }
 
   /** Half-open containment so each point lands in exactly one grid cell. */

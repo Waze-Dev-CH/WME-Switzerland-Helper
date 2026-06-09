@@ -83,7 +83,7 @@ class VenueMatcher {
       return this.stopGeometry.isWithinRadius({
         stopPoint,
         venueGeometry: v.geometry,
-        radiusMeters: 5,
+        radiusMeters: 75,
       });
     });
   }
