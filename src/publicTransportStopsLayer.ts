@@ -106,6 +106,10 @@ const ADD_VENUE_ZOOM_IN_LEVEL = 17;
 // it (within the 75 m match radius) — otherwise it would be wrongly orange.
 const CELL_MARGIN_DEG = 0.002;
 
+// Delay after a map move/zoom settles before fetching, so rapid zoom changes or
+// drags don't trigger redundant fetch+match cycles.
+const RENDER_DEBOUNCE_MS = 700;
+
 // Yields control to the browser so it can repaint/handle input between chunks.
 function yieldToEventLoop(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
@@ -136,12 +140,16 @@ class PublicTransportStopsLayer extends FeatureLayer {
     sbbStops: TransportStop[];
     venues: VenueLike[];
   } | null = null;
+  // Debounce handle for map move/zoom → render.
+  private renderDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     args: PublicTransportStopsLayerConstructorArgs & { wmeSDK: WmeSDK },
   ) {
     super({ ...args, wmeSDK: args.wmeSDK, minZoomLevel: 12 });
-    this.dataFetcher = new SBBDataFetcher({ dataSet: "haltestelle-haltekante" });
+    this.dataFetcher = new SBBDataFetcher({
+      dataSet: "haltestelle-haltekante",
+    });
     this.stopGeometry = new StopGeometry();
     this.nameFormatter = new StopNameFormatter();
     this.venueMatcher = new VenueMatcher();
@@ -199,7 +207,10 @@ class PublicTransportStopsLayer extends FeatureLayer {
     const record = args.record as TransportStop;
     return {
       geometry: {
-        coordinates: [record.geopos_haltestelle.lon, record.geopos_haltestelle.lat],
+        coordinates: [
+          record.geopos_haltestelle.lon,
+          record.geopos_haltestelle.lat,
+        ],
         type: "Point",
       },
       type: "Feature",
@@ -210,7 +221,9 @@ class PublicTransportStopsLayer extends FeatureLayer {
   async *fetchData(args: {
     wmeSDK: WmeSDK;
   }): AsyncGenerator<TransportStop[], void, unknown> {
-    for await (const batch of this.dataFetcher.fetchRecords({ wmeSDK: args.wmeSDK })) {
+    for await (const batch of this.dataFetcher.fetchRecords({
+      wmeSDK: args.wmeSDK,
+    })) {
       yield batch as TransportStop[];
     }
   }
@@ -231,7 +244,8 @@ class PublicTransportStopsLayer extends FeatureLayer {
     const { wmeSDK } = args;
     const generation = ++this.renderGeneration;
 
-    if (!wmeSDK.LayerSwitcher.isLayerCheckboxChecked({ name: this.name })) return;
+    if (!wmeSDK.LayerSwitcher.isLayerCheckboxChecked({ name: this.name }))
+      return;
 
     const zoomLevel = wmeSDK.Map.getZoomLevel();
     if (zoomLevel < this.minZoomLevel) {
@@ -288,7 +302,8 @@ class PublicTransportStopsLayer extends FeatureLayer {
       const apiVenues = await cellVenues[i];
       if (this.isStale(generation)) return;
       if (!reuse) {
-        for (const venue of apiVenues) fetchedVenues.set(String(venue.id), venue);
+        for (const venue of apiVenues)
+          fetchedVenues.set(String(venue.id), venue);
       }
 
       // Venues within the expanded cell (includes those just across a border),
@@ -326,7 +341,11 @@ class PublicTransportStopsLayer extends FeatureLayer {
 
       const desired =
         zoomLevel < 15
-          ? this.buildClusteredFeatures({ orangeStops, obsoleteVenues, zoomLevel })
+          ? this.buildClusteredFeatures({
+              orangeStops,
+              obsoleteVenues,
+              zoomLevel,
+            })
           : this.buildIndividualFeatures({ orangeStops, obsoleteVenues });
 
       this.addFeatures({ wmeSDK, desired });
@@ -344,11 +363,24 @@ class PublicTransportStopsLayer extends FeatureLayer {
     }
   }
 
+  // Debounce map move/zoom: a burst of moves (multi-step zoom, repeated drags)
+  // only triggers one fetch+match once the view settles for RENDER_DEBOUNCE_MS.
+  protected override onMapMoveEnd(args: { wmeSDK: WmeSDK }): void {
+    if (this.renderDebounceTimer !== null) {
+      clearTimeout(this.renderDebounceTimer);
+    }
+    this.renderDebounceTimer = setTimeout(() => {
+      this.renderDebounceTimer = null;
+      void waitForMapIdle({
+        wmeSDK: args.wmeSDK,
+        intervalMs: 50,
+        maxTries: 60,
+      }).then(() => this.render({ wmeSDK: args.wmeSDK }));
+    }, RENDER_DEBOUNCE_MS);
+  }
+
   /** True when the `inner` extent is fully contained within `outer`. */
-  private extentContains(args: {
-    outer: number[];
-    inner: number[];
-  }): boolean {
+  private extentContains(args: { outer: number[]; inner: number[] }): boolean {
     const [oMinLon, oMinLat, oMaxLon, oMaxLat] = args.outer;
     const [iMinLon, iMinLat, iMaxLon, iMaxLat] = args.inner;
     return (
@@ -526,7 +558,10 @@ class PublicTransportStopsLayer extends FeatureLayer {
   }
 
   /** Adds a tile's features incrementally, skipping any already on the map. */
-  private addFeatures(args: { wmeSDK: WmeSDK; desired: DesiredFeature[] }): void {
+  private addFeatures(args: {
+    wmeSDK: WmeSDK;
+    desired: DesiredFeature[];
+  }): void {
     const toAdd = args.desired.filter((f) => !this.visibleFeatureIds.has(f.id));
     if (toAdd.length === 0) return;
 
@@ -553,8 +588,12 @@ class PublicTransportStopsLayer extends FeatureLayer {
 
   override removeFromMap(args: { wmeSDK: WmeSDK }): void {
     super.removeFromMap(args);
-    // Cancel any in-flight render so it can't re-add features after teardown.
+    // Cancel any in-flight render and pending debounced render after teardown.
     this.renderGeneration++;
+    if (this.renderDebounceTimer !== null) {
+      clearTimeout(this.renderDebounceTimer);
+      this.renderDebounceTimer = null;
+    }
     this.cachedData = null;
     this.features.clear();
     this.featureKinds.clear();
@@ -638,7 +677,10 @@ class PublicTransportStopsLayer extends FeatureLayer {
       })
       .filter((item): item is NonNullable<typeof item> => item !== null);
 
-    const orangeResult = this.clusterManager.cluster({ items: orangeItems, zoomLevel });
+    const orangeResult = this.clusterManager.cluster({
+      items: orangeItems,
+      zoomLevel,
+    });
     const orangeStopById = new Map(
       args.orangeStops.map((s) => [String(s.number), s]),
     );
@@ -672,14 +714,19 @@ class PublicTransportStopsLayer extends FeatureLayer {
       })
       .filter((item): item is NonNullable<typeof item> => item !== null);
 
-    const redResult = this.clusterManager.cluster({ items: redItems, zoomLevel });
+    const redResult = this.clusterManager.cluster({
+      items: redItems,
+      zoomLevel,
+    });
     const obsoleteById = new Map(
       args.obsoleteVenues.map((v) => [`venue-${v.id}`, v]),
     );
 
     for (const cluster of redResult.clusters) {
       const svgDataUrl = generateClusterSvg(RED_COLOR, cluster.count);
-      result.push(this.clusterToFeature(cluster, "cluster-obsolete", svgDataUrl));
+      result.push(
+        this.clusterToFeature(cluster, "cluster-obsolete", svgDataUrl),
+      );
     }
     for (const item of redResult.singles) {
       const venue = obsoleteById.get(item.id);
@@ -733,7 +780,9 @@ class PublicTransportStopsLayer extends FeatureLayer {
     wmeSDK: WmeSDK;
   }): Promise<TransportStop[]> {
     const stops: TransportStop[] = [];
-    for await (const batch of this.dataFetcher.fetchRecords({ wmeSDK: args.wmeSDK })) {
+    for await (const batch of this.dataFetcher.fetchRecords({
+      wmeSDK: args.wmeSDK,
+    })) {
       stops.push(...(batch as TransportStop[]));
     }
     return stops;
@@ -834,7 +883,10 @@ class PublicTransportStopsLayer extends FeatureLayer {
     const centerLat = (minLat + maxLat) / 2;
     const centerLon = (minLon + maxLon) / 2;
     const zoomLevel = this.clusterManager.zoomForBbox(data.bbox);
-    wmeSDK.Map.setMapCenter({ lonLat: { lat: centerLat, lon: centerLon }, zoomLevel });
+    wmeSDK.Map.setMapCenter({
+      lonLat: { lat: centerLat, lon: centerLon },
+      zoomLevel,
+    });
   }
 
   private async handleObsoleteVenueClick(args: {
@@ -1000,7 +1052,8 @@ class PublicTransportStopsLayer extends FeatureLayer {
       wmeSDK.DataModel.Venues.getAll() as VenueLike[]
     ).filter((v) => v.categories.some((cat) => venueCategories.includes(cat)));
 
-    let venuesToUpdate: Array<VenueLike & { _updateCoordinates?: boolean }> = [];
+    let venuesToUpdate: Array<VenueLike & { _updateCoordinates?: boolean }> =
+      [];
 
     if (sdkCategoryVenues.length > 0) {
       const matchingVenues = this.venueMatcher.findMatchingVenues({
@@ -1124,7 +1177,8 @@ class PublicTransportStopsLayer extends FeatureLayer {
     aliases: string[];
     categories: string[];
   }): Promise<Array<VenueLike & { _updateCoordinates?: boolean }>> {
-    const { wmeSDK, venuesToUpdate, lon, lat, name, aliases, categories } = args;
+    const { wmeSDK, venuesToUpdate, lon, lat, name, aliases, categories } =
+      args;
     let venues = venuesToUpdate;
 
     if (venues.length === 0) {

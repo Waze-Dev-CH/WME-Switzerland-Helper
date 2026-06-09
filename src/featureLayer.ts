@@ -212,11 +212,7 @@ abstract class FeatureLayer extends Layer {
     const { wmeSDK } = args;
     const cleanupMove = wmeSDK.Events.on({
       eventName: "wme-map-move-end",
-      eventHandler: () => {
-        waitForMapIdle({ wmeSDK, intervalMs: 50, maxTries: 60 }).then(() => {
-          this.render({ wmeSDK });
-        });
-      },
+      eventHandler: () => this.onMapMoveEnd({ wmeSDK }),
     });
     this.eventCleanups.push(cleanupMove);
 
@@ -228,6 +224,14 @@ abstract class FeatureLayer extends Layer {
       },
     });
     this.eventCleanups.push(cleanupClick);
+  }
+
+  // Reaction to a map move/zoom settling. Override to customise (e.g. debounce).
+  protected onMapMoveEnd(args: { wmeSDK: WmeSDK }): void {
+    const { wmeSDK } = args;
+    waitForMapIdle({ wmeSDK, intervalMs: 50, maxTries: 60 }).then(() => {
+      this.render({ wmeSDK });
+    });
   }
 
   // Restore persisted state and ensure events + initial render
