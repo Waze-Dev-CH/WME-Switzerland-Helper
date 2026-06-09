@@ -46,17 +46,28 @@ interface WazeApiResponse {
 }
 
 class WazeVenueFetcher {
-  private getApiBaseUrl(): string {
-    const { origin, pathname } = window.location;
-    const region = pathname.split("/")[1] ?? "";
-    return `${origin}/${region}`;
+  private getApiBaseUrl(): string | null {
+    const entry = performance
+      .getEntriesByType("resource")
+      .map((entry) => entry.name)
+      .filter((name) => name.includes("/app/Features"))
+      .pop();
+
+    if (!entry) return null;
+
+    const url = new URL(entry);
+    const prefix = url.pathname.split("/app/Features")[0];
+    return `${url.origin}${prefix}`;
   }
 
   async fetchVenues(args: { wmeSDK: WmeSDK }): Promise<VenueLike[]> {
     const extent = args.wmeSDK.Map.getMapExtent();
     const [x1, y1, x2, y2] = extent;
     const bbox = `${x1},${y1},${x2},${y2}`;
-    const url = `${this.getApiBaseUrl()}/app/Features?bbox=${encodeURIComponent(bbox)}&v=2&apiV2=true&venueLevel=4&venueFilter=1,1,1,0`;
+    const apiBaseUrl = this.getApiBaseUrl();
+    if (!apiBaseUrl) return [];
+
+    const url = `${apiBaseUrl}/app/Features?bbox=${encodeURIComponent(bbox)}&v=2&apiV2=true&venueLevel=4&venueFilter=1,1,1,0`;
 
     let response;
     try {
