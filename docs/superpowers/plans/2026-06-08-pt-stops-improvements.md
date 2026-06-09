@@ -14,23 +14,24 @@
 
 ## File Map
 
-| File | Action | Responsibility |
-|---|---|---|
-| `header.js` | Modify | Add `@connect beta.waze.com` and `@connect www.waze.com` |
-| `locales/en/common.json` | Modify | Add `deleteObsoleteStop.{message,confirm,cancel}` |
-| `locales/fr/common.json` | Modify | Add `deleteObsoleteStop.{message,confirm,cancel}` |
-| `locales/de/common.json` | Modify | Add `deleteObsoleteStop.{message,confirm,cancel}` |
-| `locales/it/common.json` | Modify | Add `deleteObsoleteStop.{message,confirm,cancel}` |
-| `src/wazeVenueFetcher.ts` | **Create** | Fetch transport venues from Waze Features API (venueLevel=4) |
-| `src/clusterManager.ts` | **Create** | Greedy distance-based clustering + bbox→ZoomLevel helper |
-| `src/publicTransportStopsLayer.ts` | **Rewrite** | render() override, dynamic SVG styles, obsolete detection |
-| `main.user.ts` | Modify | Remove static `styleRules` from `PublicTransportStopsLayer` call |
+| File                               | Action      | Responsibility                                                   |
+| ---------------------------------- | ----------- | ---------------------------------------------------------------- |
+| `header.js`                        | Modify      | Add `@connect beta.waze.com` and `@connect www.waze.com`         |
+| `locales/en/common.json`           | Modify      | Add `deleteObsoleteStop.{message,confirm,cancel}`                |
+| `locales/fr/common.json`           | Modify      | Add `deleteObsoleteStop.{message,confirm,cancel}`                |
+| `locales/de/common.json`           | Modify      | Add `deleteObsoleteStop.{message,confirm,cancel}`                |
+| `locales/it/common.json`           | Modify      | Add `deleteObsoleteStop.{message,confirm,cancel}`                |
+| `src/wazeVenueFetcher.ts`          | **Create**  | Fetch transport venues from Waze Features API (venueLevel=4)     |
+| `src/clusterManager.ts`            | **Create**  | Greedy distance-based clustering + bbox→ZoomLevel helper         |
+| `src/publicTransportStopsLayer.ts` | **Rewrite** | render() override, dynamic SVG styles, obsolete detection        |
+| `main.user.ts`                     | Modify      | Remove static `styleRules` from `PublicTransportStopsLayer` call |
 
 ---
 
 ## Task 1: Prerequisites — header.js + i18n keys
 
 **Files:**
+
 - Modify: `header.js`
 - Modify: `locales/en/common.json`
 - Modify: `locales/fr/common.json`
@@ -47,6 +48,7 @@ In `header.js`, add two lines after `// @connect      data.sbb.ch` (currently li
 ```
 
 Final block (lines 16–19):
+
 ```js
 // @grant        GM_xmlhttpRequest
 // @grant        unsafeWindow
@@ -124,6 +126,7 @@ git commit -m "feat(transport): add @connect directives and delete dialog i18n k
 ## Task 2: Create `src/wazeVenueFetcher.ts`
 
 **Files:**
+
 - Create: `src/wazeVenueFetcher.ts`
 
 **Context:** The WME SDK's `DataModel.Venues.getAll()` only returns venues loaded into the current data model, which at zoom < 17 (venueLevel=3) does not include `BUS_STATION` or `TRAIN_STATION` objects. This fetcher calls the API directly with `venueLevel=4` to always get transport venues regardless of zoom.
@@ -246,6 +249,7 @@ git commit -m "feat(transport): add WazeVenueFetcher for direct API venue loadin
 ## Task 3: Create `src/clusterManager.ts`
 
 **Files:**
+
 - Create: `src/clusterManager.ts`
 
 **Context:** Greedy algorithm: sort items by latitude, then for each unassigned item, collect all unassigned items within radius R into a group. If a group has only 1 item, it is a "single" (shown as an individual feature). Groups of 2+ become clusters. `zoomForBbox` maps a bounding box span to the tightest zoom level that fits it, used when clicking a cluster to zoom in.
@@ -299,10 +303,10 @@ const CLUSTER_RADIUS_METERS: Record<number, number> = {
 };
 
 class ClusterManager {
-  cluster(args: {
-    items: ClusterItem[];
-    zoomLevel: number;
-  }): { clusters: ClusterGroup[]; singles: ClusterItem[] } {
+  cluster(args: { items: ClusterItem[]; zoomLevel: number }): {
+    clusters: ClusterGroup[];
+    singles: ClusterItem[];
+  } {
     const { items, zoomLevel } = args;
     const radius = CLUSTER_RADIUS_METERS[zoomLevel] ?? 800;
 
@@ -317,7 +321,8 @@ class ClusterManager {
       const nearby = sorted.filter(
         (item) =>
           !assigned.has(item.id) &&
-          haversineDistance(anchor.lat, anchor.lon, item.lat, item.lon) <= radius,
+          haversineDistance(anchor.lat, anchor.lon, item.lat, item.lon) <=
+            radius,
       );
 
       if (nearby.length === 1) {
@@ -384,9 +389,11 @@ git commit -m "feat(transport): add ClusterManager for greedy distance-based clu
 ## Task 4: Rewrite `src/publicTransportStopsLayer.ts`
 
 **Files:**
+
 - Modify: `src/publicTransportStopsLayer.ts`
 
 **Context:** Full content replacement. Key design decisions:
+
 - `render()` is overridden: base class render() is NOT called (it only handles the SBB stop flow and cannot be reused for the two-phase fetch+filter approach).
 - `styleContext` closures reference `this.featureKinds` and `this.clusterData` at render time; the SDK calls these functions on every map repaint.
 - `shouldDrawRecord()` is a required abstract stub — returns `true` since render() manages visibility directly.
@@ -505,7 +512,9 @@ class PublicTransportStopsLayer extends FeatureLayer {
     args: PublicTransportStopsLayerConstructorArgs & { wmeSDK: WmeSDK },
   ) {
     super({ ...args, wmeSDK: args.wmeSDK, minZoomLevel: 13 });
-    this.dataFetcher = new SBBDataFetcher({ dataSet: "haltestelle-haltekante" });
+    this.dataFetcher = new SBBDataFetcher({
+      dataSet: "haltestelle-haltekante",
+    });
     this.stopGeometry = new StopGeometry();
     this.nameFormatter = new StopNameFormatter();
     this.venueMatcher = new VenueMatcher();
@@ -563,7 +572,10 @@ class PublicTransportStopsLayer extends FeatureLayer {
     const record = args.record as TransportStop;
     return {
       geometry: {
-        coordinates: [record.geopos_haltestelle.lon, record.geopos_haltestelle.lat],
+        coordinates: [
+          record.geopos_haltestelle.lon,
+          record.geopos_haltestelle.lat,
+        ],
         type: "Point",
       },
       type: "Feature",
@@ -574,7 +586,9 @@ class PublicTransportStopsLayer extends FeatureLayer {
   async *fetchData(args: {
     wmeSDK: WmeSDK;
   }): AsyncGenerator<TransportStop[], void, unknown> {
-    for await (const batch of this.dataFetcher.fetchRecords({ wmeSDK: args.wmeSDK })) {
+    for await (const batch of this.dataFetcher.fetchRecords({
+      wmeSDK: args.wmeSDK,
+    })) {
       yield batch as TransportStop[];
     }
   }
@@ -593,7 +607,8 @@ class PublicTransportStopsLayer extends FeatureLayer {
   override async render(args: { wmeSDK: WmeSDK }): Promise<void> {
     const { wmeSDK } = args;
 
-    if (!wmeSDK.LayerSwitcher.isLayerCheckboxChecked({ name: this.name })) return;
+    if (!wmeSDK.LayerSwitcher.isLayerCheckboxChecked({ name: this.name }))
+      return;
 
     const zoomLevel = wmeSDK.Map.getZoomLevel();
     if (zoomLevel < this.minZoomLevel) return;
@@ -628,7 +643,11 @@ class PublicTransportStopsLayer extends FeatureLayer {
 
     const desired =
       zoomLevel < 15
-        ? this.buildClusteredFeatures({ orangeStops, obsoleteVenues, zoomLevel })
+        ? this.buildClusteredFeatures({
+            orangeStops,
+            obsoleteVenues,
+            zoomLevel,
+          })
         : this.buildIndividualFeatures({ orangeStops, obsoleteVenues });
 
     // Diff: remove stale features, add new ones
@@ -638,7 +657,10 @@ class PublicTransportStopsLayer extends FeatureLayer {
     );
 
     if (staleIds.length > 0) {
-      wmeSDK.Map.removeFeaturesFromLayer({ featureIds: staleIds, layerName: this.name });
+      wmeSDK.Map.removeFeaturesFromLayer({
+        featureIds: staleIds,
+        layerName: this.name,
+      });
       for (const id of staleIds) {
         this.visibleFeatureIds.delete(id);
         this.features.delete(id);
@@ -745,7 +767,10 @@ class PublicTransportStopsLayer extends FeatureLayer {
       })
       .filter((item): item is NonNullable<typeof item> => item !== null);
 
-    const orangeResult = this.clusterManager.cluster({ items: orangeItems, zoomLevel });
+    const orangeResult = this.clusterManager.cluster({
+      items: orangeItems,
+      zoomLevel,
+    });
     const orangeStopById = new Map(
       args.orangeStops.map((s) => [String(s.number), s]),
     );
@@ -779,14 +804,19 @@ class PublicTransportStopsLayer extends FeatureLayer {
       })
       .filter((item): item is NonNullable<typeof item> => item !== null);
 
-    const redResult = this.clusterManager.cluster({ items: redItems, zoomLevel });
+    const redResult = this.clusterManager.cluster({
+      items: redItems,
+      zoomLevel,
+    });
     const obsoleteById = new Map(
       args.obsoleteVenues.map((v) => [`venue-${v.id}`, v]),
     );
 
     for (const cluster of redResult.clusters) {
       const svgDataUrl = generateClusterSvg(RED_COLOR, cluster.count);
-      result.push(this.clusterToFeature(cluster, "cluster-obsolete", svgDataUrl));
+      result.push(
+        this.clusterToFeature(cluster, "cluster-obsolete", svgDataUrl),
+      );
     }
     for (const item of redResult.singles) {
       const venue = obsoleteById.get(item.id);
@@ -840,7 +870,9 @@ class PublicTransportStopsLayer extends FeatureLayer {
     wmeSDK: WmeSDK;
   }): Promise<TransportStop[]> {
     const stops: TransportStop[] = [];
-    for await (const batch of this.dataFetcher.fetchRecords({ wmeSDK: args.wmeSDK })) {
+    for await (const batch of this.dataFetcher.fetchRecords({
+      wmeSDK: args.wmeSDK,
+    })) {
       stops.push(...(batch as TransportStop[]));
     }
     return stops;
@@ -944,7 +976,10 @@ class PublicTransportStopsLayer extends FeatureLayer {
     const centerLat = (minLat + maxLat) / 2;
     const centerLon = (minLon + maxLon) / 2;
     const zoomLevel = this.clusterManager.zoomForBbox(data.bbox);
-    wmeSDK.Map.setMapCenter({ lonLat: { lat: centerLat, lon: centerLon }, zoomLevel });
+    wmeSDK.Map.setMapCenter({
+      lonLat: { lat: centerLat, lon: centerLon },
+      zoomLevel,
+    });
   }
 
   private async handleObsoleteVenueClick(args: {
@@ -1007,7 +1042,8 @@ class PublicTransportStopsLayer extends FeatureLayer {
       v.categories.some((cat) => venueCategories.includes(cat)),
     );
 
-    let venuesToUpdate: Array<VenueLike & { _updateCoordinates?: boolean }> = [];
+    let venuesToUpdate: Array<VenueLike & { _updateCoordinates?: boolean }> =
+      [];
 
     if (categoryFilteredVenues.length > 0) {
       const matchingVenues = this.venueMatcher.findMatchingVenues({
@@ -1119,7 +1155,8 @@ class PublicTransportStopsLayer extends FeatureLayer {
     aliases: string[];
     categories: string[];
   }): Promise<Array<VenueLike & { _updateCoordinates?: boolean }>> {
-    const { wmeSDK, venuesToUpdate, lon, lat, name, aliases, categories } = args;
+    const { wmeSDK, venuesToUpdate, lon, lat, name, aliases, categories } =
+      args;
     let venues = venuesToUpdate;
 
     if (venues.length === 0) {
@@ -1192,6 +1229,7 @@ git commit -m "feat(transport): rewrite PT stops layer with parallel fetch, obso
 ## Task 5: Update `main.user.ts` + final build
 
 **Files:**
+
 - Modify: `main.user.ts`
 
 - [ ] **Step 1: Remove static styleRules from the PublicTransportStopsLayer call**
@@ -1199,6 +1237,7 @@ git commit -m "feat(transport): rewrite PT stops layer with parallel fetch, obso
 In `main.user.ts`, find the `PublicTransportStopsLayer` instantiation (around line 124). Remove the `styleRules` array entirely.
 
 Current code:
+
 ```typescript
 new PublicTransportStopsLayer({
   wmeSDK: wmeSDK,
@@ -1221,6 +1260,7 @@ new PublicTransportStopsLayer({
 ```
 
 Replace with:
+
 ```typescript
 new PublicTransportStopsLayer({
   wmeSDK: wmeSDK,

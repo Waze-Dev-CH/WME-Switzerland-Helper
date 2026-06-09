@@ -24,7 +24,7 @@ Responsabilité : appeler l'API WME Features directement pour obtenir les venues
 
 ```typescript
 class WazeVenueFetcher {
-  async fetchVenues(args: { wmeSDK: WmeSDK }): Promise<VenueLike[]>
+  async fetchVenues(args: { wmeSDK: WmeSDK }): Promise<VenueLike[]>;
 }
 ```
 
@@ -43,7 +43,7 @@ Responsabilité : regrouper une liste de positions en clusters selon le niveau d
 
 ```typescript
 interface Cluster {
-  id: string;  // hash déterministe des IDs des éléments
+  id: string; // hash déterministe des IDs des éléments
   center: { lat: number; lon: number };
   bbox: [number, number, number, number]; // [minLon, minLat, maxLon, maxLat]
   count: number;
@@ -53,13 +53,19 @@ interface Cluster {
 
 class ClusterManager {
   cluster(args: {
-    items: Array<{ id: string; lat: number; lon: number; kind: "sbb-stop" | "obsolete-venue" }>;
+    items: Array<{
+      id: string;
+      lat: number;
+      lon: number;
+      kind: "sbb-stop" | "obsolete-venue";
+    }>;
     zoomLevel: number;
-  }): { clusters: Cluster[]; singles: typeof args.items }
+  }): { clusters: Cluster[]; singles: typeof args.items };
 }
 ```
 
 **Algorithme greedy distance-based :**
+
 1. Trier les items par latitude
 2. Pour chaque item non-assigné, créer un cluster et y ajouter tous les items dans rayon `R(zoom)` :
    - Zoom 13 → R = 2000m
@@ -99,12 +105,15 @@ Les `wazeVenues` remplacent `wmeSDK.DataModel.Venues.getAll()` pour la correspon
 **Zoom ≥ 15 (stops individuels) :**
 
 Phase 1 — Stops SBB :
+
 - Pour chaque stop SBB : `hasExactMatch(wazeVenues)` → si pas de match → feature orange
 
 Phase 2 — Venues obsolètes :
+
 - Pour chaque venue WME transport : `findMatchingSBBStop(sbbStops)` en utilisant `VenueMatcher.findMatchingVenues` inversé → si pas de match → feature rouge
 
 **Zoom 13–14 (clustering) :**
+
 - Même filtrage que zoom ≥ 15, mais les résultats passent dans `ClusterManager`
 - Les clusters (count ≥ 2) → features cluster orange ou rouge
 - Les singles (count = 1) → features individuelles orange ou rouge
@@ -135,18 +144,19 @@ Si `styleContext` avec attributs dynamiques n'est pas supporté par le SDK, fall
 ### `minZoomLevel` → 13
 
 Abaissé de 14 à 13. La logique de zoom détermine l'affichage :
+
 - zoom ≥ 15 → stops individuels
 - zoom 13–14 → clusters
 - zoom < 13 → rien (garder un seuil bas pour performance)
 
 ### Click handlers
 
-| Feature cliquée | Comportement |
-|---|---|
-| Orange individuel | Inchangé (dialog merge/create existant) |
-| Rouge individuel | Dialog confirmation → `wmeSDK.DataModel.Venues.deleteVenue({ venueId })` → `removeFeature` |
-| Cluster orange | `wmeSDK.Map.setMapExtent({ extent: [bbox avec padding 0.001°] })` |
-| Cluster rouge | Idem — zoom sur bbox |
+| Feature cliquée   | Comportement                                                                               |
+| ----------------- | ------------------------------------------------------------------------------------------ |
+| Orange individuel | Inchangé (dialog merge/create existant)                                                    |
+| Rouge individuel  | Dialog confirmation → `wmeSDK.DataModel.Venues.deleteVenue({ venueId })` → `removeFeature` |
+| Cluster orange    | `wmeSDK.Map.setMapExtent({ extent: [bbox avec padding 0.001°] })`                          |
+| Cluster rouge     | Idem — zoom sur bbox                                                                       |
 
 Le zoom cluster cible le bbox du cluster (pas de zoomLevel fixe — le SDK calcule le zoom adapté à l'extent).
 
@@ -154,14 +164,14 @@ Le zoom cluster cible le bbox du cluster (pas de zoomLevel fixe — le SDK calcu
 
 ## Fichiers à créer / modifier
 
-| Fichier | Action |
-|---|---|
-| `src/wazeVenueFetcher.ts` | Créer |
-| `src/clusterManager.ts` | Créer |
-| `src/publicTransportStopsLayer.ts` | Modifier (majeur) |
-| `src/featureLayer.ts` | Aucune modification nécessaire |
-| `header.js` | Vérifier/ajouter `@connect beta.waze.com` |
-| `locales/*/common.json` | Ajouter clés i18n pour dialog suppression |
+| Fichier                            | Action                                    |
+| ---------------------------------- | ----------------------------------------- |
+| `src/wazeVenueFetcher.ts`          | Créer                                     |
+| `src/clusterManager.ts`            | Créer                                     |
+| `src/publicTransportStopsLayer.ts` | Modifier (majeur)                         |
+| `src/featureLayer.ts`              | Aucune modification nécessaire            |
+| `header.js`                        | Vérifier/ajouter `@connect beta.waze.com` |
+| `locales/*/common.json`            | Ajouter clés i18n pour dialog suppression |
 
 ---
 
