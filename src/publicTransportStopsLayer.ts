@@ -31,7 +31,7 @@ import { showWmeDialog, waitForMapIdle } from "./utils";
 import { StopGeometry } from "./stopGeometry";
 import { StopNameFormatter } from "./stopNameFormatter";
 import { VenueMatcher, type VenueLike } from "./venueMatcher";
-import { WazeVenueFetcher } from "./wazeVenueFetcher";
+import { WazeVenueFetcher, TRANSPORT_CATEGORIES } from "./wazeVenueFetcher";
 import { ClusterManager, type ClusterGroup } from "./clusterManager";
 import i18next from "../locales/i18n";
 
@@ -87,6 +87,25 @@ function generateClusterSvg(color: string, count: number): string {
 const ORANGE_STOP_SVG = generateStopSvg(ORANGE_COLOR);
 const RED_STOP_SVG = generateStopSvg(RED_COLOR);
 
+// Number of records processed between yields to the event loop during the
+// O(stops × venues) matching, so the map stays interactive on large viewports.
+const MATCH_CHUNK_SIZE = 100;
+
+// Venue categories that must never be marked obsolete: the SBB stop dataset is
+// not authoritative for ports/marinas/harbors (e.g. pleasure ports).
+const OBSOLETE_EXEMPT_CATEGORIES = ["SEAPORT_MARINA_HARBOR"];
+
+// Venues can be added/edited from zoom 16 (WME's minimum editable zoom) now that
+// venue data comes from the Waze API rather than the SDK's zoom-17 data load.
+const ADD_VENUE_MIN_ZOOM = 16;
+// When a stop is clicked below that zoom, recenter and zoom in to this level.
+const ADD_VENUE_ZOOM_IN_LEVEL = 17;
+
+// Yields control to the browser so it can repaint/handle input between chunks.
+function yieldToEventLoop(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 interface PublicTransportStopsLayerConstructorArgs {
   name: string;
 }
@@ -100,7 +119,10 @@ class PublicTransportStopsLayer extends FeatureLayer {
   private readonly clusterManager: ClusterManager;
   private readonly featureKinds: Map<string, FeatureKind>;
   private readonly clusterData: Map<string, ClusterDisplayData>;
-  private renderInProgress = false;
+  // Monotonic token: every render() call bumps it and captures its own value.
+  // After each await, a render whose token is stale (a newer render started)
+  // bails out, so a fresh map move effectively cancels the in-flight render.
+  private renderGeneration = 0;
 
   constructor(
     args: PublicTransportStopsLayerConstructorArgs & { wmeSDK: WmeSDK },
@@ -193,86 +215,190 @@ class PublicTransportStopsLayer extends FeatureLayer {
   // --- render() override ---
 
   override async render(args: { wmeSDK: WmeSDK }): Promise<void> {
-    if (this.renderInProgress) return;
-    this.renderInProgress = true;
-    try {
-      const { wmeSDK } = args;
+    const { wmeSDK } = args;
+    const generation = ++this.renderGeneration;
 
-      if (!wmeSDK.LayerSwitcher.isLayerCheckboxChecked({ name: this.name })) return;
+    if (!wmeSDK.LayerSwitcher.isLayerCheckboxChecked({ name: this.name })) return;
 
-      const zoomLevel = wmeSDK.Map.getZoomLevel();
-      if (zoomLevel < this.minZoomLevel) return;
+    const zoomLevel = wmeSDK.Map.getZoomLevel();
+    if (zoomLevel < this.minZoomLevel) {
+      // Below the threshold we show nothing — clear any features left over from
+      // a higher zoom so stale clusters don't linger (and stay clickable).
+      this.applyDiff({ wmeSDK, desired: [] });
+      return;
+    }
 
-      const [sbbStops, wazeVenues] = await Promise.all([
-        this.collectAllSBBStops({ wmeSDK }),
-        this.wazeVenueFetcher.fetchVenues({ wmeSDK }),
-      ]);
+    // Fetch SBB stops and Waze API venues in parallel.
+    const [sbbStops, wazeVenues] = await Promise.all([
+      this.collectAllSBBStops({ wmeSDK }),
+      this.wazeVenueFetcher.fetchVenues({ wmeSDK }),
+    ]);
+    if (this.isStale(generation)) return;
 
-      // Phase 1: SBB stops without an exact WME venue match → orange
-      const orangeStops = sbbStops.filter((stop) => {
-        if (!stop.meansoftransport) return false;
-        const stopLonLat = this.stopLonLat(stop);
-        if (!stopLonLat) return false;
+    // The Waze Features API only returns saved venues; the SDK data model also
+    // exposes venues created/edited locally but not yet saved. Merge both so a
+    // freshly created (unsaved) stop is matched and not redrawn in orange.
+    const venues = this.mergeVenues({ wmeSDK, wazeVenues });
+
+    // Filtering happens BEFORE clustering, chunked so the map stays responsive.
+    // Phase 1: SBB stops without an exact WME venue match → orange.
+    const orangeStops = await this.filterOrangeStops({
+      sbbStops,
+      venues,
+      generation,
+    });
+    if (this.isStale(generation)) return;
+
+    // Phase 2: WME transport venues with no matching SBB stop → red (obsolete).
+    const obsoleteVenues = await this.filterObsoleteVenues({
+      venues,
+      sbbStops,
+      generation,
+    });
+    if (this.isStale(generation)) return;
+
+    const desired =
+      zoomLevel < 15
+        ? this.buildClusteredFeatures({ orangeStops, obsoleteVenues, zoomLevel })
+        : this.buildIndividualFeatures({ orangeStops, obsoleteVenues });
+    if (this.isStale(generation)) return;
+
+    this.applyDiff({ wmeSDK, desired });
+  }
+
+  /** A render is stale once a newer render() call has bumped the generation. */
+  private isStale(generation: number): boolean {
+    return generation !== this.renderGeneration;
+  }
+
+  /**
+   * Union of Waze API venues and SDK data-model venues, deduped by id and
+   * restricted to transport categories. SDK entries win on conflict so local
+   * unsaved edits take precedence over the server snapshot.
+   */
+  private mergeVenues(args: {
+    wmeSDK: WmeSDK;
+    wazeVenues: VenueLike[];
+  }): VenueLike[] {
+    const byId = new Map<string, VenueLike>();
+    for (const venue of args.wazeVenues) {
+      byId.set(String(venue.id), venue);
+    }
+    const sdkVenues = args.wmeSDK.DataModel.Venues.getAll() as VenueLike[];
+    for (const venue of sdkVenues) {
+      const isTransport = venue.categories.some((c) =>
+        TRANSPORT_CATEGORIES.includes(c),
+      );
+      if (isTransport) byId.set(String(venue.id), venue);
+    }
+    return Array.from(byId.values());
+  }
+
+  private async filterOrangeStops(args: {
+    sbbStops: TransportStop[];
+    venues: VenueLike[];
+    generation: number;
+  }): Promise<TransportStop[]> {
+    const result: TransportStop[] = [];
+    let processed = 0;
+
+    for (const stop of args.sbbStops) {
+      const stopLonLat = stop.meansoftransport ? this.stopLonLat(stop) : null;
+      if (stopLonLat) {
         const { name } = this.nameFormatter.formatName(stop);
         const categories = this.venueCategories({
           meansoftransport: stop.meansoftransport,
         });
-        return !this.venueMatcher.hasExactMatch({
-          venues: wazeVenues,
+        const matched = this.venueMatcher.hasExactMatch({
+          venues: args.venues,
           stopLon: stopLonLat.lon,
           stopLat: stopLonLat.lat,
           stopName: name,
           categories,
         });
+        if (!matched) result.push(stop);
+      }
+
+      if (++processed % MATCH_CHUNK_SIZE === 0) {
+        await yieldToEventLoop();
+        if (this.isStale(args.generation)) return result;
+      }
+    }
+
+    return result;
+  }
+
+  private async filterObsoleteVenues(args: {
+    venues: VenueLike[];
+    sbbStops: TransportStop[];
+    generation: number;
+  }): Promise<VenueLike[]> {
+    const result: VenueLike[] = [];
+    let processed = 0;
+
+    for (const venue of args.venues) {
+      // Ports / marinas / harbors are transport venues but the SBB stop dataset
+      // is not authoritative for them (many are pleasure ports with no boat
+      // stop), so they must never be flagged as obsolete.
+      const isExemptFromObsolete = venue.categories.some((c) =>
+        OBSOLETE_EXEMPT_CATEGORIES.includes(c),
+      );
+      if (
+        !isExemptFromObsolete &&
+        !this.isCoveredBySBBStop({ venue, sbbStops: args.sbbStops })
+      ) {
+        result.push(venue);
+      }
+
+      if (++processed % MATCH_CHUNK_SIZE === 0) {
+        await yieldToEventLoop();
+        if (this.isStale(args.generation)) return result;
+      }
+    }
+
+    return result;
+  }
+
+  /** Synchronously reconcile the map with the desired feature set (no awaits). */
+  private applyDiff(args: { wmeSDK: WmeSDK; desired: DesiredFeature[] }): void {
+    const { wmeSDK, desired } = args;
+
+    const newIds = new Set(desired.map((f) => f.id));
+    const staleIds = Array.from(this.visibleFeatureIds).filter(
+      (id) => !newIds.has(id),
+    );
+
+    if (staleIds.length > 0) {
+      wmeSDK.Map.removeFeaturesFromLayer({
+        featureIds: staleIds,
+        layerName: this.name,
       });
+      for (const id of staleIds) {
+        this.visibleFeatureIds.delete(id);
+        this.features.delete(id);
+        this.featureKinds.delete(id);
+        this.clusterData.delete(id);
+      }
+    }
 
-      // Phase 2: WME transport venues with no matching SBB stop → red
-      const obsoleteVenues = wazeVenues.filter(
-        (venue) => !this.isCoveredBySBBStop({ venue, sbbStops }),
-      );
-
-      const desired =
-        zoomLevel < 15
-          ? this.buildClusteredFeatures({ orangeStops, obsoleteVenues, zoomLevel })
-          : this.buildIndividualFeatures({ orangeStops, obsoleteVenues });
-
-      // Diff: remove stale features, add new ones
-      const newIds = new Set(desired.map((f) => f.id));
-      const staleIds = Array.from(this.visibleFeatureIds).filter(
-        (id) => !newIds.has(id),
-      );
-
-      if (staleIds.length > 0) {
-        wmeSDK.Map.removeFeaturesFromLayer({ featureIds: staleIds, layerName: this.name });
-        for (const id of staleIds) {
-          this.visibleFeatureIds.delete(id);
-          this.features.delete(id);
-          this.featureKinds.delete(id);
-          this.clusterData.delete(id);
+    const toAdd = desired.filter((f) => !this.visibleFeatureIds.has(f.id));
+    if (toAdd.length > 0) {
+      // Populate the lookup maps BEFORE adding features: the SDK invokes the
+      // styleContext callbacks synchronously during addFeaturesToLayer, so the
+      // kind/cluster data must already be present — otherwise clusters draw
+      // with the default stop icon (and radius 13) instead of the cluster icon.
+      for (const f of toAdd) {
+        this.visibleFeatureIds.add(f.id);
+        this.features.set(f.id, f.record);
+        this.featureKinds.set(f.id, f.kind);
+        if (f.clusterDisplayData) {
+          this.clusterData.set(f.id, f.clusterDisplayData);
         }
       }
-
-      const toAdd = desired.filter((f) => !this.visibleFeatureIds.has(f.id));
-      if (toAdd.length > 0) {
-        // Populate the lookup maps BEFORE adding features: the SDK invokes the
-        // styleContext callbacks synchronously during addFeaturesToLayer, so the
-        // kind/cluster data must already be present — otherwise clusters draw
-        // with the default stop icon (and radius 13) instead of the cluster icon.
-        for (const f of toAdd) {
-          this.visibleFeatureIds.add(f.id);
-          this.features.set(f.id, f.record);
-          this.featureKinds.set(f.id, f.kind);
-          if (f.clusterDisplayData) {
-            this.clusterData.set(f.id, f.clusterDisplayData);
-          }
-        }
-        wmeSDK.Map.addFeaturesToLayer({
-          features: toAdd.map((f) => f.sdkFeature),
-          layerName: this.name,
-        });
-      }
-    } finally {
-      this.renderInProgress = false;
+      wmeSDK.Map.addFeaturesToLayer({
+        features: toAdd.map((f) => f.sdkFeature),
+        layerName: this.name,
+      });
     }
   }
 
@@ -282,6 +408,8 @@ class PublicTransportStopsLayer extends FeatureLayer {
 
   override removeFromMap(args: { wmeSDK: WmeSDK }): void {
     super.removeFromMap(args);
+    // Cancel any in-flight render so it can't re-add features after teardown.
+    this.renderGeneration++;
     this.features.clear();
     this.featureKinds.clear();
     this.clusterData.clear();
@@ -613,7 +741,7 @@ class PublicTransportStopsLayer extends FeatureLayer {
     const { lat, lon } = stopLonLat;
     const zoomLevel = wmeSDK.Map.getZoomLevel();
 
-    if (zoomLevel < 17) {
+    if (zoomLevel < ADD_VENUE_MIN_ZOOM) {
       this.handleZoomRequired({ wmeSDK, lat, lon });
       return;
     }
@@ -680,7 +808,10 @@ class PublicTransportStopsLayer extends FeatureLayer {
   }): void {
     const { wmeSDK, lat, lon } = args;
     this.unregisterEvents();
-    wmeSDK.Map.setMapCenter({ lonLat: { lat, lon }, zoomLevel: 17 });
+    wmeSDK.Map.setMapCenter({
+      lonLat: { lat, lon },
+      zoomLevel: ADD_VENUE_ZOOM_IN_LEVEL,
+    });
     this.registerEvents({ wmeSDK });
     waitForMapIdle({ wmeSDK, intervalMs: 50, maxTries: 60 }).then(() => {
       this.refilterFeatures({ wmeSDK });
