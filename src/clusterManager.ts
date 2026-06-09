@@ -37,6 +37,7 @@ interface ClusterGroup {
 }
 
 const CLUSTER_RADIUS_METERS: Record<number, number> = {
+  12: 4000,
   13: 2000,
   14: 800,
 };

@@ -34,44 +34,32 @@ class VenueMatcher {
     this.stopGeometry = new StopGeometry();
   }
 
+  // Candidate venues for a stop: same category and within radius. Name is
+  // intentionally ignored so a renamed stop still matches its existing venue
+  // (same location/type) and can be offered as an update rather than a new POI.
   findMatchingVenues(args: {
     venues: VenueLike[];
     stopLon: number;
     stopLat: number;
-    stopName: string;
-    stopShortName: string;
     categories: string[];
     radiusMeters: number;
   }): VenueLike[] {
-    const {
-      venues,
-      stopLon,
-      stopLat,
-      stopName,
-      stopShortName,
-      categories,
-      radiusMeters,
-    } = args;
+    const { venues, stopLon, stopLat, categories, radiusMeters } = args;
 
     const stopPoint = point([stopLon, stopLat]);
 
-    const matchingVenues = venues.filter((venue) => {
+    return venues.filter((venue) => {
       const hasMatchingCategory = venue.categories.some((cat) =>
         categories.includes(cat),
       );
       if (!hasMatchingCategory) return false;
 
-      const isWithinRadius = this.stopGeometry.isWithinRadius({
+      return this.stopGeometry.isWithinRadius({
         stopPoint,
         venueGeometry: venue.geometry,
         radiusMeters,
       });
-      if (!isWithinRadius) return false;
-
-      return venue.name.toLowerCase().includes(stopShortName.toLowerCase());
     });
-
-    return matchingVenues;
   }
 
   hasExactMatch(args: {

@@ -57,12 +57,17 @@ class WazeVenueFetcher {
     return `${host}/${region}-Descartes`;
   }
 
-  async fetchVenues(args: { wmeSDK: WmeSDK }): Promise<VenueLike[]> {
-    const extent = args.wmeSDK.Map.getMapExtent();
-    const [x1, y1, x2, y2] = extent;
-    const bbox = `${x1},${y1},${x2},${y2}`;
+  // Fetches transport venues for a single bbox. The Features API caps the
+  // number of venues per request, so the caller queries a grid of small cells
+  // (one call each) rather than one large viewport request — otherwise
+  // transport stops get crowded out of the capped result on a wide extent.
+  async fetchVenuesForBbox(args: {
+    wmeSDK: WmeSDK;
+    bbox: [number, number, number, number];
+  }): Promise<VenueLike[]> {
     const apiBaseUrl = this.getApiBaseUrl({ wmeSDK: args.wmeSDK });
-
+    const [x1, y1, x2, y2] = args.bbox;
+    const bbox = `${x1},${y1},${x2},${y2}`;
     const url = `${apiBaseUrl}/app/Features?bbox=${encodeURIComponent(bbox)}&v=2&apiV2=true&venueLevel=4`;
 
     let response;

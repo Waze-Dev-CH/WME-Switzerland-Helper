@@ -123,11 +123,19 @@ class PublicTransportStopsLayer extends FeatureLayer {
   // After each await, a render whose token is stale (a newer render started)
   // bails out, so a fresh map move effectively cancels the in-flight render.
   private renderGeneration = 0;
+  // Last fetched data and the extent it covers. Reused (no refetch) while the
+  // viewport stays within that extent (zoom in / pan inside); invalidated on
+  // zoom out, pan outside, layer teardown, or a venue create/delete.
+  private cachedData: {
+    extent: number[];
+    sbbStops: TransportStop[];
+    venues: VenueLike[];
+  } | null = null;
 
   constructor(
     args: PublicTransportStopsLayerConstructorArgs & { wmeSDK: WmeSDK },
   ) {
-    super({ ...args, wmeSDK: args.wmeSDK, minZoomLevel: 13 });
+    super({ ...args, wmeSDK: args.wmeSDK, minZoomLevel: 12 });
     this.dataFetcher = new SBBDataFetcher({ dataSet: "haltestelle-haltekante" });
     this.stopGeometry = new StopGeometry();
     this.nameFormatter = new StopNameFormatter();
@@ -222,48 +230,114 @@ class PublicTransportStopsLayer extends FeatureLayer {
 
     const zoomLevel = wmeSDK.Map.getZoomLevel();
     if (zoomLevel < this.minZoomLevel) {
-      // Below the threshold we show nothing — clear any features left over from
-      // a higher zoom so stale clusters don't linger (and stay clickable).
-      this.applyDiff({ wmeSDK, desired: [] });
+      // Below the threshold we show nothing — clear leftovers so stale clusters
+      // don't linger (and stay clickable) at low zoom.
+      this.clearAllFeatures({ wmeSDK });
+      this.cachedData = null;
       return;
     }
 
-    // Fetch SBB stops and Waze API venues in parallel.
-    const [sbbStops, wazeVenues] = await Promise.all([
-      this.collectAllSBBStops({ wmeSDK }),
-      this.wazeVenueFetcher.fetchVenues({ wmeSDK }),
-    ]);
-    if (this.isStale(generation)) return;
+    const extent = wmeSDK.Map.getMapExtent();
+    const cells = this.buildRasterCells({ extent, zoomLevel });
+    // SDK venues are always read fresh (cheap, reflects local unsaved edits).
+    const sdkVenues = this.getSdkTransportVenues({ wmeSDK });
 
-    // The Waze Features API only returns saved venues; the SDK data model also
-    // exposes venues created/edited locally but not yet saved. Merge both so a
-    // freshly created (unsaved) stop is matched and not redrawn in orange.
-    const venues = this.mergeVenues({ wmeSDK, wazeVenues });
+    // Reuse already-fetched data while the viewport stays within it (zoom in /
+    // pan inside): only the clustering is recomputed for the new bounds. Refetch
+    // when the viewport grows beyond the cached extent (zoom out / pan outside).
+    const reuse =
+      this.cachedData !== null &&
+      this.extentContains({ outer: this.cachedData.extent, inner: extent });
 
-    // Filtering happens BEFORE clustering, chunked so the map stays responsive.
-    // Phase 1: SBB stops without an exact WME venue match → orange.
-    const orangeStops = await this.filterOrangeStops({
-      sbbStops,
-      venues,
-      generation,
-    });
-    if (this.isStale(generation)) return;
+    let sbbStops: TransportStop[];
+    let cellVenues: Array<Promise<VenueLike[]>>;
+    if (reuse) {
+      const cache = this.cachedData!;
+      sbbStops = cache.sbbStops;
+      cellVenues = cells.map((bbox) =>
+        Promise.resolve(
+          cache.venues.filter((v) =>
+            this.isInBbox({ lonLat: this.getVenueCenter(v), bbox }),
+          ),
+        ),
+      );
+    } else {
+      sbbStops = await this.collectAllSBBStops({ wmeSDK });
+      if (this.isStale(generation)) return;
+      cellVenues = cells.map((bbox) =>
+        this.wazeVenueFetcher.fetchVenuesForBbox({ wmeSDK, bbox }),
+      );
+    }
 
-    // Phase 2: WME transport venues with no matching SBB stop → red (obsolete).
-    const obsoleteVenues = await this.filterObsoleteVenues({
-      venues,
-      sbbStops,
-      generation,
-    });
-    if (this.isStale(generation)) return;
+    // Repaint tile by tile so progress is visible: clear, then render each cell
+    // as soon as its venues arrive, sweeping in raster order.
+    this.clearAllFeatures({ wmeSDK });
+    const fetchedVenues = new Map<string, VenueLike>();
 
-    const desired =
-      zoomLevel < 15
-        ? this.buildClusteredFeatures({ orangeStops, obsoleteVenues, zoomLevel })
-        : this.buildIndividualFeatures({ orangeStops, obsoleteVenues });
-    if (this.isStale(generation)) return;
+    for (let i = 0; i < cells.length; i++) {
+      const bbox = cells[i];
+      const apiVenues = await cellVenues[i];
+      if (this.isStale(generation)) return;
+      if (!reuse) {
+        for (const venue of apiVenues) fetchedVenues.set(String(venue.id), venue);
+      }
 
-    this.applyDiff({ wmeSDK, desired });
+      const venues = this.mergeCellVenues({ apiVenues, sdkVenues, bbox });
+      const cellStops = sbbStops.filter((stop) =>
+        this.isInBbox({ lonLat: this.stopLonLat(stop), bbox }),
+      );
+
+      // Orange: stops in this cell with no matching venue.
+      const orangeStops = await this.filterOrangeStops({
+        sbbStops: cellStops,
+        venues,
+        generation,
+      });
+      if (this.isStale(generation)) return;
+
+      // Red/obsolete: this cell's venues with no matching SBB stop. Matched
+      // against all stops (not just the cell) since a venue's stop can sit just
+      // across a cell border and a false delete-prompt is costly.
+      const obsoleteVenues = await this.filterObsoleteVenues({
+        venues,
+        sbbStops,
+        generation,
+      });
+      if (this.isStale(generation)) return;
+
+      const desired =
+        zoomLevel < 15
+          ? this.buildClusteredFeatures({ orangeStops, obsoleteVenues, zoomLevel })
+          : this.buildIndividualFeatures({ orangeStops, obsoleteVenues });
+
+      this.addFeatures({ wmeSDK, desired });
+      // Yield so the browser paints this tile before we process the next one.
+      await yieldToEventLoop();
+      if (this.isStale(generation)) return;
+    }
+
+    if (!reuse) {
+      this.cachedData = {
+        extent,
+        sbbStops,
+        venues: Array.from(fetchedVenues.values()),
+      };
+    }
+  }
+
+  /** True when the `inner` extent is fully contained within `outer`. */
+  private extentContains(args: {
+    outer: number[];
+    inner: number[];
+  }): boolean {
+    const [oMinLon, oMinLat, oMaxLon, oMaxLat] = args.outer;
+    const [iMinLon, iMinLat, iMaxLon, iMaxLat] = args.inner;
+    return (
+      iMinLon >= oMinLon &&
+      iMinLat >= oMinLat &&
+      iMaxLon <= oMaxLon &&
+      iMaxLat <= oMaxLat
+    );
   }
 
   /** A render is stale once a newer render() call has bumped the generation. */
@@ -272,26 +346,71 @@ class PublicTransportStopsLayer extends FeatureLayer {
   }
 
   /**
-   * Union of Waze API venues and SDK data-model venues, deduped by id and
-   * restricted to transport categories. SDK entries win on conflict so local
-   * unsaved edits take precedence over the server snapshot.
+   * Raster-ordered grid covering the extent: top row first (highest latitude),
+   * left to right. Side = 2^(14 - zoom) clamped to ≥1, so 1 cell at zoom ≥ 14,
+   * 4 (2×2) at zoom 13, 16 (4×4) at zoom 12 — each small enough that the
+   * Features API's per-request venue cap doesn't crowd out transport stops.
    */
-  private mergeVenues(args: {
-    wmeSDK: WmeSDK;
-    wazeVenues: VenueLike[];
+  private buildRasterCells(args: {
+    extent: number[];
+    zoomLevel: number;
+  }): Array<[number, number, number, number]> {
+    const [minLon, minLat, maxLon, maxLat] = args.extent;
+    const side = Math.max(1, 2 ** (14 - args.zoomLevel));
+    const lonStep = (maxLon - minLon) / side;
+    const latStep = (maxLat - minLat) / side;
+
+    const cells: Array<[number, number, number, number]> = [];
+    for (let r = 0; r < side; r++) {
+      const y2 = maxLat - r * latStep;
+      const y1 = y2 - latStep;
+      for (let c = 0; c < side; c++) {
+        const x1 = minLon + c * lonStep;
+        cells.push([x1, y1, x1 + lonStep, y2]);
+      }
+    }
+    return cells;
+  }
+
+  /** SDK data-model venues restricted to transport categories. */
+  private getSdkTransportVenues(args: { wmeSDK: WmeSDK }): VenueLike[] {
+    const venues = args.wmeSDK.DataModel.Venues.getAll() as VenueLike[];
+    return venues.filter((venue) =>
+      venue.categories.some((c) => TRANSPORT_CATEGORIES.includes(c)),
+    );
+  }
+
+  /**
+   * Venues to match a cell against: the cell's Waze API venues plus any SDK
+   * transport venue centered in the cell (these include locally created/unsaved
+   * venues the API omits). Deduped by id, SDK winning so unsaved edits take
+   * precedence over the server snapshot.
+   */
+  private mergeCellVenues(args: {
+    apiVenues: VenueLike[];
+    sdkVenues: VenueLike[];
+    bbox: [number, number, number, number];
   }): VenueLike[] {
     const byId = new Map<string, VenueLike>();
-    for (const venue of args.wazeVenues) {
-      byId.set(String(venue.id), venue);
-    }
-    const sdkVenues = args.wmeSDK.DataModel.Venues.getAll() as VenueLike[];
-    for (const venue of sdkVenues) {
-      const isTransport = venue.categories.some((c) =>
-        TRANSPORT_CATEGORIES.includes(c),
-      );
-      if (isTransport) byId.set(String(venue.id), venue);
+    for (const venue of args.apiVenues) byId.set(String(venue.id), venue);
+    for (const venue of args.sdkVenues) {
+      const center = this.getVenueCenter(venue);
+      if (center && this.isInBbox({ lonLat: center, bbox: args.bbox })) {
+        byId.set(String(venue.id), venue);
+      }
     }
     return Array.from(byId.values());
+  }
+
+  /** Half-open containment so each point lands in exactly one grid cell. */
+  private isInBbox(args: {
+    lonLat: { lat: number; lon: number } | null;
+    bbox: [number, number, number, number];
+  }): boolean {
+    if (!args.lonLat) return false;
+    const [x1, y1, x2, y2] = args.bbox;
+    const { lon, lat } = args.lonLat;
+    return lon >= x1 && lon < x2 && lat >= y1 && lat < y2;
   }
 
   private async filterOrangeStops(args: {
@@ -359,47 +478,41 @@ class PublicTransportStopsLayer extends FeatureLayer {
     return result;
   }
 
-  /** Synchronously reconcile the map with the desired feature set (no awaits). */
-  private applyDiff(args: { wmeSDK: WmeSDK; desired: DesiredFeature[] }): void {
-    const { wmeSDK, desired } = args;
-
-    const newIds = new Set(desired.map((f) => f.id));
-    const staleIds = Array.from(this.visibleFeatureIds).filter(
-      (id) => !newIds.has(id),
-    );
-
-    if (staleIds.length > 0) {
-      wmeSDK.Map.removeFeaturesFromLayer({
-        featureIds: staleIds,
-        layerName: this.name,
-      });
-      for (const id of staleIds) {
-        this.visibleFeatureIds.delete(id);
-        this.features.delete(id);
-        this.featureKinds.delete(id);
-        this.clusterData.delete(id);
-      }
-    }
-
-    const toAdd = desired.filter((f) => !this.visibleFeatureIds.has(f.id));
-    if (toAdd.length > 0) {
-      // Populate the lookup maps BEFORE adding features: the SDK invokes the
-      // styleContext callbacks synchronously during addFeaturesToLayer, so the
-      // kind/cluster data must already be present — otherwise clusters draw
-      // with the default stop icon (and radius 13) instead of the cluster icon.
-      for (const f of toAdd) {
-        this.visibleFeatureIds.add(f.id);
-        this.features.set(f.id, f.record);
-        this.featureKinds.set(f.id, f.kind);
-        if (f.clusterDisplayData) {
-          this.clusterData.set(f.id, f.clusterDisplayData);
-        }
-      }
-      wmeSDK.Map.addFeaturesToLayer({
-        features: toAdd.map((f) => f.sdkFeature),
+  /** Removes every visible feature and resets the lookup maps. */
+  private clearAllFeatures(args: { wmeSDK: WmeSDK }): void {
+    const ids = Array.from(this.visibleFeatureIds);
+    if (ids.length > 0) {
+      args.wmeSDK.Map.removeFeaturesFromLayer({
+        featureIds: ids,
         layerName: this.name,
       });
     }
+    this.visibleFeatureIds.clear();
+    this.features.clear();
+    this.featureKinds.clear();
+    this.clusterData.clear();
+  }
+
+  /** Adds a tile's features incrementally, skipping any already on the map. */
+  private addFeatures(args: { wmeSDK: WmeSDK; desired: DesiredFeature[] }): void {
+    const toAdd = args.desired.filter((f) => !this.visibleFeatureIds.has(f.id));
+    if (toAdd.length === 0) return;
+
+    // Populate the lookup maps BEFORE adding: the SDK invokes the styleContext
+    // callbacks synchronously during addFeaturesToLayer, so the kind/cluster
+    // data must already be present or clusters draw with the default stop icon.
+    for (const f of toAdd) {
+      this.visibleFeatureIds.add(f.id);
+      this.features.set(f.id, f.record);
+      this.featureKinds.set(f.id, f.kind);
+      if (f.clusterDisplayData) {
+        this.clusterData.set(f.id, f.clusterDisplayData);
+      }
+    }
+    args.wmeSDK.Map.addFeaturesToLayer({
+      features: toAdd.map((f) => f.sdkFeature),
+      layerName: this.name,
+    });
   }
 
   override refilterFeatures(args: { wmeSDK: WmeSDK }): void {
@@ -410,6 +523,7 @@ class PublicTransportStopsLayer extends FeatureLayer {
     super.removeFromMap(args);
     // Cancel any in-flight render so it can't re-add features after teardown.
     this.renderGeneration++;
+    this.cachedData = null;
     this.features.clear();
     this.featureKinds.clear();
     this.clusterData.clear();
@@ -611,18 +725,15 @@ class PublicTransportStopsLayer extends FeatureLayer {
       );
       if (!hasMatchingCategory) return false;
 
+      // Category + proximity is enough to consider the venue covered. The name
+      // is intentionally ignored: a renamed stop must not be flagged obsolete —
+      // it's a candidate to update (rename), not to delete.
       const stopPoint = point([stopLonLat.lon, stopLonLat.lat]);
-      const isClose = this.stopGeometry.isWithinRadius({
+      return this.stopGeometry.isWithinRadius({
         stopPoint,
         venueGeometry: venue.geometry,
         radiusMeters: 75,
       });
-      if (!isClose) return false;
-
-      const { shortName } = this.nameFormatter.formatName(stop);
-      const venueLower = venue.name.toLowerCase();
-      const shortLower = shortName.toLowerCase();
-      return venueLower.includes(shortLower) || shortLower.includes(venueLower);
     });
   }
 
@@ -720,10 +831,90 @@ class PublicTransportStopsLayer extends FeatureLayer {
 
     if (result !== "confirm") return;
 
-    wmeSDK.DataModel.Venues.deleteVenue({ venueId: String(venue.id) });
+    const venueId = String(venue.id);
+    // Venues sourced from the Features API/cache aren't loaded in the SDK data
+    // model at low zoom, so deleteVenue would silently no-op. Make sure it's
+    // loaded (zooming in if needed) before deleting.
+    const loaded = await this.ensureVenueLoaded({ wmeSDK, venue, venueId });
+    if (!loaded) return;
+
+    wmeSDK.DataModel.Venues.deleteVenue({ venueId });
     this.removeFeature({ wmeSDK, featureId });
     this.featureKinds.delete(featureId);
     this.features.delete(featureId);
+    // The cached server snapshot still holds this venue — drop it so the next
+    // render refetches and the deleted venue isn't flagged obsolete again.
+    this.cachedData = null;
+  }
+
+  /**
+   * Resolves true once the venue is present in the SDK data model (required
+   * before editing/deleting it). If it isn't loaded yet, recenter and zoom in
+   * to level 17 on it so WME fetches it, then poll until it appears (or give up
+   * after a short timeout).
+   */
+  private async ensureVenueLoaded(args: {
+    wmeSDK: WmeSDK;
+    venue: VenueLike;
+    venueId: string;
+  }): Promise<boolean> {
+    const { wmeSDK, venue, venueId } = args;
+    if (wmeSDK.DataModel.Venues.getById({ venueId })) return true;
+
+    const center = this.getVenueCenter(venue);
+    if (!center) return false;
+
+    wmeSDK.Map.setMapCenter({
+      lonLat: { lat: center.lat, lon: center.lon },
+      zoomLevel: ADD_VENUE_ZOOM_IN_LEVEL,
+    });
+    await waitForMapIdle({ wmeSDK, intervalMs: 50, maxTries: 60 });
+
+    // Venue data can land a little after the map reports idle — poll briefly.
+    for (let i = 0; i < 30; i++) {
+      if (wmeSDK.DataModel.Venues.getById({ venueId })) return true;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    return false;
+  }
+
+  /** Venues near a point (cache snapshot + SDK), matched by category + radius. */
+  private findNearbyVenues(args: {
+    wmeSDK: WmeSDK;
+    lat: number;
+    lon: number;
+    categories: string[];
+  }): VenueLike[] {
+    const byId = new Map<string, VenueLike>();
+    for (const venue of this.cachedData?.venues ?? []) {
+      byId.set(String(venue.id), venue);
+    }
+    for (const venue of this.getSdkTransportVenues({ wmeSDK: args.wmeSDK })) {
+      byId.set(String(venue.id), venue);
+    }
+    return this.venueMatcher.findMatchingVenues({
+      venues: Array.from(byId.values()),
+      stopLon: args.lon,
+      stopLat: args.lat,
+      categories: args.categories,
+      radiusMeters: 75,
+    });
+  }
+
+  /** Zooms in to level 17 on the point and waits for WME to load its venues. */
+  private async ensureAreaLoaded(args: {
+    wmeSDK: WmeSDK;
+    lat: number;
+    lon: number;
+  }): Promise<void> {
+    const { wmeSDK, lat, lon } = args;
+    wmeSDK.Map.setMapCenter({
+      lonLat: { lat, lon },
+      zoomLevel: ADD_VENUE_ZOOM_IN_LEVEL,
+    });
+    await waitForMapIdle({ wmeSDK, intervalMs: 50, maxTries: 60 });
+    // Venue data can land a little after the map reports idle.
+    await new Promise((resolve) => setTimeout(resolve, 200));
   }
 
   private async handleSBBStopClick(args: {
@@ -746,24 +937,44 @@ class PublicTransportStopsLayer extends FeatureLayer {
       return;
     }
 
-    const { name, shortName, aliases } = this.nameFormatter.formatName(stop);
+    const { name, aliases } = this.nameFormatter.formatName(stop);
     const venueCategories = this.venueCategories({
       meansoftransport: stop.meansoftransport,
     });
-    const allVenues = wmeSDK.DataModel.Venues.getAll() as VenueLike[];
-    const categoryFilteredVenues = allVenues.filter((v) =>
-      v.categories.some((cat) => venueCategories.includes(cat)),
+
+    // Existing venues near the stop, from the fetched snapshot (cache) AND the
+    // SDK. The SDK alone is incomplete at zoom 16 (transport venues only load at
+    // zoom 17), so an existing/renamed venue would be missed and a duplicate
+    // created — consult the cached Waze API venues too.
+    const nearbyVenues = this.findNearbyVenues({
+      wmeSDK,
+      lat,
+      lon,
+      categories: venueCategories,
+    });
+
+    // A candidate may exist in the API snapshot but not yet in the SDK data
+    // model (zoom 16). Zoom in so WME loads it before we read/edit it.
+    const candidateMissingFromSdk = nearbyVenues.some(
+      (v) => !wmeSDK.DataModel.Venues.getById({ venueId: String(v.id) }),
     );
+    if (candidateMissingFromSdk) {
+      await this.ensureAreaLoaded({ wmeSDK, lat, lon });
+    }
+
+    // Match against the SDK venues (authoritative + editable) so a merge updates
+    // the real venue.
+    const sdkCategoryVenues = (
+      wmeSDK.DataModel.Venues.getAll() as VenueLike[]
+    ).filter((v) => v.categories.some((cat) => venueCategories.includes(cat)));
 
     let venuesToUpdate: Array<VenueLike & { _updateCoordinates?: boolean }> = [];
 
-    if (categoryFilteredVenues.length > 0) {
+    if (sdkCategoryVenues.length > 0) {
       const matchingVenues = this.venueMatcher.findMatchingVenues({
-        venues: categoryFilteredVenues,
+        venues: sdkCategoryVenues,
         stopLon: lon,
         stopLat: lat,
-        stopName: name,
-        stopShortName: shortName,
         categories: venueCategories,
         radiusMeters: 75,
       });
@@ -799,6 +1010,9 @@ class PublicTransportStopsLayer extends FeatureLayer {
     this.removeFeature({ wmeSDK, featureId });
     this.featureKinds.delete(id);
     this.features.delete(id);
+    // A venue was created/updated — invalidate the cached snapshot so the next
+    // render reflects it (matched stop no longer drawn orange).
+    this.cachedData = null;
   }
 
   private handleZoomRequired(args: {
