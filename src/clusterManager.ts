@@ -43,10 +43,10 @@ const CLUSTER_RADIUS_METERS: Record<number, number> = {
 };
 
 class ClusterManager {
-  cluster(args: {
-    items: ClusterItem[];
-    zoomLevel: number;
-  }): { clusters: ClusterGroup[]; singles: ClusterItem[] } {
+  cluster(args: { items: ClusterItem[]; zoomLevel: number }): {
+    clusters: ClusterGroup[];
+    singles: ClusterItem[];
+  } {
     const { items, zoomLevel } = args;
     const radius = CLUSTER_RADIUS_METERS[zoomLevel] ?? 800;
 
@@ -62,7 +62,8 @@ class ClusterManager {
         (item) =>
           !assigned.has(item.id) &&
           item.kind === anchor.kind &&
-          haversineDistance(anchor.lat, anchor.lon, item.lat, item.lon) <= radius,
+          haversineDistance(anchor.lat, anchor.lon, item.lat, item.lon) <=
+            radius,
       );
 
       if (nearby.length === 1) {
