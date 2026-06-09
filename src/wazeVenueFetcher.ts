@@ -63,7 +63,7 @@ class WazeVenueFetcher {
     const bbox = `${x1},${y1},${x2},${y2}`;
     const apiBaseUrl = this.getApiBaseUrl({ wmeSDK: args.wmeSDK });
 
-    const url = `${apiBaseUrl}/app/Features?bbox=${encodeURIComponent(bbox)}&v=2&apiV2=true&venueLevel=4&venueFilter=1,1,1,0`;
+    const url = `${apiBaseUrl}/app/Features?bbox=${encodeURIComponent(bbox)}&v=2&apiV2=true&venueLevel=4`;
 
     let response;
     try {
