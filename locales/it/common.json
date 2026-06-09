@@ -31,7 +31,7 @@
     "cancel": "Annulla"
   },
   "venueMatchDialog": {
-    "message": "Sembra che esistano già {{count}} fermata/e con questo nome.<br/>Le abbiamo selezionate per voi.<br/>Cosa volete fare?<br/>Selezionando <pre style=\"display: inline;\">Unisci</pre> verranno applicate le informazioni ai punti esistenti senza crearne uno nuovo.",
+    "message": "Sembra che esistano già {{venueCount}} fermata/e con questo nome.<br/>Le abbiamo selezionate per voi.<br/>Cosa volete fare?<br/>Selezionando <pre style=\"display: inline;\">Unisci</pre> verranno applicate le informazioni ai punti esistenti senza crearne uno nuovo.",
     "merge": "Unisci",
     "mergeWithCoords": "Unisci e aggiorna coordinate",
     "saveNew": "Salva nuovo",

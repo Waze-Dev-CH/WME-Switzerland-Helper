@@ -146,8 +146,8 @@ class PublicTransportStopsLayer extends FeatureLayer {
         style: {
           fillOpacity: 1,
           cursor: "pointer",
-          pointRadius: "pointRadius",
-          externalGraphic: "externalGraphic" as string,
+          pointRadius: "${pointRadius}",
+          externalGraphic: "${externalGraphic}",
         },
       },
     ];
@@ -254,10 +254,10 @@ class PublicTransportStopsLayer extends FeatureLayer {
 
       const toAdd = desired.filter((f) => !this.visibleFeatureIds.has(f.id));
       if (toAdd.length > 0) {
-        wmeSDK.Map.addFeaturesToLayer({
-          features: toAdd.map((f) => f.sdkFeature),
-          layerName: this.name,
-        });
+        // Populate the lookup maps BEFORE adding features: the SDK invokes the
+        // styleContext callbacks synchronously during addFeaturesToLayer, so the
+        // kind/cluster data must already be present — otherwise clusters draw
+        // with the default stop icon (and radius 13) instead of the cluster icon.
         for (const f of toAdd) {
           this.visibleFeatureIds.add(f.id);
           this.features.set(f.id, f.record);
@@ -266,6 +266,10 @@ class PublicTransportStopsLayer extends FeatureLayer {
             this.clusterData.set(f.id, f.clusterDisplayData);
           }
         }
+        wmeSDK.Map.addFeaturesToLayer({
+          features: toAdd.map((f) => f.sdkFeature),
+          layerName: this.name,
+        });
       }
     } finally {
       this.renderInProgress = false;
@@ -699,7 +703,7 @@ class PublicTransportStopsLayer extends FeatureLayer {
     });
     const result = await showWmeDialog({
       message: i18next.t("common:venueMatchDialog.message", {
-        count: matchingVenues.length,
+        venueCount: matchingVenues.length,
       }),
       buttons: [
         { label: i18next.t("common:venueMatchDialog.merge"), value: "merge" },

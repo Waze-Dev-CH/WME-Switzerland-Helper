@@ -31,7 +31,7 @@
     "cancel": "Abbrechen"
   },
   "venueMatchDialog": {
-    "message": "Es scheinen bereits {{count}} Haltestelle(n) mit diesem Namen zu existieren.<br/>Wir haben sie für Sie ausgewählt.<br/>Was möchten Sie tun?<br/>Wenn Sie <pre style=\"display: inline;\">Zusammenführen</pre> wählen, werden die Informationen auf die bestehenden Punkte angewendet, ohne einen neuen zu erstellen.",
+    "message": "Es scheinen bereits {{venueCount}} Haltestelle(n) mit diesem Namen zu existieren.<br/>Wir haben sie für Sie ausgewählt.<br/>Was möchten Sie tun?<br/>Wenn Sie <pre style=\"display: inline;\">Zusammenführen</pre> wählen, werden die Informationen auf die bestehenden Punkte angewendet, ohne einen neuen zu erstellen.",
     "merge": "Zusammenführen",
     "mergeWithCoords": "Zusammenführen und Koordinaten aktualisieren",
     "saveNew": "Neuen speichern",
