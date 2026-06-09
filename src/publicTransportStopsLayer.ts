@@ -853,6 +853,7 @@ class PublicTransportStopsLayer extends FeatureLayer {
       if (mean === "METRO") return "SUBWAY_STATION";
       if (mean === "BOAT") return "SEAPORT_MARINA_HARBOR";
       if (mean === "CHAIRLIFT") return "TRANSPORTATION";
+      if (mean === "CABLE_RAILWAY") return "TRAIN_STATION";
       return `${mean}_STATION`;
     });
   }
