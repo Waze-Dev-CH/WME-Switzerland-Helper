@@ -46,26 +46,22 @@ interface WazeApiResponse {
 }
 
 class WazeVenueFetcher {
-  private getApiBaseUrl(): string | null {
-    const entry = performance
-      .getEntriesByType("resource")
-      .map((entry) => entry.name)
-      .filter((name) => name.includes("/app/Features"))
-      .pop();
-
-    if (!entry) return null;
-
-    const url = new URL(entry);
-    const prefix = url.pathname.split("/app/Features")[0];
-    return `${url.origin}${prefix}`;
+  private getApiBaseUrl(args: { wmeSDK: WmeSDK }): string {
+    // Data-server prefix is {host}/{regionCode}-Descartes. "Descartes" is the
+    // ROW data server; getRegionCode() is "row" for Swiss editors. Host depends
+    // on the beta vs production environment.
+    const host = args.wmeSDK.isBetaEnvironment()
+      ? "https://beta.waze.com"
+      : "https://www.waze.com";
+    const region = args.wmeSDK.Settings.getRegionCode() ?? "row";
+    return `${host}/${region}-Descartes`;
   }
 
   async fetchVenues(args: { wmeSDK: WmeSDK }): Promise<VenueLike[]> {
     const extent = args.wmeSDK.Map.getMapExtent();
     const [x1, y1, x2, y2] = extent;
     const bbox = `${x1},${y1},${x2},${y2}`;
-    const apiBaseUrl = this.getApiBaseUrl();
-    if (!apiBaseUrl) return [];
+    const apiBaseUrl = this.getApiBaseUrl({ wmeSDK: args.wmeSDK });
 
     const url = `${apiBaseUrl}/app/Features?bbox=${encodeURIComponent(bbox)}&v=2&apiV2=true&venueLevel=4&venueFilter=1,1,1,0`;
 
@@ -86,8 +82,18 @@ class WazeVenueFetcher {
       return [];
     }
 
-    const data = response.response as WazeApiResponse;
-    const objects = data?.venues?.objects ?? [];
+    // GM.xmlHttpRequest may leave responseType "json" unparsed depending on
+    // the manager — fall back to parsing responseText.
+    let data = response.response as WazeApiResponse | string | null;
+    if (typeof data === "string") {
+      try {
+        data = JSON.parse(data) as WazeApiResponse;
+      } catch {
+        data = null;
+      }
+    }
+
+    const objects = (data as WazeApiResponse)?.venues?.objects ?? [];
 
     return objects
       .filter(
