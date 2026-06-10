@@ -68,6 +68,12 @@ describe("cleanStopName", () => {
     expect(cleanStopName("Saules NE", "Saules")).toBe("Saules NE");
   });
 
+  it("strips the locality before an all-uppercase real name (not a 2-letter canton)", () => {
+    expect(cleanStopName("La Chaux-de-Fonds, MUZOO", "La Chaux-de-Fonds")).toBe(
+      "MUZOO",
+    );
+  });
+
   it("keeps the name when the prefix is not the locality", () => {
     // localityname = Aeschau, prefix = Eggiwil → not the locality, keep as-is
     expect(cleanStopName("Eggiwil, Skilift", "Aeschau")).toBe(

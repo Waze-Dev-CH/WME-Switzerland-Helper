@@ -33,10 +33,11 @@ const ABBREVIATION_EXPANSIONS: Record<string, string> = {
   "Bif.": "Bifurcation",
 };
 
-// True when the string is only uppercase letters (a canton abbreviation such as
-// "NE" left after stripping the locality, e.g. "Saules NE" → "NE").
-function isOnlyUppercaseLetters(value: string): boolean {
-  return /^[A-Z]+$/.test(value);
+// True when the string is a two-letter canton abbreviation (e.g. "NE" left after
+// stripping the locality of "Saules NE"). Longer all-uppercase strings are real
+// names (e.g. "MUZOO") and must not be treated as a canton.
+function isCantonAbbreviation(value: string): boolean {
+  return /^[A-Z]{2}$/.test(value);
 }
 
 // True when `prefix` (the part before the first comma) is a truncation/
@@ -75,7 +76,7 @@ function stripLocalityPrefix(name: string, localityName: string): string {
         .slice(loc.length)
         .replace(/^[\s,]+/u, "")
         .trim();
-      if (candidate.length > 0 && !isOnlyUppercaseLetters(candidate)) {
+      if (candidate.length > 0 && !isCantonAbbreviation(candidate)) {
         return candidate;
       }
       return name.trim();
@@ -87,7 +88,7 @@ function stripLocalityPrefix(name: string, localityName: string): string {
     const rest = name.slice(commaIndex + 1).trim();
     if (
       rest.length > 0 &&
-      !isOnlyUppercaseLetters(rest) &&
+      !isCantonAbbreviation(rest) &&
       isTruncatedLocality(name.slice(0, commaIndex), loc)
     ) {
       return rest;
