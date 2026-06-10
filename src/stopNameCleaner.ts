@@ -30,6 +30,7 @@ const ABBREVIATION_EXPANSIONS: Record<string, string> = {
   Ste: "Sainte",
   St: "Saint",
   Rte: "Route",
+  "Bif.": "Bifurcation",
 };
 
 // True when `prefix` (the part before the first comma) is a truncation/

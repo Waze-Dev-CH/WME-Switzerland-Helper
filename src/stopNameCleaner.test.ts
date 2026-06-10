@@ -51,6 +51,10 @@ describe("cleanStopName", () => {
     expect(cleanStopName("Boveresse", "Boveresse")).toBe("Boveresse");
   });
 
+  it("expands Bif. to Bifurcation", () => {
+    expect(cleanStopName("Travers, Bif.", "Travers")).toBe("Bifurcation");
+  });
+
   it("keeps the name when the prefix is not the locality", () => {
     // localityname = Aeschau, prefix = Eggiwil → not the locality, keep as-is
     expect(cleanStopName("Eggiwil, Skilift", "Aeschau")).toBe(
