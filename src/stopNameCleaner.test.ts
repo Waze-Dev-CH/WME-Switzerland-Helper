@@ -63,6 +63,11 @@ describe("cleanStopName", () => {
     expect(cleanStopName("Bern SBB", "Bern")).toBe("Bern");
   });
 
+  it("keeps the name when stripping would leave only uppercase letters (canton)", () => {
+    // "Saules NE" on locality "Saules" must not collapse to "NE".
+    expect(cleanStopName("Saules NE", "Saules")).toBe("Saules NE");
+  });
+
   it("keeps the name when the prefix is not the locality", () => {
     // localityname = Aeschau, prefix = Eggiwil → not the locality, keep as-is
     expect(cleanStopName("Eggiwil, Skilift", "Aeschau")).toBe(
