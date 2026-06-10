@@ -44,6 +44,7 @@ class StopNameFormatter {
     this.venueInnerTypeMapping.set("TRAIN", "gare");
     this.venueInnerTypeMapping.set("BOAT", "port");
     this.venueInnerTypeMapping.set("CHAIRLIFT", "remontée mécanique");
+    this.venueInnerTypeMapping.set("CABLE_RAILWAY", "station de funiculaire");
   }
 
   private meansOfTransport(meansoftransport: string): string[] {
