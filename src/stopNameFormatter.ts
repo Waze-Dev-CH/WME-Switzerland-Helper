@@ -17,10 +17,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { cleanStopName } from "./stopNameCleaner";
+
 interface TransportStop {
   designationofficial?: string;
   designation?: string;
-  municipalityname: string;
+  localityname: string;
   businessorganisationabbreviationde: string;
   businessorganisationdescriptionde: string;
   meansoftransport: string;
@@ -56,24 +58,6 @@ class StopNameFormatter {
           this.venueInnerTypeMapping.get(mean) || this.defaultVenueInnerType,
       )
       .join(", ");
-  }
-
-  private cleanStopName(name: string, municipalityname: string): string {
-    let cleaned = name.replace(/\(télésiège\)/i, "").trim();
-    const splitted = cleaned.split(",");
-
-    if (splitted.length === 2 && splitted[0].trim() === municipalityname) {
-      cleaned = splitted[1];
-    } else if (
-      cleaned.includes(municipalityname) &&
-      cleaned.replace(municipalityname, "") !== "" &&
-      !cleaned.replace(municipalityname, "").startsWith("-")
-    ) {
-      cleaned = cleaned.replace(municipalityname, "");
-    }
-
-    cleaned = cleaned.trim();
-    return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
   }
 
   private normalizeOrganization(
@@ -117,7 +101,7 @@ class StopNameFormatter {
 
   formatName(stop: TransportStop): NameResult {
     const rawName = stop.designationofficial || stop.designation || "Bus Stop";
-    const cleanedName = this.cleanStopName(rawName, stop.municipalityname);
+    const cleanedName = cleanStopName(rawName, stop.localityname);
     const venueInnerType = this.getVenueInnerType(stop.meansoftransport);
 
     const { abbreviation, fullName } = this.normalizeOrganization(

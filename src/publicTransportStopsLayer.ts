@@ -40,6 +40,7 @@ interface TransportStop extends SBBRecord {
   designationofficial?: string;
   designation?: string;
   municipalityname: string;
+  localityname: string;
   businessorganisationabbreviationde: string;
   businessorganisationdescriptionde: string;
   lat?: number;
