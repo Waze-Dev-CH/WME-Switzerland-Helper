@@ -1130,12 +1130,10 @@ class PublicTransportStopsLayer extends FeatureLayer {
       });
     }
 
-    wmeSDK.Editing.setSelection({
-      selection: {
-        ids: updatedVenues.map((venue) => venue.id.toString()),
-        objectType: "venue",
-      },
-    });
+    this.trySelectVenues(
+      wmeSDK,
+      updatedVenues.map((venue) => venue.id.toString()),
+    );
     this.removeFeature({ wmeSDK, featureId });
     this.featureKinds.delete(id);
     this.features.delete(id);
@@ -1161,6 +1159,21 @@ class PublicTransportStopsLayer extends FeatureLayer {
     });
   }
 
+  // setSelection throws ("Couldn't find Waze Feature for venue …") when a venue
+  // exists in the data model but isn't a currently-selectable rendered feature
+  // (e.g. a harbor polygon partly off-screen). Selection is only a visual aid,
+  // so a failure must not abort the click handler.
+  private trySelectVenues(wmeSDK: WmeSDK, ids: string[]): void {
+    if (ids.length === 0) return;
+    try {
+      wmeSDK.Editing.setSelection({
+        selection: { ids, objectType: "venue" },
+      });
+    } catch (error) {
+      console.warn("[PTLayer] could not select venue(s):", ids, error);
+    }
+  }
+
   private isVenueWithin(args: {
     venue: VenueLike;
     lon: number;
@@ -1180,12 +1193,10 @@ class PublicTransportStopsLayer extends FeatureLayer {
     matchingVenues: VenueLike[];
   }): Promise<VenueLike | undefined> {
     const { wmeSDK, matchingVenues } = args;
-    wmeSDK.Editing.setSelection({
-      selection: {
-        ids: matchingVenues.map((venue) => venue.id.toString()),
-        objectType: "venue",
-      },
-    });
+    this.trySelectVenues(
+      wmeSDK,
+      matchingVenues.map((venue) => venue.id.toString()),
+    );
 
     const buttons = matchingVenues.map((venue, index) => ({
       label: venue.name?.trim() ? venue.name : `#${index + 1}`,
@@ -1212,9 +1223,7 @@ class PublicTransportStopsLayer extends FeatureLayer {
     sameCoord: boolean;
   }): Promise<"merge" | "merge-with-coords" | "save" | "cancel"> {
     const { wmeSDK, venue, sameCoord } = args;
-    wmeSDK.Editing.setSelection({
-      selection: { ids: [venue.id.toString()], objectType: "venue" },
-    });
+    this.trySelectVenues(wmeSDK, [venue.id.toString()]);
 
     const buttons = [
       { label: i18next.t("common:venueMatchDialog.merge"), value: "merge" },
