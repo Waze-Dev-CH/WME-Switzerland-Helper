@@ -55,8 +55,12 @@ describe("cleanStopName", () => {
     expect(cleanStopName("Travers, Bif.", "Travers")).toBe("Bifurcation");
   });
 
-  it("keeps the locality when stripping would leave only a railway brand (CFF)", () => {
-    expect(cleanStopName("St-Blaise CFF", "St-Blaise")).toBe("St-Blaise CFF");
+  it("removes the railway brand, keeping the locality name", () => {
+    expect(cleanStopName("St-Blaise CFF", "St-Blaise")).toBe("St-Blaise");
+  });
+
+  it("removes the SBB brand too", () => {
+    expect(cleanStopName("Bern SBB", "Bern")).toBe("Bern");
   });
 
   it("keeps the name when the prefix is not the locality", () => {
