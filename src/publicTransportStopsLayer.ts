@@ -105,6 +105,10 @@ const ADD_VENUE_MIN_ZOOM = 16;
 // When a stop is clicked below that zoom, recenter and zoom in to this level.
 const ADD_VENUE_ZOOM_IN_LEVEL = 17;
 
+// A venue this close to the stop is considered the same point: merge only with
+// it, and don't offer the "update coordinates" option.
+const SAME_COORD_RADIUS_METERS = 2.5;
+
 // Each grid cell fetches/considers venues for its bbox expanded by this margin
 // (degrees, ≈ 220 m) so a stop near a cell border still sees venues just across
 // it (within the 75 m match radius) — otherwise it would be wrongly orange.
@@ -1076,14 +1080,35 @@ class PublicTransportStopsLayer extends FeatureLayer {
       });
 
       if (matchingVenues.length > 0) {
-        const { action, venues } = await this.promptUserAction({
+        // A venue at the same point (≤2.5 m) is the stop itself: merge only with
+        // it, no coordinate update, and don't bother with the other candidates.
+        const sameCoordVenue = matchingVenues.find((v) =>
+          this.isVenueWithin({ venue: v, lon, lat, radiusMeters: SAME_COORD_RADIUS_METERS }),
+        );
+
+        let chosen: VenueLike | undefined;
+        if (sameCoordVenue) {
+          chosen = sameCoordVenue;
+        } else if (matchingVenues.length === 1) {
+          chosen = matchingVenues[0];
+        } else {
+          // Several candidates: the user picks the single one to merge with.
+          chosen = await this.selectVenueToMerge({ wmeSDK, matchingVenues });
+          if (!chosen) return;
+        }
+
+        const action = await this.promptMergeAction({
           wmeSDK,
-          matchingVenues,
+          venue: chosen,
+          sameCoord: Boolean(sameCoordVenue),
         });
         if (action === "cancel") return;
-        venuesToUpdate = venues as Array<
-          VenueLike & { _updateCoordinates?: boolean }
-        >;
+        if (action === "merge") {
+          venuesToUpdate = [chosen];
+        } else if (action === "merge-with-coords") {
+          venuesToUpdate = [{ ...chosen, _updateCoordinates: true }];
+        }
+        // "save" → leave venuesToUpdate empty (create a new venue).
       }
     }
 
@@ -1136,13 +1161,24 @@ class PublicTransportStopsLayer extends FeatureLayer {
     });
   }
 
-  private async promptUserAction(args: {
+  private isVenueWithin(args: {
+    venue: VenueLike;
+    lon: number;
+    lat: number;
+    radiusMeters: number;
+  }): boolean {
+    return this.stopGeometry.isWithinRadius({
+      stopPoint: point([args.lon, args.lat]),
+      venueGeometry: args.venue.geometry,
+      radiusMeters: args.radiusMeters,
+    });
+  }
+
+  // Lets the user pick the single venue to merge with when several match.
+  private async selectVenueToMerge(args: {
     wmeSDK: WmeSDK;
     matchingVenues: VenueLike[];
-  }): Promise<{
-    action: "merge" | "merge-with-coords" | "save" | "cancel";
-    venues: VenueLike[];
-  }> {
+  }): Promise<VenueLike | undefined> {
     const { wmeSDK, matchingVenues } = args;
     wmeSDK.Editing.setSelection({
       selection: {
@@ -1150,41 +1186,61 @@ class PublicTransportStopsLayer extends FeatureLayer {
         objectType: "venue",
       },
     });
-    const result = await showWmeDialog({
-      message: i18next.t("common:venueMatchDialog.message", {
-        venueCount: matchingVenues.length,
-      }),
-      buttons: [
-        { label: i18next.t("common:venueMatchDialog.merge"), value: "merge" },
-        {
-          label: i18next.t("common:venueMatchDialog.mergeWithCoords"),
-          value: "merge-with-coords",
-        },
-        {
-          label: i18next.t("common:venueMatchDialog.saveNew"),
-          value: "save",
-        },
-        {
-          label: i18next.t("common:venueMatchDialog.cancel"),
-          value: "cancel",
-        },
-      ],
+
+    const buttons = matchingVenues.map((venue, index) => ({
+      label: venue.name?.trim() ? venue.name : `#${index + 1}`,
+      value: String(index),
+    }));
+    buttons.push({
+      label: i18next.t("common:venueMatchDialog.cancel"),
+      value: "cancel",
     });
 
-    let venuesToUpdate = matchingVenues;
-    if (result === "save") {
-      venuesToUpdate = [];
-    } else if (result === "merge-with-coords") {
-      venuesToUpdate = matchingVenues.map((v) => ({
-        ...v,
-        _updateCoordinates: true,
-      }));
-    }
+    const result = await showWmeDialog({
+      message: i18next.t("common:venueMatchDialog.selectMessage"),
+      buttons,
+    });
+    if (result === "cancel") return undefined;
+    return matchingVenues[Number(result)];
+  }
 
-    return {
-      action: result as "merge" | "merge-with-coords" | "save" | "cancel",
-      venues: venuesToUpdate,
-    };
+  // Merge dialog for a single chosen venue. When the venue is at the same point
+  // (sameCoord), only the plain "merge" option is offered.
+  private async promptMergeAction(args: {
+    wmeSDK: WmeSDK;
+    venue: VenueLike;
+    sameCoord: boolean;
+  }): Promise<"merge" | "merge-with-coords" | "save" | "cancel"> {
+    const { wmeSDK, venue, sameCoord } = args;
+    wmeSDK.Editing.setSelection({
+      selection: { ids: [venue.id.toString()], objectType: "venue" },
+    });
+
+    const buttons = [
+      { label: i18next.t("common:venueMatchDialog.merge"), value: "merge" },
+    ];
+    // Same point → drop only "update coordinates"; keep "save new" since stops
+    // can be stacked on top of each other.
+    if (!sameCoord) {
+      buttons.push({
+        label: i18next.t("common:venueMatchDialog.mergeWithCoords"),
+        value: "merge-with-coords",
+      });
+    }
+    buttons.push({
+      label: i18next.t("common:venueMatchDialog.saveNew"),
+      value: "save",
+    });
+    buttons.push({
+      label: i18next.t("common:venueMatchDialog.cancel"),
+      value: "cancel",
+    });
+
+    const result = await showWmeDialog({
+      message: i18next.t("common:venueMatchDialog.message", { venueCount: 1 }),
+      buttons,
+    });
+    return result as "merge" | "merge-with-coords" | "save" | "cancel";
   }
 
   private async createOrUpdateVenue(args: {

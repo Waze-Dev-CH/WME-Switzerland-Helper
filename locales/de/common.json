@@ -35,6 +35,7 @@
     "merge": "Zusammenführen",
     "mergeWithCoords": "Zusammenführen und Koordinaten aktualisieren",
     "saveNew": "Neuen speichern",
+    "selectMessage": "Mehrere passende Haltestellen gefunden. Wählen Sie aus, mit welcher zusammengeführt werden soll:",
     "cancel": "Abbrechen"
   }
 }

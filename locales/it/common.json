@@ -35,6 +35,7 @@
     "merge": "Unisci",
     "mergeWithCoords": "Unisci e aggiorna coordinate",
     "saveNew": "Salva nuovo",
+    "selectMessage": "Trovate più fermate corrispondenti. Scegli con quale unire:",
     "cancel": "Annulla"
   }
 }

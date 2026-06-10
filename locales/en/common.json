@@ -35,6 +35,7 @@
     "merge": "Merge",
     "mergeWithCoords": "Merge and update coordinates",
     "saveNew": "Save new",
+    "selectMessage": "Multiple matching stops found. Choose which one to merge with:",
     "cancel": "Cancel"
   }
 }
