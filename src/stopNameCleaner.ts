@@ -44,10 +44,19 @@ function isTruncatedLocality(prefix: string, localityName: string): boolean {
   return p.length >= 3 && l.startsWith(p);
 }
 
+// Swiss railway brand suffixes (CFF/SBB/FFS). Stripping the locality off e.g.
+// "St-Blaise CFF" would leave just the brand, which isn't a usable stop name —
+// in that case we keep the full designation instead.
+const RAILWAY_BRAND_SUFFIXES = new Set(["cff", "sbb", "ffs"]);
+
+function isBrandOnly(name: string): boolean {
+  return RAILWAY_BRAND_SUFFIXES.has(name.trim().toLowerCase());
+}
+
 // Removes the locality from the start of the designation. The locality can be
 // followed by a comma, a space, or be the whole string; truncated/abbreviated
-// forms before a comma are handled too. Never strips down to an empty string —
-// a stop can legitimately be named after its village.
+// forms before a comma are handled too. Never strips down to an empty string or
+// to just a railway brand — a stop can legitimately be named after its village.
 function stripLocalityPrefix(name: string, localityName: string): string {
   const loc = localityName.trim();
   if (loc.length > 0 && name.toLowerCase().startsWith(loc.toLowerCase())) {
@@ -57,7 +66,7 @@ function stripLocalityPrefix(name: string, localityName: string): string {
         .slice(loc.length)
         .replace(/^[\s,]+/u, "")
         .trim();
-      if (candidate.length > 0) return candidate;
+      if (candidate.length > 0 && !isBrandOnly(candidate)) return candidate;
       return name.trim();
     }
   }
@@ -67,6 +76,7 @@ function stripLocalityPrefix(name: string, localityName: string): string {
     const rest = name.slice(commaIndex + 1).trim();
     if (
       rest.length > 0 &&
+      !isBrandOnly(rest) &&
       isTruncatedLocality(name.slice(0, commaIndex), loc)
     ) {
       return rest;
