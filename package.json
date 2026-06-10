@@ -19,10 +19,13 @@
     "tslib": "^2.7.0",
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.37.0",
+    "vitest": "^4.1.8",
     "wme-sdk-typings": "https://web-assets.waze.com/wme_sdk_docs/production/latest/wme-sdk-typings.tgz"
   },
   "scripts": {
     "compile": "rollup -c",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "prewatch": "npm run makemessages",
     "watch": "concurrently \"npm run watch:rollup\" \"npm run watch:i18n\" \"npm run watch:prettier\" \"npm run watch:eslint\" \"npm run watch:readme\"",
     "watch:rollup": "rollup -c --watch",
