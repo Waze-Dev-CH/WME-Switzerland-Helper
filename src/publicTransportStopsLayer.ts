@@ -33,6 +33,8 @@ import { StopNameFormatter } from "./stopNameFormatter";
 import { VenueMatcher, type VenueLike } from "./venueMatcher";
 import { WazeVenueFetcher, TRANSPORT_CATEGORIES } from "./wazeVenueFetcher";
 import { ClusterManager, type ClusterGroup } from "./clusterManager";
+import { findCityForStop } from "./stopCityMatcher";
+import { isStopActive, todayIsoDate } from "./stopValidity";
 import i18next from "../locales/i18n";
 
 interface TransportStop extends SBBRecord {
@@ -41,6 +43,7 @@ interface TransportStop extends SBBRecord {
   designation?: string;
   municipalityname: string;
   localityname: string;
+  validto: string;
   businessorganisationabbreviationde: string;
   businessorganisationdescriptionde: string;
   lat?: number;
@@ -293,6 +296,12 @@ class PublicTransportStopsLayer extends FeatureLayer {
       );
     }
 
+    // Active stops (validto >= today) drive the orange "to add/update" markers;
+    // a venue not covered by any active stop (absent from CFF or only matching an
+    // expired stop) is red "to delete".
+    const today = todayIsoDate();
+    const activeStops = sbbStops.filter((s) => isStopActive(s.validto, today));
+
     // Repaint tile by tile so progress is visible: clear, then render each cell
     // as soon as its venues arrive, sweeping in raster order.
     this.clearAllFeatures({ wmeSDK });
@@ -314,28 +323,26 @@ class PublicTransportStopsLayer extends FeatureLayer {
         sdkVenues,
         bbox: this.expandBbox(bbox),
       });
-      const cellStops = sbbStops.filter((stop) =>
+      // Orange: ACTIVE stops in this cell with no matching venue (checked
+      // against the expanded venue set so a venue just across a border counts).
+      const activeCellStops = activeStops.filter((stop) =>
         this.isInBbox({ lonLat: this.stopLonLat(stop), bbox }),
       );
-
-      // Orange: stops in this cell with no matching venue (checked against the
-      // expanded venue set so a venue just across a border still counts).
       const orangeStops = await this.filterOrangeStops({
-        sbbStops: cellStops,
+        sbbStops: activeCellStops,
         venues,
         generation,
       });
       if (this.isStale(generation)) return;
 
-      // Red/obsolete: venues owned by this (disjoint) cell with no matching SBB
-      // stop. Owned-by-center so each venue is checked once; matched against all
-      // stops since a venue's stop can sit just across a border.
+      // Red: venues owned by this (disjoint) cell not covered by any active stop
+      // — absent from CFF or matching only an expired stop → proposed for deletion.
       const ownedVenues = venues.filter((v) =>
         this.isInBbox({ lonLat: this.getVenueCenter(v), bbox }),
       );
-      const obsoleteVenues = await this.filterObsoleteVenues({
+      const obsoleteVenues = await this.filterRedVenues({
         venues: ownedVenues,
-        sbbStops,
+        activeStops,
         generation,
       });
       if (this.isStale(generation)) return;
@@ -512,25 +519,27 @@ class PublicTransportStopsLayer extends FeatureLayer {
     return result;
   }
 
-  private async filterObsoleteVenues(args: {
+  // A venue is red (proposed for deletion) when no active stop covers it —
+  // i.e. it's absent from the CFF data or only matches an expired stop.
+  private async filterRedVenues(args: {
     venues: VenueLike[];
-    sbbStops: TransportStop[];
+    activeStops: TransportStop[];
     generation: number;
   }): Promise<VenueLike[]> {
     const result: VenueLike[] = [];
     let processed = 0;
 
     for (const venue of args.venues) {
-      // Ports / marinas / harbors are transport venues but the SBB stop dataset
-      // is not authoritative for them (many are pleasure ports with no boat
-      // stop), so they must never be flagged as obsolete.
-      const isExemptFromObsolete = venue.categories.some((c) =>
+      // Ports / marinas / harbors are never proposed for deletion: the SBB
+      // dataset is not authoritative for them (many are pleasure ports).
+      const isExempt = venue.categories.some((c) =>
         OBSOLETE_EXEMPT_CATEGORIES.includes(c),
       );
-      if (
-        !isExemptFromObsolete &&
-        !this.isCoveredBySBBStop({ venue, sbbStops: args.sbbStops })
-      ) {
+      const coveredByActive = this.isCoveredBySBBStop({
+        venue,
+        sbbStops: args.activeStops,
+      });
+      if (!isExempt && !coveredByActive) {
         result.push(venue);
       }
 
@@ -1088,6 +1097,14 @@ class PublicTransportStopsLayer extends FeatureLayer {
       categories: venueCategories,
     });
 
+    for (const venue of updatedVenues) {
+      this.assignVenueCity({
+        wmeSDK,
+        venueId: venue.id.toString(),
+        localityname: stop.localityname,
+      });
+    }
+
     wmeSDK.Editing.setSelection({
       selection: {
         ids: updatedVenues.map((venue) => venue.id.toString()),
@@ -1217,6 +1234,49 @@ class PublicTransportStopsLayer extends FeatureLayer {
     }
 
     return venues;
+  }
+
+  // Assigns the venue's city from the stop's locality. WME has no "set city"
+  // API — the city is carried by a street — so we attach the city's empty
+  // (no-name) street, which yields a city-only address.
+  private assignVenueCity(args: {
+    wmeSDK: WmeSDK;
+    venueId: string;
+    localityname: string;
+  }): void {
+    const { wmeSDK, venueId, localityname } = args;
+
+    const city = findCityForStop(localityname, (cityName) => {
+      try {
+        return wmeSDK.DataModel.Cities.getCity({ cityName });
+      } catch {
+        return null;
+      }
+    });
+
+    if (!city) {
+      console.log(
+        `[PTLayer][city] no WME city found for locality "${localityname}"`,
+      );
+      return;
+    }
+
+    let street = wmeSDK.DataModel.Streets.getStreet({
+      cityId: city.id,
+      streetName: "",
+    });
+    if (!street) {
+      try {
+        street = wmeSDK.DataModel.Streets.addStreet({
+          cityId: city.id,
+          streetName: "",
+        });
+      } catch {
+        return;
+      }
+    }
+
+    wmeSDK.DataModel.Venues.updateAddress({ venueId, streetId: street.id });
   }
 }
 
