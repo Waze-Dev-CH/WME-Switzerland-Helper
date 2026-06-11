@@ -68,14 +68,14 @@ All map data comes from official Swiss sources (swisstopo), so you can trust its
 
 The **Public Transport Stops** layer displays official public transport stops from the Swiss Federal Railways (SBB) database. Here's what you need to know:
 
-- **Visual Indicator**: Stops appear as **orange circular icons** on the map
-- **Smart Matching**: The script automatically checks for existing venues within a **75-meter radius** to avoid duplicates
-- **Deduplication**: If a venue already exists with the same name and type within **5 meters**, it won't be drawn on the map (to prevent overlapping markers)
-- **Click to Add**: When you click a stop marker, you can:
-  - Create a new venue if none exists nearby
-  - Merge it with an existing venue with the same name
-  - Update existing venue coordinates
-- **Types Supported**: The layer includes stops for buses, trams, trains, boats, and cable cars across Switzerland
+- **Visual indicators**: stops that need work appear as **orange bus icons**; WME venues whose stop no longer exists (removed from or expired in the SBB data) appear in **red** and can be deleted
+- **Smart matching**: stops already mapped by a venue with the same name within a **75-meter radius** are hidden, so only the ones still needing work are shown
+- **Clustering**: at low zoom (12–14) nearby stops are grouped into **clusters**; click a cluster to zoom to its area
+- **Reload button**: a bus-icon button in the map's overlay bar refreshes the layer without moving the map, and spins while loading
+- **Click to act**:
+  - Orange → create a new venue, or merge with / update a nearby one; the stop's city is set automatically from its locality
+  - Red → delete the obsolete venue
+- **Types supported**: buses, trams, trains, boats, cable cars and funiculars across Switzerland
 
 ---
 
@@ -101,6 +101,32 @@ All notable changes to this project are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+### [1.3.0] - 2026-06-11
+
+#### Added
+
+- 🔴 Obsolete-stop detection: WME transport venues no longer matching an active SBB stop are shown in red and can be deleted
+- 🟠 Clustering at zoom 12–14: nearby stops are grouped into clickable clusters that zoom to their area
+- 🔄 Overlay reload button (bus icon) that refreshes the layer without moving the map and spins while loading
+- 🏙️ Automatic city assignment on venue create/update, derived from the stop's locality (with canton-suffix fallback)
+- ⚡ Progressive tiled rendering with a viewport data cache (re-uses fetched data on zoom-in / pan-inside, refetches otherwise)
+- ✅ Unit tests (Vitest) for stop-name cleaning, city matching and stop validity
+
+#### Changed
+
+- Venues are fetched directly from the Waze Features API (`venueLevel=4`) in parallel with SBB data, fixing bus/train stations missing below zoom 17; requests are tiled per grid cell to avoid the API's per-request cap
+- Rewrote and tested stop-name normalization: strips the locality prefix (exact/abbreviated/truncated), removes trailing transport parentheticals and railway brands (CFF/SBB/FFS), expands common abbreviations (Ptes→Petites, Rte→Route, Bif.→Bifurcation…), and keeps a 2-letter canton suffix
+- Stops are filtered by validity: only active stops (`validto` ≥ today) are offered for add/update
+- Merge targets a single chosen venue; a same-point venue (≤2.5 m) only offers "merge"; multiple matches prompt a selection
+- Lowered the minimum zoom to 12 and the venue edit zoom to 16
+- CABLE_RAILWAY stops are named "station de funiculaire"
+
+#### Fixed
+
+- Debounced map move/zoom (700 ms) to avoid redundant fetches
+- A failed venue selection (e.g. an off-screen harbor) no longer aborts the click handler
+- Clicking a stop below zoom 16 no longer breaks the layer's checkbox
 
 ### [1.2.4] - 2026-01-14
 

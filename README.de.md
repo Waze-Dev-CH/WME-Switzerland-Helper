@@ -68,14 +68,14 @@ Alle Kartendaten stammen aus offiziellen Schweizer Quellen (swisstopo), so dass 
 
 Die Ebene **Haltestellen des öffentlichen Nahverkehrs** zeigt offizielle Haltestellen des öffentlichen Verkehrs aus der Datenbank der Schweizer Bundesbahnen (SBB) an. Das sollten Sie wissen:
 
-- **Visueller Indikator**: Haltestellen erscheinen als **orangefarbene Kreissymbole** auf der Karte
-- **Intelligente Zuordnung**: Das Skript prüft automatisch auf vorhandene Orte im Umkreis von **75 Metern**, um Duplikate zu vermeiden
-- **Deduplizierung**: Wenn an einem Ort bereits ein Venue mit demselben Namen und Typ im Umkreis von **5 Metern** vorhanden ist, wird es auf der Karte nicht angezeigt (um überlagernde Markierungen zu vermeiden)
-- **Klicken zum Hinzufügen**: Wenn Sie auf ein Haltestellen-Marker klicken, können Sie:
-  - Ein neues Venue erstellen, wenn keines in der Nähe existiert
-  - Es mit einem vorhandenen Venue mit demselben Namen zusammenführen
-  - Vorhandene Venue-Koordinaten aktualisieren
-- **Unterstützte Typen**: Die Ebene umfasst Haltestellen für Busse, Straßenbahnen, Züge, Boote und Seilbahnen in der ganzen Schweiz
+- **Visuelle Indikatoren**: zu bearbeitende Haltestellen erscheinen als **orangefarbene Bus-Symbole**; WME-Orte, deren Haltestelle nicht mehr existiert (aus den SBB-Daten entfernt oder abgelaufen), erscheinen **rot** und können gelöscht werden
+- **Intelligente Zuordnung**: Haltestellen, die bereits durch einen Ort mit demselben Namen im Umkreis von **75 Metern** erfasst sind, werden ausgeblendet; angezeigt werden nur die, die noch Arbeit erfordern
+- **Gruppierung**: bei niedrigem Zoom (12–14) werden nahe Haltestellen zu **Clustern** gruppiert; klicken Sie auf ein Cluster, um auf dessen Bereich zu zoomen
+- **Neu-laden-Schaltfläche**: eine Schaltfläche mit Bus-Symbol in der Overlay-Leiste lädt die Ebene neu, ohne die Karte zu bewegen, und dreht sich während des Ladens
+- **Klicken zum Handeln**:
+  - Orange → ein neues Venue erstellen oder mit einem nahen zusammenführen/aktualisieren; die Stadt der Haltestelle wird automatisch aus ihrer Ortschaft gesetzt
+  - Rot → das veraltete Venue löschen
+- **Unterstützte Typen**: Busse, Straßenbahnen, Züge, Boote, Seilbahnen und Standseilbahnen in der ganzen Schweiz
 
 ---
 
@@ -101,6 +101,32 @@ Alle bemerkenswerten Änderungen an diesem Projekt sind hier dokumentiert.
 
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+### [1.3.0] - 2026-06-11
+
+#### Hinzugefügt
+
+- 🔴 Erkennung veralteter Haltestellen: WME-Verkehrsorte, die keiner aktiven SBB-Haltestelle mehr entsprechen, werden rot angezeigt und können gelöscht werden
+- 🟠 Gruppierung bei Zoom 12–14: nahe Haltestellen werden zu anklickbaren Clustern zusammengefasst, die auf ihren Bereich zoomen
+- 🔄 Neu-laden-Schaltfläche (Bus-Symbol) in der Overlay-Leiste, die die Ebene ohne Kartenbewegung neu lädt und sich während des Ladens dreht
+- 🏙️ Automatische Stadtzuweisung beim Erstellen/Aktualisieren eines Venues, abgeleitet aus der Ortschaft der Haltestelle (mit Rückfall auf das Kantonskürzel)
+- ⚡ Progressives kachelweises Rendern mit Viewport-Cache (Wiederverwendung der Daten beim Hineinzoomen / internen Verschieben, sonst Neuladen)
+- ✅ Unit-Tests (Vitest) für Namensbereinigung, Stadtzuordnung und Haltestellengültigkeit
+
+#### Geändert
+
+- Venues werden direkt von der Waze Features API (`venueLevel=4`) parallel zu den SBB-Daten geladen, was fehlende Bus-/Bahnhöfe unter Zoom 17 behebt; Anfragen werden pro Rasterzelle aufgeteilt, um das Limit der API pro Anfrage zu umgehen
+- Namensnormalisierung der Haltestellen neu geschrieben und getestet: entfernt das Ortschafts-Präfix (exakt/abgekürzt/abgeschnitten), abschließende Verkehrs-Klammern und Bahnmarken (CFF/SBB/FFS), expandiert gängige Abkürzungen (Ptes→Petites, Rte→Route, Bif.→Bifurcation…) und behält ein zweibuchstabiges Kantonskürzel
+- Haltestellen werden nach Gültigkeit gefiltert: nur aktive Haltestellen (`validto` ≥ heute) werden zum Hinzufügen/Aktualisieren angeboten
+- Das Zusammenführen zielt auf ein einziges gewähltes Venue; ein Venue am selben Punkt (≤2,5 m) bietet nur „zusammenführen“; mehrere Treffer öffnen eine Auswahl
+- Mindest-Zoom auf 12 und Venue-Bearbeitungs-Zoom auf 16 gesenkt
+- CABLE_RAILWAY-Haltestellen heißen „station de funiculaire“
+
+#### Behoben
+
+- Karten-Verschiebung/-Zoom entprellt (700 ms), um redundante Abfragen zu vermeiden
+- Eine fehlgeschlagene Venue-Auswahl (z. B. ein Hafen außerhalb des Bildschirms) bricht den Klick-Handler nicht mehr ab
+- Ein Klick auf eine Haltestelle unter Zoom 16 zerstört das Kontrollkästchen der Ebene nicht mehr
 
 ### [1.2.4] - 2026-01-14
 

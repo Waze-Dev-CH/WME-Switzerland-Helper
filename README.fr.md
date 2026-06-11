@@ -68,14 +68,14 @@ Toutes les données cartographiques proviennent de sources officielles suisses (
 
 La couche **Arrêts de transports publics** affiche les arrêts de transport en commun officiels de la base de données des Chemins de fer fédéraux suisses (CFF). Voici ce que vous devez savoir :
 
-- **Indicateur visuel** : Les arrêts apparaissent sous forme d'**icônes circulaires orange** sur la carte
-- **Correspondance intelligente** : Le script vérifie automatiquement l'existence de lieux dans un rayon de **75 mètres** pour éviter les doublons
-- **Dédoublonnage** : Si un lieu existe déjà avec le même nom et le même type dans un rayon de **5 mètres**, il ne sera pas affiché sur la carte (pour éviter les marqueurs qui se chevauchent)
-- **Cliquez pour ajouter** : En cliquant sur un marqueur d'arrêt, vous pouvez :
-  - Créer un nouveau lieu s'il n'en existe aucun à proximité
-  - Le fusionner avec un lieu existant portant le même nom
-  - Mettre à jour les coordonnées du lieu existant
-- **Types pris en charge** : La couche inclut les arrêts de bus, tramways, trains, bateaux et remontées mécaniques en Suisse
+- **Indicateurs visuels** : les arrêts à traiter apparaissent sous forme d'**icônes de bus orange** ; les lieux WME dont l'arrêt n'existe plus (retiré ou expiré dans les données CFF) apparaissent en **rouge** et peuvent être supprimés
+- **Correspondance intelligente** : les arrêts déjà cartographiés par un lieu de même nom dans un rayon de **75 mètres** sont masqués ; seuls ceux nécessitant une action sont affichés
+- **Regroupement** : aux faibles zooms (12–14), les arrêts proches sont regroupés en **clusters** ; cliquez sur un cluster pour zoomer sur sa zone
+- **Bouton de rechargement** : un bouton avec une icône de bus dans la barre d'overlay recharge la couche sans bouger la carte, et tourne pendant le chargement
+- **Cliquez pour agir** :
+  - Orange → créer un nouveau lieu, ou fusionner avec / mettre à jour un lieu proche ; la ville de l'arrêt est renseignée automatiquement depuis sa localité
+  - Rouge → supprimer le lieu obsolète
+- **Types pris en charge** : bus, tramways, trains, bateaux, télécabines et funiculaires en Suisse
 
 ---
 
@@ -101,6 +101,32 @@ Tous les changements notables de ce projet sont documentés ici.
 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 et ce projet adhère au [Versionnage Sémantique](https://semver.org/spec/v2.0.0.html).
+
+### [1.3.0] - 2026-06-11
+
+#### Ajouté
+
+- 🔴 Détection des arrêts obsolètes : les lieux de transport WME ne correspondant plus à un arrêt CFF actif sont affichés en rouge et peuvent être supprimés
+- 🟠 Regroupement aux zooms 12–14 : les arrêts proches sont regroupés en clusters cliquables qui zooment sur leur zone
+- 🔄 Bouton de rechargement (icône de bus) dans la barre d'overlay, qui recharge la couche sans bouger la carte et tourne pendant le chargement
+- 🏙️ Attribution automatique de la ville à la création/mise à jour d'un lieu, déduite de la localité de l'arrêt (avec repli sur le suffixe de canton)
+- ⚡ Rendu progressif par tuiles avec cache du viewport (réutilise les données lors d'un zoom avant / déplacement interne, recharge sinon)
+- ✅ Tests unitaires (Vitest) pour le nettoyage des noms, la correspondance des villes et la validité des arrêts
+
+#### Modifié
+
+- Les lieux sont récupérés directement depuis l'API Waze Features (`venueLevel=4`) en parallèle des données CFF, corrigeant les arrêts de bus/train manquants sous le zoom 17 ; les requêtes sont découpées par cellule de grille pour contourner le plafond de l'API
+- Normalisation des noms d'arrêts réécrite et testée : retire le préfixe de localité (exact/abrégé/tronqué), les parenthèses de transport finales et les marques ferroviaires (CFF/SBB/FFS), déplie les abréviations courantes (Ptes→Petites, Rte→Route, Bif.→Bifurcation…) et conserve un suffixe de canton à 2 lettres
+- Les arrêts sont filtrés par validité : seuls les arrêts actifs (`validto` ≥ aujourd'hui) sont proposés à l'ajout/mise à jour
+- La fusion ne vise qu'un seul lieu choisi ; un lieu au même point (≤2,5 m) ne propose que « fusionner » ; plusieurs correspondances ouvrent une sélection
+- Zoom minimal abaissé à 12 et zoom d'édition de lieu à 16
+- Les arrêts CABLE_RAILWAY sont nommés « station de funiculaire »
+
+#### Corrigé
+
+- Déplacement/zoom de la carte temporisé (700 ms) pour éviter les requêtes redondantes
+- Une sélection de lieu échouée (ex. un port hors écran) n'interrompt plus le gestionnaire de clic
+- Cliquer sur un arrêt sous le zoom 16 ne casse plus la case à cocher de la couche
 
 ### [1.2.4] - 2026-01-14
 

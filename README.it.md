@@ -68,14 +68,14 @@ Tutti i dati cartografici provengono da fonti ufficiali svizzere (swisstopo), qu
 
 Il livello **Fermate dei trasporti pubblici** mostra le fermate ufficiali del trasporto pubblico dal database delle Ferrovie federali svizzere (SBB). Ecco cosa dovete sapere:
 
-- **Indicatore visivo**: Le fermate appaiono come **icone circolari arancioni** sulla mappa
-- **Abbinamento intelligente**: Lo script controlla automaticamente la presenza di location all'interno di un raggio di **75 metri** per evitare duplicati
-- **Deduplicazione**: Se una location già esiste con lo stesso nome e tipo entro **5 metri**, non verrà disegnata sulla mappa (per evitare marcatori sovrapposti)
-- **Cliccate per aggiungere**: Quando fate clic su un marcatore di fermata, potete:
-  - Creare una nuova location se non ne esiste nessuna nelle vicinanze
-  - Fonderla con una location esistente con lo stesso nome
-  - Aggiornare le coordinate della location esistente
-- **Tipi supportati**: Il livello include fermate per autobus, tram, treni, barche e funivie in tutta la Svizzera
+- **Indicatori visivi**: le fermate da gestire appaiono come **icone di autobus arancioni**; le location WME la cui fermata non esiste più (rimossa o scaduta nei dati FFS) appaiono in **rosso** e possono essere eliminate
+- **Abbinamento intelligente**: le fermate già mappate da una location con lo stesso nome entro un raggio di **75 metri** vengono nascoste; vengono mostrate solo quelle che richiedono un intervento
+- **Raggruppamento**: a basso zoom (12–14) le fermate vicine sono raggruppate in **cluster**; cliccate su un cluster per zoomare sulla sua area
+- **Pulsante di ricarica**: un pulsante con icona di autobus nella barra overlay ricarica il livello senza spostare la mappa, e gira durante il caricamento
+- **Cliccate per agire**:
+  - Arancione → creare una nuova location, oppure unire con / aggiornare una vicina; la città della fermata viene impostata automaticamente dalla sua località
+  - Rosso → eliminare la location obsoleta
+- **Tipi supportati**: autobus, tram, treni, barche, cabinovie e funicolari in tutta la Svizzera
 
 ---
 
@@ -101,6 +101,32 @@ Tutti i cambiamenti notevoli di questo progetto sono documentati qui.
 
 Il formato è basato su [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 e questo progetto aderisce al [Versionamento Semantico](https://semver.org/spec/v2.0.0.html).
+
+### [1.3.0] - 2026-06-11
+
+#### Aggiunto
+
+- 🔴 Rilevamento delle fermate obsolete: le location di trasporto WME che non corrispondono più a una fermata FFS attiva sono mostrate in rosso e possono essere eliminate
+- 🟠 Raggruppamento agli zoom 12–14: le fermate vicine sono raggruppate in cluster cliccabili che zoomano sulla loro area
+- 🔄 Pulsante di ricarica (icona di autobus) nella barra overlay, che ricarica il livello senza spostare la mappa e gira durante il caricamento
+- 🏙️ Assegnazione automatica della città alla creazione/aggiornamento di una location, dedotta dalla località della fermata (con ripiego sul suffisso del cantone)
+- ⚡ Rendering progressivo a tasselli con cache del viewport (riusa i dati allo zoom avanti / spostamento interno, ricarica altrimenti)
+- ✅ Test unitari (Vitest) per la pulizia dei nomi, l'abbinamento delle città e la validità delle fermate
+
+#### Modificato
+
+- Le location vengono recuperate direttamente dall'API Waze Features (`venueLevel=4`) in parallelo ai dati FFS, correggendo le fermate di autobus/treno mancanti sotto lo zoom 17; le richieste sono suddivise per cella della griglia per aggirare il limite per richiesta dell'API
+- Normalizzazione dei nomi delle fermate riscritta e testata: rimuove il prefisso della località (esatto/abbreviato/troncato), le parentesi di trasporto finali e i marchi ferroviari (CFF/SBB/FFS), espande le abbreviazioni comuni (Ptes→Petites, Rte→Route, Bif.→Bifurcation…) e mantiene un suffisso di cantone di 2 lettere
+- Le fermate sono filtrate per validità: solo le fermate attive (`validto` ≥ oggi) sono proposte per l'aggiunta/aggiornamento
+- L'unione mira a una sola location scelta; una location nello stesso punto (≤2,5 m) propone solo «unisci»; più corrispondenze aprono una selezione
+- Zoom minimo abbassato a 12 e zoom di modifica della location a 16
+- Le fermate CABLE_RAILWAY sono denominate «station de funiculaire»
+
+#### Corretto
+
+- Spostamento/zoom della mappa con debounce (700 ms) per evitare richieste ridondanti
+- Una selezione di location fallita (es. un porto fuori schermo) non interrompe più il gestore del clic
+- Cliccare su una fermata sotto lo zoom 16 non rompe più la casella di controllo del livello
 
 ### [1.2.4] - 2026-01-14
 
