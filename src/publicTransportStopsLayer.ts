@@ -1198,12 +1198,14 @@ class PublicTransportStopsLayer extends FeatureLayer {
     lon: number;
   }): void {
     const { wmeSDK, lat, lon } = args;
-    this.unregisterEvents();
+    // No event teardown here: unregisterEvents() would also drop the layer's
+    // checkbox handler (registered in the Layer constructor) and registerEvents
+    // never re-adds it. The debounce + generation token already make the extra
+    // move-end render harmless.
     wmeSDK.Map.setMapCenter({
       lonLat: { lat, lon },
       zoomLevel: ADD_VENUE_ZOOM_IN_LEVEL,
     });
-    this.registerEvents({ wmeSDK });
     waitForMapIdle({ wmeSDK, intervalMs: 50, maxTries: 60 }).then(() => {
       this.refilterFeatures({ wmeSDK });
     });
@@ -1376,19 +1378,19 @@ class PublicTransportStopsLayer extends FeatureLayer {
       return;
     }
 
-    let street = wmeSDK.DataModel.Streets.getStreet({
-      cityId: city.id,
-      streetName: "",
-    });
-    if (!street) {
-      try {
-        street = wmeSDK.DataModel.Streets.addStreet({
+    let street;
+    try {
+      street =
+        wmeSDK.DataModel.Streets.getStreet({
+          cityId: city.id,
+          streetName: "",
+        }) ??
+        wmeSDK.DataModel.Streets.addStreet({
           cityId: city.id,
           streetName: "",
         });
-      } catch {
-        return;
-      }
+    } catch {
+      return;
     }
 
     wmeSDK.DataModel.Venues.updateAddress({ venueId, streetId: street.id });
