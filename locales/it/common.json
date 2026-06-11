@@ -25,17 +25,18 @@
   },
   "swissimageUpdateText": "Questa <a href=\"https://map.geo.admin.ch/#/map?lang=fr&center=2638909.25,1198316.5&z=1.967&topic=swisstopo&layers=ch.swisstopo.images-swissimage-dop10.metadata&bgLayer=ch.swisstopo.pixelkarte-farbe&featureInfo=default&catalogNodes=swisstopo\" target=\"_blank\" rel=\"noopener noreferrer\">mappa</a> mostra quando il layer <b>{{layer}}</b> è stato aggiornato per ogni regione.",
   "publicTransportStopsNote": "Le fermate dei trasporti pubblici appaiono come <strong>icone circolari arancioni</strong> <img src=\"data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OSIgaGVpZ2h0PSI0OCIgZmlsbD0iYmxhY2siPjxjaXJjbGUgY3g9IjI0LjcyNiIgY3k9IjI0IiByPSIyMyIgZmlsbD0iI2U2N2UyMiIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiLz48cGF0aCBmaWxsPSIjZmZmIiBkPSJNMjkuNzI2IDE0YTMgMyAwIDAgMSAyLjk5NSAyLjgyNGwuMDA1LjE3NnYxaDEuMDE3bC4xNS4wMDVjLjkzOC4wNiAxLjc2LjY4NCAxLjg0MyAxLjU5MWwuMDA3LjE1NFYyMmwtLjAwNy4xMTdhMSAxIDAgMCAxLS44NzYuODc2bC0uMTE3LjAwNy0uMTE3LS4wMDdhMSAxIDAgMCAxLS44NzYtLjg3NkwzMy43NDMgMjJ2LTJoLTEuMDE3djEwYTEgMSAwIDAgMS0uODgzLjk5M2wtLjExNy4wMDdoLTF2MS41YTEuNSAxLjUgMCAwIDEtMyAwVjMxaC02djEuNWExLjUgMS41IDAgMCAxLTMgMFYzMWgtMWExIDEgMCAwIDEtLjk5My0uODgzTDE2LjcyNiAzMFYyMGgtMXYyYTEgMSAwIDAgMS0uODgzLjk5M2wtLjExNy4wMDdhMSAxIDAgMCAxLS45OTMtLjg4M0wxMy43MjYgMjJ2LTIuMjVjMC0uOTkuODYtMS42ODIgMS44NS0xLjc0NWwuMTUtLjAwNWgxdi0xYTMgMyAwIDAgMSAyLjgyNC0yLjk5NWwuMTc2LS4wMDV6bS0xIDEzaC0xYTEgMSAwIDEgMCAwIDJoMWExIDEgMCAxIDAgMC0ybS03IDBoLTFhMSAxIDAgMSAwIDAgMmgxYTEgMSAwIDEgMCAwLTJtLS40MjktMTFoLTEuNTdsLS4xMTcuMDA3YTEgMSAwIDAgMC0uODc3Ljg3NmwtLjAwNy4xMTd2OGgxMnYtOGwtLjAwNy0uMTE3YTEgMSAwIDAgMC0uNzY0LS44NTdsLS4xMTItLjAyLS4xMTctLjAwNmgtMS41NzJsLS44NTQgMS40OTYtLjA2NS4xYTEgMSAwIDAgMS0uODAzLjQwNEgyMy4wMmwtLjExOS0uMDA3YTEgMSAwIDAgMS0uNzUtLjQ5N3oiLz48c2NyaXB0IHhtbG5zPSIiLz48L3N2Zz4=\" style=\"height: 20px; width: 20px; vertical-align: middle;\"> sulla mappa. Cliccate su di esse per creare o aggiornare le location. Lo script evita i duplicati controllando entro un raggio di <strong>75 metri</strong> e non disegna le fermate già presenti entro <strong>5 metri</strong>.",
+  "reloadStops": "Ricarica le fermate del trasporto pubblico",
   "deleteObsoleteStop": {
     "message": "La location \"{{name}}\" non ha una fermata SBB corrispondente. Vuoi eliminarla?",
     "confirm": "Elimina",
     "cancel": "Annulla"
   },
   "venueMatchDialog": {
-    "message": "Sembra che esistano già {{venueCount}} fermata/e con questo nome.<br/>Le abbiamo selezionate per voi.<br/>Cosa volete fare?<br/>Selezionando <pre style=\"display: inline;\">Unisci</pre> verranno applicate le informazioni ai punti esistenti senza crearne uno nuovo.",
+    "cancel": "Annulla",
+    "selectMessage": "Trovate più fermate corrispondenti. Scegli con quale unire:",
     "merge": "Unisci",
     "mergeWithCoords": "Unisci e aggiorna coordinate",
     "saveNew": "Salva nuovo",
-    "selectMessage": "Trovate più fermate corrispondenti. Scegli con quale unire:",
-    "cancel": "Annulla"
+    "message": "Sembra che esistano già {{venueCount}} fermata/e con questo nome.<br/>Le abbiamo selezionate per voi.<br/>Cosa volete fare?<br/>Selezionando <pre style=\"display: inline;\">Unisci</pre> verranno applicate le informazioni ai punti esistenti senza crearne uno nuovo."
   }
 }

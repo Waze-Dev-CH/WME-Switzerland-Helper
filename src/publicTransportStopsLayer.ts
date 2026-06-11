@@ -35,6 +35,7 @@ import { WazeVenueFetcher, TRANSPORT_CATEGORIES } from "./wazeVenueFetcher";
 import { ClusterManager, type ClusterGroup } from "./clusterManager";
 import { findCityForStop } from "./stopCityMatcher";
 import { isStopActive, todayIsoDate } from "./stopValidity";
+import { ReloadButton } from "./reloadButton";
 import i18next from "../locales/i18n";
 
 interface TransportStop extends SBBRecord {
@@ -150,11 +151,20 @@ class PublicTransportStopsLayer extends FeatureLayer {
   } | null = null;
   // Debounce handle for map move/zoom → render.
   private renderDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  // The SDK instance, kept so the reload button can trigger a render.
+  private readonly sdk: WmeSDK;
+  // Bus-icon button in WME's overlay bar: manual refresh + loading spinner.
+  private readonly reloadButton: ReloadButton;
 
   constructor(
     args: PublicTransportStopsLayerConstructorArgs & { wmeSDK: WmeSDK },
   ) {
     super({ ...args, wmeSDK: args.wmeSDK, minZoomLevel: 12 });
+    this.sdk = args.wmeSDK;
+    this.reloadButton = new ReloadButton({
+      onClick: () => this.forceReload(),
+      title: i18next.t("common:reloadStops", "Refresh public transport stops"),
+    });
     this.dataFetcher = new SBBDataFetcher({
       dataSet: "haltestelle-haltekante",
     });
@@ -249,8 +259,24 @@ class PublicTransportStopsLayer extends FeatureLayer {
   // --- render() override ---
 
   override async render(args: { wmeSDK: WmeSDK }): Promise<void> {
-    const { wmeSDK } = args;
     const generation = ++this.renderGeneration;
+    this.reloadButton.setLoading(true);
+    try {
+      await this.runRender(args, generation);
+    } finally {
+      // Only the latest render clears the spinner; an older one bailing out
+      // must not stop the indicator while a newer render is still running.
+      if (generation === this.renderGeneration) {
+        this.reloadButton.setLoading(false);
+      }
+    }
+  }
+
+  private async runRender(
+    args: { wmeSDK: WmeSDK },
+    generation: number,
+  ): Promise<void> {
+    const { wmeSDK } = args;
 
     if (!wmeSDK.LayerSwitcher.isLayerCheckboxChecked({ name: this.name }))
       return;
@@ -600,8 +626,25 @@ class PublicTransportStopsLayer extends FeatureLayer {
     void this.render(args);
   }
 
+  override async addToMap(args: { wmeSDK: WmeSDK }): Promise<void> {
+    this.reloadButton.mount();
+    await super.addToMap(args);
+  }
+
+  override registerEvents(args: { wmeSDK: WmeSDK }): void {
+    super.registerEvents(args);
+    // Saving re-renders WME's overlay bar, dropping our injected button — put it
+    // back afterwards (mount() is idempotent).
+    const cleanup = args.wmeSDK.Events.on({
+      eventName: "wme-save-finished",
+      eventHandler: () => this.reloadButton.mount(),
+    });
+    this.eventCleanups.push(cleanup);
+  }
+
   override removeFromMap(args: { wmeSDK: WmeSDK }): void {
     super.removeFromMap(args);
+    this.reloadButton.unmount();
     // Cancel any in-flight render and pending debounced render after teardown.
     this.renderGeneration++;
     if (this.renderDebounceTimer !== null) {
@@ -612,6 +655,13 @@ class PublicTransportStopsLayer extends FeatureLayer {
     this.features.clear();
     this.featureKinds.clear();
     this.clusterData.clear();
+  }
+
+  // Refresh the layer's data without moving the map (the overlay reload button):
+  // drop the cache so the next render refetches the current viewport.
+  private forceReload(): void {
+    this.cachedData = null;
+    void this.render({ wmeSDK: this.sdk });
   }
 
   // --- Click routing ---
