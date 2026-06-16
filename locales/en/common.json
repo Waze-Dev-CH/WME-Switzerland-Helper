@@ -137,6 +137,8 @@
     "errNoCity": "Segment has no city; set the city first",
     "errStreetCreate": "Could not find or create the street record",
     "errLockAboveRank": "Lock L{{expected}} is above your editor level (L{{user}})",
-    "tabNote": "Compares Waze street names against the official Swiss register and flags mismatches, with one-click fixes. Open the dedicated 🇨🇭 Street names tab to review the issues."
+    "tabNote": "Compares Waze street names against the official Swiss register and flags mismatches, with one-click fixes. Open the dedicated 🇨🇭 Street names tab to review the issues.",
+    "ignoreAll": "Ignore all ({{n}})",
+    "confirmIgnoreAll": "Ignore all {{n}} findings in this group? They are hidden locally and can be restored from the settings (Reset)."
   }
 }

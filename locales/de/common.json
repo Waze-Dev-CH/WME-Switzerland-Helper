@@ -137,6 +137,8 @@
     "errNoCity": "Segment ohne Stadt; zuerst die Stadt setzen",
     "errStreetCreate": "Strasse konnte nicht gefunden oder erstellt werden",
     "errLockAboveRank": "Sperrstufe L{{expected}} über deiner Editor-Stufe (L{{user}})",
-    "tabNote": "Vergleicht die Strassennamen in Waze mit dem amtlichen Schweizer Verzeichnis und meldet Abweichungen, mit 1-Klick-Korrektur. Öffne den eigenen Tab 🇨🇭 Strassennamen, um die Abweichungen zu prüfen."
+    "tabNote": "Vergleicht die Strassennamen in Waze mit dem amtlichen Schweizer Verzeichnis und meldet Abweichungen, mit 1-Klick-Korrektur. Öffne den eigenen Tab 🇨🇭 Strassennamen, um die Abweichungen zu prüfen.",
+    "ignoreAll": "Alle ignorieren ({{n}})",
+    "confirmIgnoreAll": "Alle {{n}} Befunde dieser Gruppe ignorieren? Lokal ausgeblendet, über die Einstellungen (Zurücksetzen) wiederherstellbar."
   }
 }

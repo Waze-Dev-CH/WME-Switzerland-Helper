@@ -137,6 +137,8 @@
     "errNoCity": "Segmento senza città; imposta prima la città",
     "errStreetCreate": "Impossibile trovare o creare la strada",
     "errLockAboveRank": "Blocco L{{expected}} oltre il tuo livello editor (L{{user}})",
-    "tabNote": "Confronta i nomi delle strade di Waze con il repertorio ufficiale svizzero e segnala le differenze, con correzione in 1 clic. Apri la scheda dedicata 🇨🇭 Nomi delle strade per esaminare le differenze."
+    "tabNote": "Confronta i nomi delle strade di Waze con il repertorio ufficiale svizzero e segnala le differenze, con correzione in 1 clic. Apri la scheda dedicata 🇨🇭 Nomi delle strade per esaminare le differenze.",
+    "ignoreAll": "Ignora tutti ({{n}})",
+    "confirmIgnoreAll": "Ignorare tutte le {{n}} segnalazioni del gruppo? Nascoste localmente, ripristinabili dalle impostazioni (Reimposta)."
   }
 }

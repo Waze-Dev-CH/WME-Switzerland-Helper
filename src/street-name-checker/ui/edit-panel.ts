@@ -196,6 +196,15 @@ export class EditPanelBox {
     ignoreBtn.title = t("ignoreTitle");
     ignoreBtn.addEventListener("click", () => this.onIgnore(issue));
     buttons.appendChild(ignoreBtn);
+
+    const ignoreGroup = issuesInSameGroup(snapshot.issues, issue);
+    if (ignoreGroup.length > 1) {
+      const ignoreAllBtn = document.createElement("button");
+      ignoreAllBtn.className = "chk-ignore";
+      ignoreAllBtn.textContent = t("ignoreAll", { n: ignoreGroup.length });
+      ignoreAllBtn.addEventListener("click", () => this.onIgnoreGroup(ignoreGroup));
+      buttons.appendChild(ignoreAllBtn);
+    }
     container.appendChild(buttons);
   }
 
@@ -204,6 +213,20 @@ export class EditPanelBox {
       this.scanner.reevaluate();
       this.schedule();
     });
+  }
+
+  private onIgnoreGroup(group: Issue[]): void {
+    if (
+      group.length > GROUP_FIX_CONFIRM_THRESHOLD &&
+      !confirm(t("confirmIgnoreAll", { n: group.length }))
+    ) {
+      return;
+    }
+    const keys = new Set(this.settings.get().ignoredKeys);
+    for (const issue of group) keys.add(issueKey(issue));
+    this.settings.update({ ignoredKeys: [...keys] });
+    this.scanner.reevaluate();
+    this.schedule();
   }
 
   private isCheckedAndNamed(segmentId: number): boolean {

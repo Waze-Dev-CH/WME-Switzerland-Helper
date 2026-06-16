@@ -137,6 +137,8 @@
     "errNoCity": "Segment sans ville; définissez d'abord la ville",
     "errStreetCreate": "Impossible de trouver ou de créer la rue",
     "errLockAboveRank": "Verrou L{{expected}} au-dessus de ton niveau d'éditeur (L{{user}})",
-    "tabNote": "Compare les noms de rues Waze au répertoire officiel suisse et signale les écarts, avec correction en 1 clic. Ouvre l'onglet dédié 🇨🇭 Nom des rues pour voir les écarts."
+    "tabNote": "Compare les noms de rues Waze au répertoire officiel suisse et signale les écarts, avec correction en 1 clic. Ouvre l'onglet dédié 🇨🇭 Nom des rues pour voir les écarts.",
+    "ignoreAll": "Tout ignorer ({{n}})",
+    "confirmIgnoreAll": "Ignorer les {{n}} signalements de ce groupe ? Masqués localement, récupérables dans les réglages (Réinitialiser)."
   }
 }

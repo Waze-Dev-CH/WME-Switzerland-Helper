@@ -536,6 +536,16 @@ export class TabUI {
       header.appendChild(fixAllBtn);
     }
 
+    // Ignore the whole group at once (any status, fixable or not).
+    if (group.issues.length > 1) {
+      const ignoreAllBtn = el("button", "chk-ignore", t("ignoreAll", { n: group.issues.length }));
+      ignoreAllBtn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        this.onIgnoreGroup(group);
+      });
+      header.appendChild(ignoreAllBtn);
+    }
+
     header.addEventListener("click", () => {
       const expanding = !this.expandedGroups.has(group.key);
       if (expanding) {
@@ -612,6 +622,20 @@ export class TabUI {
 
   private onIgnore(issue: Issue): void {
     ignoreIssue(this.settings, issue, () => this.scanner.reevaluate());
+  }
+
+  private onIgnoreGroup(group: IssueGroup): void {
+    // Reversible (Settings → Reset), but confirm a large mass-hide to avoid accidents.
+    if (
+      group.issues.length > GROUP_FIX_CONFIRM_THRESHOLD &&
+      !confirm(t("confirmIgnoreAll", { n: group.issues.length }))
+    ) {
+      return;
+    }
+    const keys = new Set(this.settings.get().ignoredKeys);
+    for (const issue of group.issues) keys.add(issueKey(issue));
+    this.settings.update({ ignoredKeys: [...keys] });
+    this.scanner.reevaluate();
   }
 
   /** Fit the map to every segment of the group, with padding for context. */
