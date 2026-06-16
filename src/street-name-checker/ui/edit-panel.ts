@@ -191,6 +191,7 @@ export class EditPanelBox {
     }
     // Dismiss a false positive (any status, fixable or not).
     const ignoreBtn = document.createElement("button");
+    ignoreBtn.className = "chk-ignore";
     ignoreBtn.textContent = t("ignore");
     ignoreBtn.title = t("ignoreTitle");
     ignoreBtn.addEventListener("click", () => this.onIgnore(issue));

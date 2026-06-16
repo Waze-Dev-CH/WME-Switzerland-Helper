@@ -599,7 +599,7 @@ export class TabUI {
       });
       row.appendChild(fixBtn);
     }
-    const ignoreBtn = el("button", "chk-fix-all", t("ignore"));
+    const ignoreBtn = el("button", "chk-ignore", t("ignore"));
     ignoreBtn.title = t("ignoreTitle");
     ignoreBtn.addEventListener("click", (ev) => {
       ev.stopPropagation();
