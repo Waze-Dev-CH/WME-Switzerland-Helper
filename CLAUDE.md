@@ -72,6 +72,15 @@ Build pipeline: `src/*.ts` + `main.user.ts` → Rollup → `.out/main.user.js` �
 - Update **all language versions** when adding entries
 - Commit messages: Conventional Commits (`type(scope): subject`)
 
+## Contributing workflow
+
+The repo has multiple contributors; `main` is integrated through reviewed pull requests.
+
+- **Pull before editing**: start from an up-to-date `main` — `git fetch origin && git checkout main && git pull --ff-only`, then branch (`feat|fix|chore|docs/<short-desc>`).
+- **Never push directly to `main`.** Open a PR (`gh pr create --base main`) and request review.
+- **Releases are the maintainer's job**: pushing a tag `vX.Y.Z` triggers `.github/workflows/release.yml`. Contributors do not tag.
+- Run the verification loop before pushing (see Pre-PR Checklist) and keep commits Conventional.
+
 ## Pre-PR Checklist
 
 1. `npm run lint` passes
