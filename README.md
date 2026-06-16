@@ -62,6 +62,9 @@ With this script, you get:
 - **Easy Layer Controls**  
   Turn each layer on or off with simple checkboxes in the WME interface.
 
+- **Official Street-Name Check**  
+  Compares the street names of the segments you see against the official Swiss street register (swisstopo) and highlights mismatches, with one-click fixes. A dedicated **🇨🇭 Street names** sidebar tab lists the issues, grouped and colour-coded, and the segment edit panel shows the verdict for the selected segment.
+
 All map data comes from official Swiss sources (swisstopo), so you can trust its accuracy.
 
 ### How the Public Transport Stops Layer Works
@@ -76,6 +79,17 @@ The **Public Transport Stops** layer displays official public transport stops fr
   - Orange → create a new venue, or merge with / update a nearby one; the stop's city is set automatically from its locality
   - Red → delete the obsolete venue
 - **Types supported**: buses, trams, trains, boats, cable cars and funiculars across Switzerland
+
+### How the Street Name Check Works
+
+The **Street Name Check** compares each segment's name with the official Swiss street register and shows what needs attention:
+
+- **Colour-coded statuses**: each issue is highlighted on the map and listed with a colour — from minor typography/spelling differences, through abbreviations and likely typos, to more serious cases such as a valid name that sits on the **wrong street** (flagged ⚠️) or a name **not found** in the register. Each status can be toggled on or off.
+- **One-click fixes**: where the official name is known, a **Fix** button applies it (per segment or for a whole group). **Nothing is ever saved automatically** — your edits go into the normal WME edit stack for you to review and save.
+- **Geometry aware**: official street axes are matched to segments, so unnamed segments get a suggestion and a name placed on the wrong street is detected.
+- **Bilingual streets**: in bilingual communes the official name carries both languages (e.g. "Unterer Quai / Quai du Bas"); the check keeps one language as the primary name and adds the other as an alternate.
+- **Ignore false positives**: an **Ignore** button hides a finding you know is fine; it stays hidden (stored locally) and can be reset from the settings.
+- **Cantonal geoportal link**: a button opens the segment on the relevant canton's official map, when available.
 
 ---
 
@@ -101,6 +115,12 @@ All notable changes to this project are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+### [1.4.0] - 2026-06-16
+
+#### Added
+
+- 🇨🇭 Official street-name check: compares Waze segment names against the Swiss street register (swisstopo / `api3.geo.admin.ch`), with a dedicated **🇨🇭 Street names** sidebar tab and an edit-panel verdict box. Includes colour-coded statuses (typography, abbreviation/variant, likely typo, wrong street ⚠️, wrong city, not found, unnamed, bilingual, Swiss guideline & lock checks), geometry matching, one-click fixes (never auto-saved), bilingual alternate-name handling, an Ignore action for false positives, and a cantonal-geoportal link. Merged from the standalone `WME-CH-Street-Name-Checker` userscript — its detailed 1.0–1.18 history is preserved in [`docs/street-name-checker-changelog.md`](./docs/street-name-checker-changelog.md).
 
 ### [1.3.0] - 2026-06-11
 
