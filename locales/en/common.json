@@ -105,7 +105,7 @@
     "legendMICRO_SEGMENT": "drivable segment shorter than 5 m (Swiss guideline; roundabouts excluded)",
     "legendLOOP": "loop made of fewer than 3 segments (same endpoints); split it",
     "legendNARROW_MISUSE": "Narrow Street misuse: one-way or shorter than 50 m",
-    "legendUNDER_LOCK": "lock rank below the Swiss minimum for its road type",
+    "legendUNDER_LOCK": "lock level below the Swiss minimum for its road type (roundabouts: at least L3)",
     "legendOVER_LOCK": "lock rank above the Swiss minimum (often intentional)",
     "guidelineChecks": "Swiss guideline checks (micro-segments, loops, narrow streets)",
     "guidelineChecksTitle": "Checks from the Suisse romande editing guidelines that need no external data",

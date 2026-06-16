@@ -179,3 +179,36 @@ describe("structural flag (lock decoupled from guideline checks)", () => {
     expect(statusOf(evaluateGuidelines([micro], noAddress), micro.id)).toBe("MICRO_SEGMENT");
   });
 });
+
+describe("roundabout lock minimum (L3)", () => {
+  const lockIssue = (issues: ReturnType<typeof evaluateGuidelines>, id: number) =>
+    issues.find((i) => i.segmentId === id);
+
+  it("flags a roundabout below L3 as UNDER_LOCK with expected L3", () => {
+    const s = seg({ junctionId: 7, lockRank: 0 } as Partial<Segment>); // Street roundabout at L1
+    const issue = lockIssue(evaluateGuidelines([s], noAddress), s.id);
+    expect(issue?.status).toBe("UNDER_LOCK");
+    expect(issue?.note?.expectedLock).toBe(3);
+    expect(issue?.note?.currentLock).toBe(1);
+  });
+
+  it("does not flag a roundabout already at L3", () => {
+    const s = seg({ junctionId: 7, lockRank: 2 } as Partial<Segment>); // L3
+    expect(evaluateGuidelines([s], noAddress)).toHaveLength(0);
+  });
+
+  it("does not flag a roundabout above L3 (the floor is a minimum, no OVER_LOCK)", () => {
+    const s = seg({ junctionId: 7, lockRank: 3 } as Partial<Segment>); // L4
+    expect(evaluateGuidelines([s], noAddress)).toHaveLength(0);
+  });
+
+  it("keeps the roundabout floor on a higher-standard road type", () => {
+    const s = seg({ junctionId: 7, roadType: 6, lockRank: 2 } as Partial<Segment>); // Major Hwy roundabout at L3, expected L4
+    expect(statusOf(evaluateGuidelines([s], noAddress), s.id)).toBe("UNDER_LOCK");
+  });
+
+  it("still flags a non-roundabout Street over its standard as OVER_LOCK", () => {
+    const s = seg({ lockRank: 3 } as Partial<Segment>); // Street at L4, expected L1
+    expect(statusOf(evaluateGuidelines([s], noAddress), s.id)).toBe("OVER_LOCK");
+  });
+});

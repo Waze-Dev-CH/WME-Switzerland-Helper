@@ -33,6 +33,9 @@ const EXPECTED_LEVEL_BY_ROAD_TYPE = new Map<number, number>([
   [1, 1], // Street
 ]);
 
+/** Roundabouts are locked at least L3 (Swiss standard), regardless of road type; a minimum. */
+const ROUNDABOUT_MIN_LEVEL = 3;
+
 export type GetAddressFn = (segmentId: number) => SegmentAddress | null;
 
 function makeIssue(
@@ -103,21 +106,29 @@ export function evaluateGuidelines(
     // Lock level below / above the Swiss standard for the road type. Over-locking
     // is often intentional, hence a separate, informative status. All in 1-6 levels:
     // segment.lockRank is 0-based, so the segment's level is lockRank + 1.
-    const expectedLevel = EXPECTED_LEVEL_BY_ROAD_TYPE.get(segment.roadType);
+    // Roundabouts are always locked at least L3 whatever the road type — but that is a
+    // MINIMUM, so a roundabout above it is never flagged OVER_LOCK.
+    const baseExpected = EXPECTED_LEVEL_BY_ROAD_TYPE.get(segment.roadType);
+    const expectedLevel = isRoundabout
+      ? Math.max(baseExpected ?? 0, ROUNDABOUT_MIN_LEVEL)
+      : baseExpected;
     if (
       expectedLevel !== undefined &&
       typeof segment.lockRank === "number" &&
-      segment.lockRank + 1 !== expectedLevel &&
       !issues.has(segment.id)
     ) {
       const currentLevel = segment.lockRank + 1;
-      const status = currentLevel < expectedLevel ? "UNDER_LOCK" : "OVER_LOCK";
-      const issue = makeIssue(segment, status, getAddress, swissCountryId);
-      if (issue) {
-        // Levels (not raw lockRank) are carried in the note; the fix converts back.
-        issue.note = { ...(issue.note ?? {}), currentLock: currentLevel, expectedLock: expectedLevel };
-        issue.fixable = true;
-        issues.set(segment.id, issue);
+      let status: "UNDER_LOCK" | "OVER_LOCK" | null = null;
+      if (currentLevel < expectedLevel) status = "UNDER_LOCK";
+      else if (currentLevel > expectedLevel && !isRoundabout) status = "OVER_LOCK";
+      if (status) {
+        const issue = makeIssue(segment, status, getAddress, swissCountryId);
+        if (issue) {
+          // Levels (not raw lockRank) are carried in the note; the fix converts back.
+          issue.note = { ...(issue.note ?? {}), currentLock: currentLevel, expectedLock: expectedLevel };
+          issue.fixable = true;
+          issues.set(segment.id, issue);
+        }
       }
     }
 

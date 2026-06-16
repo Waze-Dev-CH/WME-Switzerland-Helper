@@ -105,7 +105,7 @@
     "legendMICRO_SEGMENT": "befahrbares Segment kürzer als 5 m (Schweizer Regel; Kreisel ausgenommen)",
     "legendLOOP": "Schleife aus weniger als 3 Segmenten (gleiche Endknoten); aufteilen",
     "legendNARROW_MISUSE": "Falsch verwendete enge Strasse: Einbahn oder kürzer als 50 m",
-    "legendUNDER_LOCK": "Sperrstufe unter dem Schweizer Minimum für diesen Strassentyp",
+    "legendUNDER_LOCK": "Sperrstufe unter dem Schweizer Minimum für diesen Strassentyp (Kreisel: mindestens L3)",
     "legendOVER_LOCK": "Sperrstufe über dem Schweizer Minimum (oft beabsichtigt)",
     "guidelineChecks": "Schweizer Regelprüfungen (Mikrosegmente, Schleifen, enge Strassen)",
     "guidelineChecksTitle": "Prüfungen aus den Editier-Richtlinien der Romandie, ohne externe Daten",

@@ -105,7 +105,7 @@
     "legendMICRO_SEGMENT": "segmento percorribile più corto di 5 m (regola svizzera; rotatorie escluse)",
     "legendLOOP": "anello con meno di 3 segmenti (stessi nodi); da dividere",
     "legendNARROW_MISUSE": "Strada stretta usata male: senso unico o meno di 50 m",
-    "legendUNDER_LOCK": "livello di blocco sotto il minimo svizzero per questo tipo di strada",
+    "legendUNDER_LOCK": "livello di blocco sotto il minimo svizzero per questo tipo di strada (rotatorie: almeno L3)",
     "legendOVER_LOCK": "livello di blocco sopra il minimo svizzero (spesso intenzionale)",
     "guidelineChecks": "Controlli delle regole svizzere (micro-segmenti, anelli, strade strette)",
     "guidelineChecksTitle": "Controlli dalle regole di editing della Svizzera romanda, senza dati esterni",

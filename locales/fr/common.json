@@ -105,7 +105,7 @@
     "legendMICRO_SEGMENT": "segment carrossable de moins de 5 m (règle suisse; ronds-points exclus)",
     "legendLOOP": "boucle de moins de 3 segments (nœuds identiques); à diviser",
     "legendNARROW_MISUSE": "Rue étroite mal utilisée: sens unique ou moins de 50 m",
-    "legendUNDER_LOCK": "verrou plus bas que le minimum suisse pour ce type de route",
+    "legendUNDER_LOCK": "verrou plus bas que le minimum suisse pour ce type de route (ronds-points: au moins L3)",
     "legendOVER_LOCK": "verrou plus haut que le minimum suisse (souvent volontaire)",
     "guidelineChecks": "Contrôles des règles suisses (micro-segments, boucles, rues étroites)",
     "guidelineChecksTitle": "Contrôles issus des règles d'édition de Suisse romande, sans donnée externe",
