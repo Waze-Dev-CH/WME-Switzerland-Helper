@@ -108,10 +108,11 @@ ${statusChipRules}
 .chk-canton-badge { font-size: 10px; font-weight: 700; color: var(--chk-primary);
   border: 1px solid var(--chk-border); border-radius: 3px; padding: 0 3px; line-height: 1.4; }
 .chk-count { color: var(--chk-muted); background: var(--chk-bg); border: 1px solid var(--chk-border); border-radius: 9px; padding: 0 6px; font-size: 10px; }
-.chk-fix-all { font-size: 11px; padding: 3px 9px; border: none; border-radius: 6px; background: var(--chk-primary); color: var(--chk-primary-contrast); white-space: nowrap; flex-shrink: 0; }
+/* Fix actions = green (positive); Ignore = neutral grey (secondary). */
+.chk-fix-all { font-size: 11px; padding: 3px 9px; border: none; border-radius: 6px; background: #2e8b57; color: #fff; white-space: nowrap; flex-shrink: 0; }
 .chk-fix-all:hover { filter: brightness(1.08); }
 .chk-fix-all:disabled { opacity: .6; cursor: default; }
-.chk-ignore { font-size: 11px; padding: 3px 9px; border: none; border-radius: 6px; background: #e67e22; color: #fff; white-space: nowrap; flex-shrink: 0; }
+.chk-ignore { font-size: 11px; padding: 3px 9px; border: none; border-radius: 6px; background: #6b7280; color: #fff; white-space: nowrap; flex-shrink: 0; }
 .chk-ignore:hover { filter: brightness(1.08); }
 .chk-ignore:disabled { opacity: .6; cursor: default; }
 

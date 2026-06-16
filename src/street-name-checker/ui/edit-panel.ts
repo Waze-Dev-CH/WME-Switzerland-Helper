@@ -174,6 +174,7 @@ export class EditPanelBox {
     buttons.className = "chk-helper-sug";
     if (issue.fixable) {
       const fixBtn = document.createElement("button");
+      fixBtn.className = "chk-fix-all";
       fixBtn.textContent = t("fix");
       fixBtn.title = LOCK_STATUSES.has(issue.status)
         ? t("fixLockTitle", { n: issue.note?.expectedLock ?? "" })
@@ -184,6 +185,7 @@ export class EditPanelBox {
       const group = issuesInSameGroup(snapshot.issues, issue);
       if (group.length > 1) {
         const fixAllBtn = document.createElement("button");
+        fixAllBtn.className = "chk-fix-all";
         fixAllBtn.textContent = t("fixAll", { n: Math.min(group.length, GROUP_FIX_CAP) });
         fixAllBtn.addEventListener("click", () => this.onFixGroup(issue, group, fixAllBtn));
         buttons.appendChild(fixAllBtn);
