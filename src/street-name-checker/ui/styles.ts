@@ -92,11 +92,13 @@ ${tokens}
 
 .chk-groups { display: flex; flex-direction: column; gap: 5px; max-height: 48vh; overflow-y: auto; }
 .chk-group { flex-shrink: 0; border: 1px solid var(--chk-border); border-radius: var(--chk-radius); background: var(--chk-surface); }
-.chk-group-header { display: flex; align-items: center; gap: 6px; padding: 5px 8px; cursor: pointer; }
+.chk-group-header { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 5px 8px; cursor: pointer; }
 .chk-group-header:hover { background: var(--chk-info-bg); }
 .chk-badge { display: inline-block; min-width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 ${statusChipRules}
-.chk-group-names { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+/* flex: 1 with no min-width:0 so the name never shrinks below its longest word
+   (no char-by-char break); the header wraps the count/buttons to the next line instead. */
+.chk-group-names { flex: 1 1 60%; overflow-wrap: break-word; }
 .chk-arrow { color: var(--chk-muted); }
 .chk-suggestion { font-weight: bold; color: var(--chk-primary); }
 .chk-note { color: var(--chk-muted); font-style: italic; }
