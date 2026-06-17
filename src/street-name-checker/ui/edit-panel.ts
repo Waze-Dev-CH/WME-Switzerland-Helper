@@ -2,6 +2,7 @@ import type { WmeSDK } from "wme-sdk-typings";
 import {
   GROUP_FIX_CAP,
   ignoreIssue,
+  ignoreIssues,
   isFixInFlight,
   LOCK_STATUSES,
   runFix,
@@ -218,17 +219,10 @@ export class EditPanelBox {
   }
 
   private onIgnoreGroup(group: Issue[]): void {
-    if (
-      group.length > GROUP_FIX_CONFIRM_THRESHOLD &&
-      !confirm(t("confirmIgnoreAll", { n: group.length }))
-    ) {
-      return;
-    }
-    const keys = new Set(this.settings.get().ignoredKeys);
-    for (const issue of group) keys.add(issueKey(issue));
-    this.settings.update({ ignoredKeys: [...keys] });
-    this.scanner.reevaluate();
-    this.schedule();
+    ignoreIssues(this.settings, group, () => {
+      this.scanner.reevaluate();
+      this.schedule();
+    });
   }
 
   private isCheckedAndNamed(segmentId: number): boolean {

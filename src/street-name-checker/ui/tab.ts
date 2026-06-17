@@ -3,6 +3,7 @@ import type { WmeSDK } from "wme-sdk-typings";
 import {
   GROUP_FIX_CAP,
   ignoreIssue,
+  ignoreIssues,
   LOCK_STATUSES,
   runFix,
   runFixGroup,
@@ -625,17 +626,7 @@ export class TabUI {
   }
 
   private onIgnoreGroup(group: IssueGroup): void {
-    // Reversible (Settings → Reset), but confirm a large mass-hide to avoid accidents.
-    if (
-      group.issues.length > GROUP_FIX_CONFIRM_THRESHOLD &&
-      !confirm(t("confirmIgnoreAll", { n: group.issues.length }))
-    ) {
-      return;
-    }
-    const keys = new Set(this.settings.get().ignoredKeys);
-    for (const issue of group.issues) keys.add(issueKey(issue));
-    this.settings.update({ ignoredKeys: [...keys] });
-    this.scanner.reevaluate();
+    ignoreIssues(this.settings, group.issues, () => this.scanner.reevaluate());
   }
 
   /** Fit the map to every segment of the group, with padding for context. */

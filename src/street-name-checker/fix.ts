@@ -290,3 +290,18 @@ export function ignoreIssue(settings: SettingsStore, issue: Issue, onComplete?: 
   if (!keys.includes(key)) settings.update({ ignoredKeys: [...keys, key] });
   onComplete?.();
 }
+
+/** Dismiss a whole group of findings at once; confirms a large mass-hide first. */
+export function ignoreIssues(settings: SettingsStore, issues: Issue[], onComplete?: () => void): void {
+  // Reversible (Settings → Reset), but confirm a large mass-hide to avoid accidents.
+  if (
+    issues.length > GROUP_FIX_CONFIRM_THRESHOLD &&
+    !confirm(t("confirmIgnoreAll", { n: issues.length }))
+  ) {
+    return;
+  }
+  const keys = new Set(settings.get().ignoredKeys);
+  for (const issue of issues) keys.add(issueKey(issue));
+  settings.update({ ignoredKeys: [...keys] });
+  onComplete?.();
+}
