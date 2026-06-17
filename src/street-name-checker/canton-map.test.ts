@@ -45,9 +45,10 @@ describe("cantonMapUrl", () => {
   it("builds center+scale URLs for Geneva and Vaud", () => {
     expect(cantonMapUrl("Genève", 6.14, 46.2)).toContain("map.sitg.ge.ch/app/");
     expect(cantonMapUrl("Genève", 6.14, 46.2)).toContain("center=");
-    // VD: custom ArcGIS on www.geo.vd.ch (center,scale,wkid); non-www drops the query.
-    expect(cantonMapUrl("Vaud", 6.63, 46.52)).toContain("www.geo.vd.ch");
+    // VD: new geoportail.vd.ch viewer (center,scale,wkid) with the hybrid basemap.
+    expect(cantonMapUrl("Vaud", 6.63, 46.52)).toContain("www.geoportail.vd.ch/map.htm");
     expect(cantonMapUrl("Vaud", 6.63, 46.52)).toContain("wkid=2056");
+    expect(cantonMapUrl("Vaud", 6.63, 46.52)).toContain("theme=hybride");
   });
 
   it("builds the Bern and Solothurn specific URLs", () => {

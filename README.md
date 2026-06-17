@@ -137,6 +137,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Faster re-checking while editing: cached name lookups and addresses, only changed map highlights are redrawn, and viewport panning is debounced
 - Button styling: Fix buttons are green and Ignore buttons a neutral grey, to avoid misclicks; long group-header names wrap instead of breaking character by character
+- The Vaud cantonal-map link now opens the new `geoportail.vd.ch` viewer with the Hybrid basemap and the mobility theme (arrondissements, cantonal road hierarchy, railway lines, locality crossings); cantonal links now open at a closer 1:2000 zoom
 
 ### [1.3.0] - 2026-06-11
 
