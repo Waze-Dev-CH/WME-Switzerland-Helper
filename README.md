@@ -121,6 +121,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Added
 
 - 🇨🇭 Official street-name check: compares Waze segment names against the Swiss street register (swisstopo / `api3.geo.admin.ch`), with a dedicated **🇨🇭 Street names** sidebar tab and an edit-panel verdict box. Includes colour-coded statuses (typography, abbreviation/variant, likely typo, wrong street ⚠️, wrong city, not found, unnamed, bilingual, Swiss guideline & lock checks), geometry matching, one-click fixes (never auto-saved), bilingual alternate-name handling, an Ignore action for false positives, and a cantonal-geoportal link. Merged from the standalone `WME-CH-Street-Name-Checker` userscript — its detailed 1.0–1.18 history is preserved in [`docs/street-name-checker-changelog.md`](./docs/street-name-checker-changelog.md).
+- **Ignore all** button per group, to dismiss a whole group of false positives at once (with a confirmation for large groups)
+- Roundabout lock check: roundabouts are now expected to be locked at least **L3**
 
 #### Fixed
 
@@ -134,6 +136,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Changed
 
 - Faster re-checking while editing: cached name lookups and addresses, only changed map highlights are redrawn, and viewport panning is debounced
+- Button styling: Fix buttons are green and Ignore buttons a neutral grey, to avoid misclicks; long group-header names wrap instead of breaking character by character
 
 ### [1.3.0] - 2026-06-11
 
