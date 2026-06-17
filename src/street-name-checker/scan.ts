@@ -282,9 +282,21 @@ export class Scanner {
    */
   private async runEvaluation(index: OfficialIndex): Promise<boolean> {
     const gen = ++this.evalGeneration;
+    // reevaluate() reaches here without going through scan(), the only place that
+    // creates a controller. After setPaused(true) aborts the last scan's controller,
+    // reusing it would make findStreetLinesByName throw AbortError immediately and
+    // leave continuations stuck at a false NOT_FOUND. Ensure a live controller, and
+    // pass its signal down rather than re-reading the (possibly replaced) field.
+    if (!this.controller || this.controller.signal.aborted) {
+      this.controller = new AbortController();
+    }
+    const signal = this.controller.signal;
     const settings = this.settings.get();
     const issues = new Map<number, Issue>();
     const stats = { ok: 0, okAlt: 0, skipped: 0, total: 0 };
+    // getAddress is read once per covered segment here and reused by the guideline
+    // pass below, halving data-model reads per reevaluate (debounced at 300ms/edit).
+    const addressCache = new Map<number, ReturnType<typeof this.sdk.DataModel.Segments.getAddress>>();
     const allSegments = this.sdk.DataModel.Segments.getAll();
     // "Editable only": drop segments locked above the current editor rank up front
     // so they vanish from the list, the map layer and the counters alike. Rank
@@ -316,6 +328,7 @@ export class Scanner {
       let verdict;
       try {
         const address = this.sdk.DataModel.Segments.getAddress({ segmentId: segment.id });
+        addressCache.set(segment.id, address);
         // spatial lookup only for road types we actually check
         const nearest =
           spatial && settings.checkedRoadTypes.includes(segment.roadType)
@@ -347,7 +360,7 @@ export class Scanner {
           break;
       }
     }
-    if (!(await this.reclassifyContinuations(issues, stats, gen))) return false;
+    if (!(await this.reclassifyContinuations(issues, stats, gen, signal))) return false;
     if (gen !== this.evalGeneration) return false;
     // Lock checks are independent of the structural-guideline toggle: they run
     // whenever a lock status is enabled, so disabling micro/loop/narrow noise does
@@ -358,6 +371,8 @@ export class Scanner {
     if (settings.guidelineChecks || lockEnabled) {
       // Name issues keep precedence; guideline issues fill the remaining segments.
       const getAddress = (segmentId: number) => {
+        const cached = addressCache.get(segmentId);
+        if (cached !== undefined) return cached;
         try {
           return this.sdk.DataModel.Segments.getAddress({ segmentId });
         } catch {
@@ -392,6 +407,7 @@ export class Scanner {
     issues: Map<number, Issue>,
     stats: ScanStats,
     gen: number,
+    signal: AbortSignal,
   ): Promise<boolean> {
     let lookups = 0;
     for (const issue of [...issues.values()]) {
@@ -402,7 +418,7 @@ export class Scanner {
         if (lookups >= MAX_CONTINUATION_LOOKUPS_PER_RUN) continue;
         lookups++;
         try {
-          lines = await findStreetLinesByName(issue.currentName, this.controller?.signal);
+          lines = await findStreetLinesByName(issue.currentName, signal);
         } catch {
           continue; // aborted or network error: stays NOT_FOUND, retried next scan
         }

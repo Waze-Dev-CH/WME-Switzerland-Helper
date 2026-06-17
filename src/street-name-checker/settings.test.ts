@@ -9,9 +9,17 @@ import {
 } from "./settings";
 
 describe("migrateSettings", () => {
-  it("returns defaults for unknown versions", () => {
+  it("returns defaults for unknown versions with no stored fields", () => {
     expect(migrateSettings({ version: 99 })).toEqual(DEFAULT_SETTINGS);
     expect(migrateSettings({})).toEqual(DEFAULT_SETTINGS);
+  });
+
+  it("merges (not resets) an unknown version so dismissed false positives survive", () => {
+    // e.g. a rollback from a future v3, or a partially corrupt blob: a hard reset
+    // would silently wipe ignoredKeys and resurface every dismissed finding.
+    const migrated = migrateSettings({ version: 3, ignoredKeys: ["1 NOT_FOUND x"] } as never);
+    expect(migrated.version).toBe(2);
+    expect(migrated.ignoredKeys).toEqual(["1 NOT_FOUND x"]);
   });
 
   it("keeps v2 settings as-is, completed with defaults", () => {

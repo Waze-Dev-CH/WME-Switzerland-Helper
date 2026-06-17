@@ -177,12 +177,15 @@ export class OfficialIndex {
     const cosmetic = this.byK1.get(k1(name));
     if (cosmetic) return this.result("cosmetic", cosmetic, locality);
 
-    for (const key of k2(name)) {
+    // k2() is expensive (NFD + regex + variant expansion); compute the keys once
+    // and thread them through the variant/fuzzy/stem stages instead of 3× per lookup.
+    const k2Keys = k2(name);
+    for (const key of k2Keys) {
       const variant = this.byK2.get(key);
       if (variant) return this.result("variant", variant, locality);
     }
 
-    return this.fuzzyLookup(name, locality) ?? this.stemLookup(name, locality);
+    return this.fuzzyLookup(k2Keys, locality) ?? this.stemLookup(k2Keys, locality);
   }
 
   /**
@@ -191,8 +194,8 @@ export class OfficialIndex {
    * carries the SAME official name - two officials sharing a stem (e.g.
    * "Rue du Moulin" and "Route du Moulin") stay ambiguous and unmatched.
    */
-  private stemLookup(name: string, locality?: string): MatchResult | null {
-    const primary = k2(name)[0];
+  private stemLookup(k2Keys: string[], locality?: string): MatchResult | null {
+    const primary = k2Keys[0];
     if (!primary) return null;
     const stem = queryStem(primary);
     if (!stem) return null;
@@ -203,8 +206,8 @@ export class OfficialIndex {
     return this.result("stem", candidates, locality);
   }
 
-  private fuzzyLookup(name: string, locality?: string): MatchResult | null {
-    const queryKey = k2(name)[0];
+  private fuzzyLookup(k2Keys: string[], locality?: string): MatchResult | null {
+    const queryKey = k2Keys[0];
     if (!queryKey || queryKey.length < 3) return null;
     const maxDist = queryKey.length < 8 ? 1 : 2;
     const bucket = this.fuzzyBuckets.get(foldAccents(queryKey[0] as string)) ?? [];

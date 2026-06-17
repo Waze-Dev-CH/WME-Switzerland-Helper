@@ -23,8 +23,11 @@ export function registerShortcuts(
       log.warn(`Shortcut keys "${keys}" unavailable for ${shortcutId}; registering unbound`, err);
       try {
         sdk.Shortcuts.createShortcut({ shortcutId, description, shortcutKeys: null, callback });
-      } catch {
-        // shortcut id collision: nothing more we can do
+      } catch (collision) {
+        // Likely an id collision (double init / Tampermonkey re-injection): the
+        // shortcut stays bound to the first closure (a stale instance). Nothing more
+        // we can do, but warn so it is not lost when debugging stale-handler reports.
+        log.warn(`Shortcut id "${shortcutId}" already registered; keeping the existing binding`, collision);
       }
     }
   };

@@ -1,17 +1,15 @@
 import type { LineString } from "geojson";
 import type { WmeSDK } from "wme-sdk-typings";
 import {
-  fixGroup,
-  fixSegment,
-  formatFixError,
   GROUP_FIX_CAP,
-  GROUP_FIX_CONFIRM_THRESHOLD,
+  ignoreIssue,
   LOCK_STATUSES,
-  withFixLock,
+  runFix,
+  runFixGroup,
 } from "../fix";
 import { LANGUAGE_CHOICES, resolveLocale, setLocale, t, type LanguagePreference, type StringKey } from "../i18n";
 import { STATUS_STYLES } from "../map-layer";
-import { issueKey, type Issue, type IssueNote, type IssueStatus } from "../matching/evaluate";
+import { type Issue, type IssueNote, type IssueStatus } from "../matching/evaluate";
 import type { ScanSnapshot, Scanner } from "../scan";
 import { ALL_STATUSES, ROAD_TYPE_OPTIONS, type CityScoping, type Settings, type SettingsStore } from "../settings";
 import { mapGeoAdminUrlForGeometry } from "../geoadmin/links";
@@ -203,6 +201,8 @@ export class TabUI {
   private listBox!: HTMLElement;
   /** Pending timer that veils the list; null when idle or already veiled. */
   private busyTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Debounce timer for viewport re-filtering on pan; null when idle. */
+  private panTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private sdk: WmeSDK,
@@ -228,7 +228,14 @@ export class TabUI {
     this.sdk.Events.on({
       eventName: "wme-map-move-end",
       eventHandler: () => {
-        if (this.settings.get().viewportOnly) this.render(this.scanner.getSnapshot(), true);
+        if (!this.settings.get().viewportOnly) return;
+        // Debounce: a continuous drag-pan fires move-end repeatedly, each forcing a
+        // full list rebuild (replaceChildren on chips + groups). Coalesce them.
+        if (this.panTimer !== null) clearTimeout(this.panTimer);
+        this.panTimer = setTimeout(() => {
+          this.panTimer = null;
+          this.render(this.scanner.getSnapshot(), true);
+        }, 200);
       },
     });
     this.render(this.scanner.getSnapshot());
@@ -604,10 +611,7 @@ export class TabUI {
   }
 
   private onIgnore(issue: Issue): void {
-    const keys = this.settings.get().ignoredKeys;
-    const key = issueKey(issue);
-    if (!keys.includes(key)) this.settings.update({ ignoredKeys: [...keys, key] });
-    this.scanner.reevaluate();
+    ignoreIssue(this.settings, issue, () => this.scanner.reevaluate());
   }
 
   /** Fit the map to every segment of the group, with padding for context. */
@@ -690,59 +694,20 @@ export class TabUI {
   }
 
   private onFixOne(issue: Issue, button?: HTMLButtonElement): void {
-    // Lowering an over-lock is often unwanted; confirm before applying.
-    if (
-      issue.status === "OVER_LOCK" &&
-      !confirm(t("confirmOverLockFix", { n: issue.note?.expectedLock ?? "" }))
-    ) {
-      return;
-    }
-    void withFixLock(async () => {
-      if (button) {
-        button.disabled = true;
-        button.textContent = "…";
-      }
-      const outcome = fixSegment(this.sdk, issue, this.settings.get());
-      if (!outcome.ok) {
-        alert(t("fixFailed", { error: formatFixError(outcome) }));
-      }
-      return outcome;
-    }).then((result) => {
-      // null = another fix was already running; its own completion will re-render
-      if (result !== null) this.scanner.reevaluate();
+    void runFix(this.sdk, issue, this.settings.get(), {
+      button,
+      onComplete: () => this.scanner.reevaluate(),
     });
   }
 
   private onFixGroup(group: IssueGroup, button?: HTMLButtonElement): void {
-    const n = Math.min(group.issues.length, GROUP_FIX_CAP);
-    if (group.status === "OVER_LOCK") {
-      if (!confirm(t("confirmOverLockFix", { n: group.note?.expectedLock ?? "" }))) return;
-    } else if (
-      n > GROUP_FIX_CONFIRM_THRESHOLD &&
-      !confirm(t("confirmGroupFix", { name: group.suggestion ?? "", n }))
-    ) {
-      return;
-    }
-    void withFixLock(async () => {
-      if (button) button.disabled = true;
-      const outcomes = await fixGroup(this.sdk, group.issues, this.settings.get(), (done, total) => {
-        if (button) button.textContent = `${done}/${total}…`;
-      });
-      const failed = outcomes.find((o) => !o.ok);
-      if (failed) {
-        alert(
-          t("fixStopped", {
-            done: outcomes.filter((o) => o.ok).length,
-            total: n,
-            error: formatFixError(failed),
-            id: failed.segmentId,
-          }),
-        );
-      }
-      return outcomes;
-    }).then((result) => {
-      if (result !== null) this.scanner.reevaluate();
-    });
+    void runFixGroup(
+      this.sdk,
+      group.issues,
+      { status: group.status, expectedLock: group.note?.expectedLock, suggestion: group.suggestion },
+      this.settings.get(),
+      { button, onComplete: () => this.scanner.reevaluate() },
+    );
   }
 
   private buildSettings(): HTMLElement {

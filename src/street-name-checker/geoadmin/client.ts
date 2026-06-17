@@ -37,9 +37,16 @@ export class RateLimiter {
 
 export const rateLimiter = new RateLimiter();
 
-function gmGetJson(url: string): Promise<unknown> {
+function gmGetJson(url: string, signal?: AbortSignal): Promise<unknown> {
   return new Promise((resolve, reject) => {
-    GM_xmlhttpRequest({
+    if (signal?.aborted) {
+      reject(new DOMException("Scan aborted", "AbortError"));
+      return;
+    }
+    // GM_xmlhttpRequest returns a handle with .abort(); wire it to the signal so an
+    // in-flight request is actually cancelled in production (the GM path is the one
+    // that runs in WME — the fetch path below only honors the signal in tests/Node).
+    const handle = GM_xmlhttpRequest({
       method: "GET",
       url,
       responseType: "json",
@@ -50,6 +57,10 @@ function gmGetJson(url: string): Promise<unknown> {
       onerror: () => reject(new Error("GM_xmlhttpRequest network error")),
       ontimeout: () => reject(new Error("GM_xmlhttpRequest timeout")),
     });
+    signal?.addEventListener("abort", () => {
+      handle.abort();
+      reject(new DOMException("Scan aborted", "AbortError"));
+    });
   });
 }
 
@@ -58,7 +69,7 @@ async function httpGetJson(url: string, signal?: AbortSignal): Promise<unknown> 
   // (it is not in `connect-src`); GM_xmlhttpRequest runs in the extension context and
   // bypasses it, so prefer it whenever Tampermonkey provides it. `fetch()` is kept for
   // environments without GM (unit tests / Node).
-  if (typeof GM_xmlhttpRequest === "function") return gmGetJson(url);
+  if (typeof GM_xmlhttpRequest === "function") return gmGetJson(url, signal);
   const res = await fetch(url, { signal });
   if (!res.ok) throw new Error(`geo.admin.ch HTTP ${res.status}`);
   return (await res.json()) as unknown;
@@ -137,19 +148,33 @@ export async function findStreetLinesByName(
   signal?: AbortSignal,
   limiter: RateLimiter = rateLimiter,
 ): Promise<number[][][] | null> {
-  await limiter.acquire();
-  if (signal?.aborted) throw new DOMException("Scan aborted", "AbortError");
-  const params = new URLSearchParams({
-    layer: LAYER_ID,
-    searchField: "stn_label",
-    searchText: name,
-    contains: "false",
-    returnGeometry: "true",
-    geometryFormat: "geojson",
-    sr: "4326",
-  });
-  const data = (await httpGetJson(`${FIND_URL}?${params.toString()}`, signal)) as IdentifyResponse;
-  const lines = (data.results ?? []).flatMap((r) => extractLines(r.geometry) ?? []);
+  // A frequent name ("Route de Berne") has many nationwide entries; without paging
+  // the endpoint truncates to its default page, and if the neighbouring commune's
+  // axis is not on it the continuation stays a false NOT_FOUND. Page like
+  // fetchOfficialStreets does, stopping on the first short page.
+  const lines: number[][][] = [];
+  for (let page = 0; page < MAX_PAGES_PER_TILE; page++) {
+    await limiter.acquire();
+    if (signal?.aborted) throw new DOMException("Scan aborted", "AbortError");
+    const params = new URLSearchParams({
+      layer: LAYER_ID,
+      searchField: "stn_label",
+      searchText: name,
+      contains: "false",
+      returnGeometry: "true",
+      geometryFormat: "geojson",
+      sr: "4326",
+      limit: String(PAGE_SIZE),
+      offset: String(page * PAGE_SIZE),
+    });
+    const data = (await httpGetJson(
+      `${FIND_URL}?${params.toString()}`,
+      signal,
+    )) as IdentifyResponse;
+    const results = data.results ?? [];
+    for (const r of results) lines.push(...(extractLines(r.geometry) ?? []));
+    if (results.length < PAGE_SIZE) break;
+  }
   return lines.length > 0 ? lines : null;
 }
 

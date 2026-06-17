@@ -122,6 +122,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - 🇨🇭 Official street-name check: compares Waze segment names against the Swiss street register (swisstopo / `api3.geo.admin.ch`), with a dedicated **🇨🇭 Street names** sidebar tab and an edit-panel verdict box. Includes colour-coded statuses (typography, abbreviation/variant, likely typo, wrong street ⚠️, wrong city, not found, unnamed, bilingual, Swiss guideline & lock checks), geometry matching, one-click fixes (never auto-saved), bilingual alternate-name handling, an Ignore action for false positives, and a cantonal-geoportal link. Merged from the standalone `WME-CH-Street-Name-Checker` userscript — its detailed 1.0–1.18 history is preserved in [`docs/street-name-checker-changelog.md`](./docs/street-name-checker-changelog.md).
 
+#### Fixed
+
+- Setting the checker's language no longer changes the language of the rest of the script (e.g. the public-transport dialogs)
+- Fewer false **wrong street** reports: a name matching a register entry without a mapped axis (e.g. a named area) is no longer flagged, and a name that is merely a substring of the official label (e.g. "Bach" under "Bachweg") is now handled correctly
+- Frequent names ("Route de Berne") no longer falsely report **not found** when the matching axis belongs to a neighbouring commune — the register lookup now pages through every result
+- Continuations no longer stay stuck as a false **not found** after pausing the scan and then editing
+- Dismissed false positives (Ignore) are kept across settings-format changes instead of being silently reset
+- No cantonal-map link is shown for a segment without geometry (it previously pointed outside Switzerland)
+
+#### Changed
+
+- Faster re-checking while editing: cached name lookups and addresses, only changed map highlights are redrawn, and viewport panning is debounced
+
 ### [1.3.0] - 2026-06-11
 
 #### Added

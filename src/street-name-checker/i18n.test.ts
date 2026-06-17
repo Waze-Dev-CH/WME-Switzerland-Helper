@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import sharedI18n from "../../locales/i18n";
 import { getLocale, resolveLocale, setLocale, t } from "./i18n";
 
 describe("resolveLocale", () => {
@@ -21,5 +22,13 @@ describe("t (i18next adapter)", () => {
     expect(t("fixTitle", { name: "Rue X" })).toBe('Apply "Rue X"');
     setLocale("fr");
     expect(t("fix")).toBe("Corriger");
+  });
+
+  it("uses a dedicated instance: changing the checker locale leaves the host i18next untouched", () => {
+    void sharedI18n.changeLanguage("en");
+    setLocale("de");
+    expect(getLocale()).toBe("de");
+    // The host's PT-stop dialogs must not flip to the checker's language.
+    expect(sharedI18n.language).toBe("en");
   });
 });

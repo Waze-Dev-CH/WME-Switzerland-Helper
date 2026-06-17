@@ -300,6 +300,46 @@ describe("geometry matching", () => {
     }
   });
 
+  it("does NOT flag WRONG_STREET when the matched official has no geometry (Infinity is not 'far')", () => {
+    // The name matches a register entry with no axis (e.g. a named area → lines null),
+    // so ownDistanceM is Infinity. That means "no known axis", not "axis far away".
+    const officials = [
+      axis("Route de Berne", 5), // the street actually underneath
+      makeOfficial("Benanntes Gebiet", { lines: null }),
+    ];
+    const { idx, nearest } = nearestFor(officials, 5);
+    const v = evaluateSegment(
+      makeSegment({ geometry: segGeometry(5) } as Partial<Segment>),
+      makeAddress("Benanntes Gebiet"),
+      idx,
+      settings,
+      nearest,
+    );
+    expect(v.kind === "issue" ? v.issue.status : v.kind).not.toBe("WRONG_STREET");
+  });
+
+  it("flags WRONG_STREET when the name is only a substring of the underneath label (Bach ⊂ Bachweg)", () => {
+    // The old raw `label.includes(currentName)` guard suppressed this real WRONG_STREET
+    // because "Bachweg" contains "Bach"; normalized part comparison no longer does.
+    const officials = [
+      axis("Bachweg", 5), // underneath
+      axis("Bach", 200), // the name exists officially, far away
+    ];
+    const { idx, nearest } = nearestFor(officials, 5);
+    const v = evaluateSegment(
+      makeSegment({ geometry: segGeometry(5) } as Partial<Segment>),
+      makeAddress("Bach"),
+      idx,
+      settings,
+      nearest,
+    );
+    expect(v.kind).toBe("issue");
+    if (v.kind === "issue") {
+      expect(v.issue.status).toBe("WRONG_STREET");
+      expect(v.issue.suggestion).toBe("Bachweg");
+    }
+  });
+
   it("does NOT flag WRONG_STREET when the named street is also nearby (corner case)", () => {
     const officials = [axis("Route de Berne", 0), axis("Chemin du Lac", 20)];
     const { idx, nearest } = nearestFor(officials, 5);

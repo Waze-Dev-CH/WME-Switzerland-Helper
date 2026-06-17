@@ -1,8 +1,8 @@
 import type { UserRank, WmeSDK } from "wme-sdk-typings";
 import { t } from "./i18n";
 import { log } from "./log";
-import type { Issue } from "./matching/evaluate";
-import type { Settings } from "./settings";
+import { issueKey, type Issue } from "./matching/evaluate";
+import type { Settings, SettingsStore } from "./settings";
 
 export const GROUP_FIX_CAP = 50;
 export const GROUP_FIX_CONFIRM_THRESHOLD = 20;
@@ -197,4 +197,96 @@ export async function withFixLock<T>(fn: () => Promise<T>): Promise<T | null> {
   } finally {
     fixInFlight = false;
   }
+}
+
+/** UI plumbing shared by the fix runners: optional button feedback + post-fix hook. */
+export interface FixUiHooks {
+  /** Disabled and used as a progress label while the fix runs. */
+  button?: HTMLButtonElement;
+  /** Called after a fix actually ran (not when the re-entrance lock was held). */
+  onComplete?: () => void;
+}
+
+/**
+ * Confirm + locked single-segment fix with button feedback. Shared by the sidebar
+ * tab and the edit-panel box so the OVER_LOCK confirm, failure alert and progress
+ * wording stay in one place. The only per-UI difference is onComplete.
+ */
+export async function runFix(
+  sdk: WmeSDK,
+  issue: Issue,
+  settings: Settings,
+  { button, onComplete }: FixUiHooks = {},
+): Promise<void> {
+  // Lowering an over-lock is often unwanted; confirm before applying.
+  if (
+    issue.status === "OVER_LOCK" &&
+    !confirm(t("confirmOverLockFix", { n: issue.note?.expectedLock ?? "" }))
+  ) {
+    return;
+  }
+  const result = await withFixLock(async () => {
+    if (button) {
+      button.disabled = true;
+      button.textContent = "…";
+    }
+    const outcome = fixSegment(sdk, issue, settings);
+    if (!outcome.ok) alert(t("fixFailed", { error: formatFixError(outcome) }));
+    return outcome;
+  });
+  // null = another fix was already running; its own completion will re-render.
+  if (result !== null) onComplete?.();
+}
+
+/** The status/wording a group fix needs for its confirm prompts. */
+export interface GroupFixHeader {
+  status: Issue["status"];
+  expectedLock?: number | string | null;
+  suggestion?: string | null;
+}
+
+/** Confirm + locked sequential group fix with progress + stop-on-error reporting. */
+export async function runFixGroup(
+  sdk: WmeSDK,
+  issues: Issue[],
+  header: GroupFixHeader,
+  settings: Settings,
+  { button, onComplete }: FixUiHooks = {},
+): Promise<void> {
+  const n = Math.min(issues.length, GROUP_FIX_CAP);
+  if (header.status === "OVER_LOCK") {
+    if (!confirm(t("confirmOverLockFix", { n: header.expectedLock ?? "" }))) return;
+  } else if (
+    n > GROUP_FIX_CONFIRM_THRESHOLD &&
+    !confirm(t("confirmGroupFix", { name: header.suggestion ?? "", n }))
+  ) {
+    return;
+  }
+  const result = await withFixLock(async () => {
+    if (button) button.disabled = true;
+    const outcomes = await fixGroup(sdk, issues, settings, (done, total) => {
+      if (button) button.textContent = `${done}/${total}…`;
+    });
+    const failed = outcomes.find((o) => !o.ok);
+    if (failed) {
+      alert(
+        t("fixStopped", {
+          done: outcomes.filter((o) => o.ok).length,
+          total: n,
+          error: formatFixError(failed),
+          id: failed.segmentId,
+        }),
+      );
+    }
+    return outcomes;
+  });
+  if (result !== null) onComplete?.();
+}
+
+/** Dismiss a finding as a false positive (local, reversible via Settings → Reset). */
+export function ignoreIssue(settings: SettingsStore, issue: Issue, onComplete?: () => void): void {
+  const keys = settings.get().ignoredKeys;
+  const key = issueKey(issue);
+  if (!keys.includes(key)) settings.update({ ignoredKeys: [...keys, key] });
+  onComplete?.();
 }

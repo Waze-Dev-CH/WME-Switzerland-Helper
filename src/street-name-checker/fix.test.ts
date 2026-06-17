@@ -1,9 +1,9 @@
 import type { LineString } from "geojson";
 import type { WmeSDK } from "wme-sdk-typings";
-import { describe, expect, it } from "vitest";
-import { fixGroup, fixSegment, withFixLock } from "./fix";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { fixGroup, fixSegment, ignoreIssue, runFix, withFixLock } from "./fix";
 import type { Issue } from "./matching/evaluate";
-import { DEFAULT_SETTINGS } from "./settings";
+import { DEFAULT_SETTINGS, type SettingsStore } from "./settings";
 
 const GEOMETRY: LineString = {
   type: "LineString",
@@ -270,6 +270,57 @@ describe("fixGroup", () => {
     const outcomes = await fixGroup(sdk, issues, DEFAULT_SETTINGS);
     expect(outcomes).toHaveLength(2);
     expect(outcomes[1]?.ok).toBe(false);
+  });
+});
+
+describe("runFix (shared UI runner)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("applies the fix and calls onComplete", async () => {
+    const { sdk, updates } = makeSdk();
+    let completed = false;
+    await runFix(sdk, issue(), DEFAULT_SETTINGS, { onComplete: () => (completed = true) });
+    expect(updates).toHaveLength(1);
+    expect(completed).toBe(true);
+  });
+
+  it("aborts an OVER_LOCK fix (no edit, no onComplete) when the confirm is declined", async () => {
+    vi.stubGlobal("confirm", () => false);
+    const { sdk, lockUpdates } = makeSdk(4);
+    let completed = false;
+    const overLock = issue({
+      status: "OVER_LOCK",
+      suggestion: null,
+      note: { currentLock: 5, expectedLock: 2 },
+    });
+    await runFix(sdk, overLock, DEFAULT_SETTINGS, { onComplete: () => (completed = true) });
+    expect(lockUpdates).toHaveLength(0);
+    expect(completed).toBe(false);
+  });
+});
+
+describe("ignoreIssue", () => {
+  const makeStore = (initial: string[] = []) => {
+    let keys = initial;
+    const store = {
+      get: () => ({ ...DEFAULT_SETTINGS, ignoredKeys: keys }),
+      update: (p: { ignoredKeys?: string[] }) => {
+        if (p.ignoredKeys) keys = p.ignoredKeys;
+      },
+    };
+    return { store: store as unknown as SettingsStore, keys: () => keys };
+  };
+
+  it("adds the issue key once and calls onComplete", () => {
+    const { store, keys } = makeStore();
+    let completed = false;
+    const i = issue();
+    ignoreIssue(store, i, () => (completed = true));
+    expect(keys()).toHaveLength(1);
+    expect(completed).toBe(true);
+    // idempotent: re-ignoring the same issue does not duplicate the key
+    ignoreIssue(store, i);
+    expect(keys()).toHaveLength(1);
   });
 });
 

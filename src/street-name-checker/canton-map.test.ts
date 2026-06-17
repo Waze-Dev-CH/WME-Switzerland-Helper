@@ -87,4 +87,9 @@ describe("cantonMapUrlForGeometry", () => {
   it("returns null for an unknown canton", () => {
     expect(cantonMapUrlForGeometry(geometry, "Zürich")).toBeNull();
   });
+
+  it("returns null on empty geometry rather than a (0,0) out-of-Switzerland link", () => {
+    const empty: LineString = { type: "LineString", coordinates: [] };
+    expect(cantonMapUrlForGeometry(empty, "Neuchâtel")).toBeNull();
+  });
 });

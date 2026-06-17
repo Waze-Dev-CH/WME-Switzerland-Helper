@@ -1,5 +1,11 @@
-import { describe, expect, it } from "vitest";
-import { extractLines, fetchOfficialStreets, parseAttributes, RateLimiter } from "../geoadmin/client";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  extractLines,
+  fetchOfficialStreets,
+  findStreetLinesByName,
+  parseAttributes,
+  RateLimiter,
+} from "../geoadmin/client";
 
 /** Shape regression test: geometryFormat=geojson responses carry `properties`,
  *  not `attributes` (real sample from the Avenches bbox, 2026-06-12). */
@@ -66,6 +72,33 @@ describe("extractLines", () => {
 
   it("drops polygons (named areas)", () => {
     expect(extractLines({ type: "MultiPolygon", coordinates: [] })).toBeNull();
+  });
+});
+
+describe("findStreetLinesByName pagination", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("pages with offset/limit and aggregates lines until a short page", async () => {
+    const oneLine = { type: "MultiLineString", coordinates: [[[6.6, 46.5], [6.61, 46.51]]] };
+    const urls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        urls.push(url);
+        const offset = Number(new URL(url).searchParams.get("offset"));
+        const count = offset === 0 ? 200 : 5; // full first page, short second page
+        const results = Array.from({ length: count }, () => ({ geometry: oneLine }));
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ results }) });
+      }),
+    );
+
+    const lines = await findStreetLinesByName("Route de Berne", undefined, new RateLimiter());
+
+    expect(lines).toHaveLength(205); // 200 + 5
+    expect(urls).toHaveLength(2);
+    expect(urls[0]).toContain("offset=0");
+    expect(urls[0]).toContain("limit=200");
+    expect(urls[1]).toContain("offset=200");
   });
 });
 

@@ -117,6 +117,9 @@ export function cantonMapUrlForGeometry(
   stateName: string | null | undefined,
 ): string | null {
   const points = samplePoints(geometry);
-  const mid = points[Math.floor(points.length / 2)] ?? [0, 0];
+  // No geometry ⇒ no button, rather than a [0,0] fallback that builds a valid-looking
+  // cantonal link pointing to LV95 (0,0) — far outside Switzerland.
+  if (points.length === 0) return null;
+  const mid = points[Math.floor(points.length / 2)] as number[];
   return cantonMapUrl(stateName, mid[0] as number, mid[1] as number);
 }

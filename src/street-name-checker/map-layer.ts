@@ -38,7 +38,23 @@ export const STATUS_STYLES: Record<IssueStatus, StatusStyle> = {
   OVER_LOCK: { strokeColor: "#90a4ae", strokeDashstyle: "dash" },
 };
 
+function toFeature(issue: Issue) {
+  return {
+    type: "Feature" as const,
+    id: `chk-${issue.segmentId}`,
+    geometry: issue.geometry,
+    properties: {
+      status: issue.status,
+      suggestion: issue.suggestion,
+      currentName: issue.currentName,
+    },
+  };
+}
+
 export class HighlightLayer {
+  /** featureId → rendered signature, so sync() only touches features that changed. */
+  private rendered = new Map<string, string>();
+
   constructor(
     private sdk: WmeSDK,
     private settings: SettingsStore,
@@ -75,21 +91,30 @@ export class HighlightLayer {
   }
 
   sync(issues: ReadonlyMap<number, Issue>): void {
-    this.sdk.Map.removeAllFeaturesFromLayer({ layerName: getLayerName() });
-    const features = [...issues.values()]
-      .map((issue) => ({
-        type: "Feature" as const,
-        id: `chk-${issue.segmentId}`,
-        geometry: issue.geometry,
-        properties: {
-          status: issue.status,
-          suggestion: issue.suggestion,
-          currentName: issue.currentName,
-        },
-      }));
-    if (features.length > 0) {
-      this.sdk.Map.addFeaturesToLayer({ layerName: getLayerName(), features });
+    const layerName = getLayerName();
+    // A single fix produces a new issues map that differs by one entry; rebuilding the
+    // whole OpenLayers layer (removeAll + addAll) on every reevaluate churns hundreds of
+    // features for nothing. Diff by featureId and touch only what actually changed.
+    const next = new Map<string, { sig: string; feature: ReturnType<typeof toFeature> }>();
+    for (const issue of issues.values()) {
+      const feature = toFeature(issue);
+      const sig = `${issue.status}|${issue.suggestion ?? ""}|${issue.currentName ?? ""}|${JSON.stringify(issue.geometry.coordinates)}`;
+      next.set(feature.id, { sig, feature });
     }
+
+    const featureIds: string[] = [];
+    for (const [id, sig] of this.rendered) {
+      if (next.get(id)?.sig !== sig) featureIds.push(id); // gone or changed
+    }
+    const features: Array<ReturnType<typeof toFeature>> = [];
+    for (const [id, { sig, feature }] of next) {
+      if (this.rendered.get(id) !== sig) features.push(feature); // new or changed
+    }
+
+    if (featureIds.length > 0) this.sdk.Map.removeFeaturesFromLayer({ layerName, featureIds });
+    if (features.length > 0) this.sdk.Map.addFeaturesToLayer({ layerName, features });
+
+    this.rendered = new Map([...next].map(([id, { sig }]) => [id, sig]));
   }
 
   setVisible(visible: boolean): void {

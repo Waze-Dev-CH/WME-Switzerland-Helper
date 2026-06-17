@@ -189,13 +189,23 @@ export function evaluateSegment(
       nearest && nearest.distanceM <= SUGGEST_MAX_M
         ? Math.min(...match.candidates.map((c) => distanceToEntryM(segment.geometry, c)))
         : Infinity;
+    // An entry without known geometry yields Infinity here; that means "no known
+    // axis", NOT "axis far", so it must never satisfy the WRONG_STREET distance test.
+    const ownAxisIsFar = Number.isFinite(ownDistanceM) && ownDistanceM > FAR_STREET_M;
+    // Compare normalized name parts, not a raw substring: `includes` was case/accent
+    // sensitive and matched partials ("Bach" ⊂ "Bachweg"), silently dropping real
+    // WRONG_STREET. Slash-split so each language of a bilingual label is checked.
+    const currentNameK1 = k1(currentName);
+    const labelHasCurrentName = nearest
+      ? nearest.entry.street.label.split("/").some((part) => k1(part) === currentNameK1)
+      : false;
     if (
       nearest &&
       nearest.distanceM <= SUGGEST_MAX_M &&
       nearest.coverage >= WRONG_STREET_MIN_COVERAGE &&
-      k1(nearest.entry.namePart) !== k1(currentName) &&
-      !nearest.entry.street.label.includes(currentName) &&
-      ownDistanceM > FAR_STREET_M
+      k1(nearest.entry.namePart) !== currentNameK1 &&
+      !labelHasCurrentName &&
+      ownAxisIsFar
     ) {
       return {
         kind: "issue",

@@ -1,17 +1,15 @@
 import type { WmeSDK } from "wme-sdk-typings";
 import {
-  fixGroup,
-  fixSegment,
-  formatFixError,
   GROUP_FIX_CAP,
-  GROUP_FIX_CONFIRM_THRESHOLD,
+  ignoreIssue,
   isFixInFlight,
   LOCK_STATUSES,
-  withFixLock,
+  runFix,
+  runFixGroup,
 } from "../fix";
 import { log } from "../log";
 import { STATUS_STYLES } from "../map-layer";
-import { issueKey, type Issue } from "../matching/evaluate";
+import type { Issue } from "../matching/evaluate";
 import type { Scanner } from "../scan";
 import type { SettingsStore } from "../settings";
 import { formatNote, LEGEND_KEYS, STATE_KEYS, statusEmoji } from "./tab";
@@ -83,6 +81,13 @@ export class EditPanelBox {
 
   private inject(segmentId: number): void {
     if (this.selectedSegmentId() !== segmentId) return;
+    // DELIBERATE deviation from CLAUDE.md "no direct DOM hacks that bypass SDK events".
+    // The WME SDK exposes no extension point for the segment edit panel (only the
+    // sidebar script tab via registerScriptTab, and the request/street-view panels) —
+    // verified against wme-sdk-typings. So this companion box is injected by hand.
+    // Containment: selection/edit are still driven by SDK events; only the mount uses
+    // the DOM, behind a documented selector. If WME renames #edit-panel the box simply
+    // does not appear (warned once below) — it never corrupts data or the host UI.
     const panel = document.querySelector("#edit-panel");
     if (!panel) {
       if (!this.warnedMissingPanel) {
@@ -194,11 +199,10 @@ export class EditPanelBox {
   }
 
   private onIgnore(issue: Issue): void {
-    const keys = this.settings.get().ignoredKeys;
-    const key = issueKey(issue);
-    if (!keys.includes(key)) this.settings.update({ ignoredKeys: [...keys, key] });
-    this.scanner.reevaluate();
-    this.schedule();
+    ignoreIssue(this.settings, issue, () => {
+      this.scanner.reevaluate();
+      this.schedule();
+    });
   }
 
   private isCheckedAndNamed(segmentId: number): boolean {
@@ -215,63 +219,28 @@ export class EditPanelBox {
   }
 
   private onFixOne(issue: Issue, button?: HTMLButtonElement): void {
-    // Lowering an over-lock is often unwanted; confirm before applying.
-    if (
-      issue.status === "OVER_LOCK" &&
-      !confirm(t("confirmOverLockFix", { n: issue.note?.expectedLock ?? "" }))
-    ) {
-      return;
-    }
-    void withFixLock(async () => {
-      if (button) {
-        button.disabled = true;
-        button.textContent = "…";
-      }
-      const outcome = fixSegment(this.sdk, issue, this.settings.get());
-      if (!outcome.ok) {
-        alert(t("fixFailed", { error: formatFixError(outcome) }));
-      }
-      return outcome;
-    }).then((result) => {
-      if (result !== null) {
+    void runFix(this.sdk, issue, this.settings.get(), {
+      button,
+      onComplete: () => {
         this.scanner.reevaluate();
         this.schedule();
-      }
+      },
     });
   }
 
   private onFixGroup(issue: Issue, group: Issue[], button?: HTMLButtonElement): void {
-    const n = Math.min(group.length, GROUP_FIX_CAP);
-    if (issue.status === "OVER_LOCK") {
-      if (!confirm(t("confirmOverLockFix", { n: issue.note?.expectedLock ?? "" }))) return;
-    } else if (
-      n > GROUP_FIX_CONFIRM_THRESHOLD &&
-      !confirm(t("confirmGroupFix", { name: issue.suggestion ?? "", n }))
-    ) {
-      return;
-    }
-    void withFixLock(async () => {
-      if (button) button.disabled = true;
-      const outcomes = await fixGroup(this.sdk, group, this.settings.get(), (done, total) => {
-        if (button) button.textContent = `${done}/${total}…`;
-      });
-      const failed = outcomes.find((o) => !o.ok);
-      if (failed) {
-        alert(
-          t("fixStopped", {
-            done: outcomes.filter((o) => o.ok).length,
-            total: n,
-            error: formatFixError(failed),
-            id: failed.segmentId,
-          }),
-        );
-      }
-      return outcomes;
-    }).then((result) => {
-      if (result !== null) {
-        this.scanner.reevaluate();
-        this.schedule();
-      }
-    });
+    void runFixGroup(
+      this.sdk,
+      group,
+      { status: issue.status, expectedLock: issue.note?.expectedLock, suggestion: issue.suggestion },
+      this.settings.get(),
+      {
+        button,
+        onComplete: () => {
+          this.scanner.reevaluate();
+          this.schedule();
+        },
+      },
+    );
   }
 }

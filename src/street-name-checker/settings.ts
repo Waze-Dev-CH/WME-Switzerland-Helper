@@ -130,7 +130,9 @@ export function migrateSettings(parsed: Omit<Partial<Settings>, "version"> & { v
         : [...ALL_STATUSES];
     return { ...DEFAULT_SETTINGS, ...parsed, version: 2, enabledStatuses };
   }
-  if (parsed.version !== 2) return { ...DEFAULT_SETTINGS };
+  // Any other version (corrupt blob, or a rollback from a future v3) merges over the
+  // defaults rather than resetting — a hard reset would silently wipe ignoredKeys and
+  // resurface every dismissed false positive. Unknown extra fields are harmless.
   return { ...DEFAULT_SETTINGS, ...parsed, version: 2 };
 }
 
