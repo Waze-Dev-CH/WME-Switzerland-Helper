@@ -20,6 +20,7 @@ import {
   Paragraph,
   SidebarItem,
 } from "./src/sidebar";
+import { initStreetNameChecker } from "./src/street-name-checker";
 
 const englishScriptName = "WME Switzerland helper";
 let scriptName = englishScriptName;
@@ -198,6 +199,18 @@ function initScript() {
       }),
     );
 
+    // Street-name checker note item
+    notesSection.addChild(
+      new SidebarItem({
+        name: `🇨🇭 ${i18next.t("common:streetCheck.appName", "Street names")}`,
+        icon: "w-icon-map",
+        content: i18next.t(
+          "common:streetCheck.tabNote",
+          "Compares Waze street names against the official Swiss register and flags mismatches, with one-click fixes. Open the dedicated Street names tab to review the issues.",
+        ),
+      }),
+    );
+
     sidebarTab.addChild(notesSection);
 
     tabPane.innerHTML = sidebarTab.render();
@@ -215,6 +228,10 @@ function initScript() {
         layer.restoreState({ wmeSDK });
       }
     });
+
+    // Swiss official street-name checker: own scriptId → own sidebar tab + map layer
+    // (registerScriptTab throws if the host's scriptId already owns a tab). Waits for wme-ready.
+    void initStreetNameChecker();
   }
 
   init();

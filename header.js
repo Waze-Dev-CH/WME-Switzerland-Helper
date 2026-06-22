@@ -5,7 +5,7 @@
 // @description WME Switzerland Helper is a userscript that provides various tools and enhancements for Waze Map Editor (WME) users in Switzerland.
 // @updateURL	  https://raw.githubusercontent.com/Waze-Dev-CH/WME-Switzerland-Helper/releases/releases/main.user.js
 // @downloadURL https://raw.githubusercontent.com/Waze-Dev-CH/WME-Switzerland-Helper/releases/releases/main.user.js
-// @author      Maël Pedretti (Marelitaw)
+// @author      Maël Pedretti (Marelitaw), Yann Rapenne (Neprena)
 // @match       https://www.waze.com/editor*
 // @match       https://beta.waze.com/editor*
 // @match       https://www.waze.com/*/editor*
