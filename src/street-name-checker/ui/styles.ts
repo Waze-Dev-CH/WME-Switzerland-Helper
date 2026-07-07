@@ -61,9 +61,12 @@ ${tokens}
 .chk-btn:hover { border-color: var(--chk-primary); color: var(--chk-primary); }
 .chk-unsaved { color: #b35c00; font-weight: bold; font-size: 11px; margin-left: auto; }
 
-.chk-banner { padding: 7px 10px; border-radius: var(--chk-radius); background: var(--chk-info-bg); color: var(--chk-text); }
+.chk-banner { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: var(--chk-radius); background: var(--chk-info-bg); color: var(--chk-text); }
 .chk-banner.chk-banner-ok { background: rgba(63, 138, 50, .16); color: var(--chk-ok); font-weight: 600; }
 .chk-banner.chk-error { background: rgba(192, 57, 43, .16); color: var(--chk-error); font-weight: 600; }
+.chk-banner-text { flex: 1; min-width: 0; }
+.chk-banner-btn { flex-shrink: 0; }
+.chk-warn { font-size: 11px; padding: 5px 10px; border-radius: var(--chk-radius); background: rgba(179, 92, 0, .12); color: #b35c00; }
 
 .chk-master { display: flex; gap: 18px; flex-wrap: wrap; padding: 8px 10px; background: var(--chk-surface); border: 1px solid var(--chk-border); border-radius: var(--chk-radius); }
 

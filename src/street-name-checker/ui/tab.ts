@@ -49,6 +49,7 @@ export const STATE_KEYS: Record<ScanSnapshot["state"], StringKey> = {
   "area-gated": "stateAreaGated",
   fetching: "stateFetching",
   evaluating: "stateEvaluating",
+  sweeping: "stateSweeping",
   done: "stateDone",
   paused: "statePaused",
   error: "stateError",
@@ -189,6 +190,9 @@ const BUSY_DELAY_MS = 250;
 export class TabUI {
   private pane!: HTMLElement;
   private statusLine!: HTMLElement;
+  private statusText!: HTMLElement;
+  private bannerBtn!: HTMLButtonElement;
+  private warnLine!: HTMLElement;
   private unsavedBadge!: HTMLElement;
   private chipsBox!: HTMLElement;
   private groupsBox!: HTMLElement;
@@ -269,7 +273,19 @@ export class TabUI {
     this.unsavedBadge = el("span", "chk-unsaved", "");
     toolbar.append(rescanBtn, nextBtn, this.unsavedBadge);
 
-    this.statusLine = el("div", "chk-banner", t("stateIdle"));
+    // The banner holds a text span plus an action button (Scan this area /
+    // Cancel), so render() must only touch the span, not the whole banner.
+    this.statusLine = el("div", "chk-banner");
+    this.statusText = el("span", "chk-banner-text", t("stateIdle"));
+    this.bannerBtn = el("button", "chk-btn chk-banner-btn", "");
+    this.bannerBtn.hidden = true;
+    this.bannerBtn.addEventListener("click", () => {
+      if (this.scanner.getSnapshot().state === "sweeping") this.scanner.cancelSweep();
+      else void this.scanner.scanArea();
+    });
+    this.statusLine.append(this.statusText, this.bannerBtn);
+    this.warnLine = el("div", "chk-warn");
+    this.warnLine.hidden = true;
     this.chipsBox = el("div", "chk-chips");
     this.groupsBox = el("div", "chk-groups");
     this.listBox = el("div", "chk-list");
@@ -281,6 +297,7 @@ export class TabUI {
       brand,
       toolbar,
       this.statusLine,
+      this.warnLine,
       this.buildMasterToggles(),
       this.listBox,
       this.buildLegend(),
@@ -382,6 +399,13 @@ export class TabUI {
 
     let statusText = t(STATE_KEYS[state]);
     if (state === "fetching" && progress) statusText += ` ${progress.done}/${progress.total}`;
+    if (state === "area-gated" && !snapshot.sweepEligible) statusText = t("sweepTooLarge");
+    if (state === "sweeping") {
+      statusText = t("stateSweeping", {
+        done: snapshot.sweep?.tilesDone ?? 0,
+        total: snapshot.sweep?.tilesTotal ?? 0,
+      });
+    }
     if (state === "done") {
       statusText = t("stateDone", {
         issues: inViewport.length,
@@ -390,9 +414,13 @@ export class TabUI {
       });
     }
     if (state === "error" && error) statusText += `: ${error}`;
-    this.statusLine.textContent = statusText;
+    this.statusText.textContent = statusText;
     this.statusLine.classList.toggle("chk-error", state === "error");
     this.statusLine.classList.toggle("chk-banner-ok", state === "done" && inViewport.length === 0);
+    this.renderBannerButton(snapshot);
+    this.renderWarnings(snapshot);
+    // The sweep streams partial results into the list batch by batch; veiling
+    // it for the sweep's whole duration would hide exactly what it publishes.
     this.setBusy(state === "fetching" || state === "evaluating");
 
     this.unsavedBadge.textContent =
@@ -410,6 +438,38 @@ export class TabUI {
     this.orderedIssueIds = groups.flatMap((g) => g.issues.map((i) => i.segmentId));
     this.renderChips(inViewport);
     this.renderGroups(groups, visible.length, state);
+  }
+
+  /** Banner action: start a sweep when area-gated (and eligible), cancel one while sweeping. */
+  private renderBannerButton(snapshot: ScanSnapshot): void {
+    const { state } = snapshot;
+    if (state === "sweeping") {
+      this.bannerBtn.hidden = false;
+      this.bannerBtn.textContent = t("cancelSweep");
+      this.bannerBtn.title = "";
+    } else if (state === "area-gated" && snapshot.sweepEligible) {
+      this.bannerBtn.hidden = false;
+      this.bannerBtn.textContent = t("scanArea");
+      this.bannerBtn.title = t("scanAreaTitle");
+    } else {
+      this.bannerBtn.hidden = true;
+    }
+  }
+
+  /** Data-quality caveats for the finished scan (truncated/failed tiles, lookup cap). */
+  private renderWarnings(snapshot: ScanSnapshot): void {
+    const parts: string[] = [];
+    if (snapshot.state === "done") {
+      if (snapshot.truncatedTileCount > 0) {
+        parts.push(t("warnTruncated", { n: snapshot.truncatedTileCount }));
+      }
+      if (snapshot.failedTileCount > 0) {
+        parts.push(t("warnFailedTiles", { n: snapshot.failedTileCount }));
+      }
+      if (snapshot.continuationLookupsExhausted) parts.push(t("warnContinuationCap"));
+    }
+    this.warnLine.hidden = parts.length === 0;
+    this.warnLine.textContent = parts.join(" · ");
   }
 
   /**

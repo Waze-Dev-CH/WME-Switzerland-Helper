@@ -9,6 +9,8 @@ export interface PersistedTile {
   key: string;
   entries: OfficialStreet[];
   fetchedAt: number;
+  /** Page cap hit when fetched; optional so pre-existing v2 records read as complete. */
+  truncated?: boolean;
 }
 
 export interface TileStoreLike {

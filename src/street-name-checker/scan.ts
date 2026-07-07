@@ -1,6 +1,6 @@
 import type { Segment, WmeSDK } from "wme-sdk-typings";
 import { tileKeyForPoint, tileKeysForBbox, type TileFetcher } from "./geoadmin/tiles";
-import type { Bbox } from "./geoadmin/types";
+import type { Bbox, OfficialStreet } from "./geoadmin/types";
 import { isFixInFlight } from "./fix";
 import { evaluateGuidelines } from "./guidelines";
 import { log } from "./log";
@@ -27,6 +27,11 @@ export function isEditableByRank(lockRank: number, userRank: number | null): boo
 const DEBOUNCE_MS = 800;
 const BBOX_PADDING_RATIO = 0.2; // covers the WME data-model buffer beyond the viewport
 const MAX_AREA_KM2 = 6;
+/** Hard cap for the explicit area sweep: ~15-25 tiles, a fair-use judgement call. */
+const MAX_SWEEP_AREA_KM2 = 50;
+/** Tiles fetched per sweep batch — roughly one normal viewport, so partial
+ *  results stream into the UI at the same granularity as an auto-scan. */
+const SWEEP_BATCH_TILES = 6;
 /** A NOT_FOUND name on a main road counts as an out-of-locality continuation
  *  when a same-named official axis lies within this distance. */
 const CONTINUATION_MAX_M = 3000;
@@ -43,6 +48,7 @@ export type ScanState =
   | "area-gated"
   | "fetching"
   | "evaluating"
+  | "sweeping"
   | "done"
   | "paused"
   | "error";
@@ -60,6 +66,16 @@ export interface ScanSnapshot {
   stats: ScanStats;
   officialStreetCount: number;
   progress: { done: number; total: number } | null;
+  /** Progressive area-sweep progress; null outside a sweep. */
+  sweep: { tilesDone: number; tilesTotal: number } | null;
+  /** In area-gated state: the viewport still fits under the sweep cap. */
+  sweepEligible: boolean;
+  /** Tiles cut at the register page cap (possible false NOT_FOUND there). */
+  truncatedTileCount: number;
+  /** Tiles that failed to load; their segments were skipped, not flagged. */
+  failedTileCount: number;
+  /** The per-run nationwide-lookup budget ran out; some NOT_FOUND may clear later. */
+  continuationLookupsExhausted: boolean;
   error: string | null;
   unsavedCount: number;
 }
@@ -71,12 +87,18 @@ function padBbox(bbox: Bbox): Bbox {
   return [minLon - padLon, minLat - padLat, maxLon + padLon, maxLat + padLat];
 }
 
-function bboxAreaKm2(bbox: Bbox): number {
+export function bboxAreaKm2(bbox: Bbox): number {
   const [minLon, minLat, maxLon, maxLat] = bbox;
   const midLat = (minLat + maxLat) / 2;
   const widthKm = (maxLon - minLon) * 111.32 * Math.cos((midLat * Math.PI) / 180);
   const heightKm = (maxLat - minLat) * 110.57;
   return widthKm * heightKm;
+}
+
+export function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
 }
 
 export class Scanner {
@@ -100,10 +122,17 @@ export class Scanner {
     stats: { ok: 0, okAlt: 0, skipped: 0, total: 0 },
     officialStreetCount: 0,
     progress: null,
+    sweep: null,
+    sweepEligible: false,
+    truncatedTileCount: 0,
+    failedTileCount: 0,
+    continuationLookupsExhausted: false,
     error: null,
     unsavedCount: 0,
   };
   paused = false;
+  /** True while an explicit area sweep runs; map moves must not cancel it. */
+  private sweepActive = false;
   /** Until this timestamp, map-move events do not trigger an auto-scan
    *  (script-initiated navigation must not wipe the editor's working list). */
   private suppressAutoScanUntil = 0;
@@ -116,6 +145,8 @@ export class Scanner {
 
   start(): void {
     const onMove = () => {
+      // A running sweep took minutes of API budget; panning must not wipe it.
+      if (this.sweepActive) return;
       if (Date.now() < this.suppressAutoScanUntil) return;
       const s = this.settings.get();
       if (!s.enabled || !s.autoScan) return;
@@ -145,7 +176,8 @@ export class Scanner {
     this.paused = paused;
     if (paused) {
       this.controller?.abort();
-      this.publish({ state: "paused" });
+      this.sweepActive = false;
+      this.publish({ state: "paused", sweep: null });
     } else {
       this.requestScan();
     }
@@ -172,7 +204,8 @@ export class Scanner {
   disable(): void {
     this.controller?.abort();
     clearTimeout(this.debounceTimer);
-    this.publish({ state: "disabled", issues: new Map(), progress: null });
+    this.sweepActive = false;
+    this.publish({ state: "disabled", issues: new Map(), progress: null, sweep: null });
   }
 
   /**
@@ -184,6 +217,9 @@ export class Scanner {
   reevaluate(): void {
     // skip intermediate re-evaluations during a batch fix (one runs at the end)
     if (isFixInFlight()) return;
+    // a sweep re-evaluates after every batch anyway; an interleaved run would
+    // only bump evalGeneration and cancel the sweep's own evaluation
+    if (this.sweepActive) return;
     clearTimeout(this.reevalTimer);
     this.reevalTimer = setTimeout(() => {
       const index = this.lastIndex;
@@ -218,29 +254,142 @@ export class Scanner {
         return;
       }
       if (bboxAreaKm2(bbox) > MAX_AREA_KM2) {
-        this.publish({ state: "area-gated", issues: new Map(), progress: null });
+        this.publish({
+          state: "area-gated",
+          issues: new Map(),
+          progress: null,
+          sweepEligible: bboxAreaKm2(bbox) <= MAX_SWEEP_AREA_KM2,
+        });
         return;
       }
 
-      this.publish({ state: "fetching", error: null });
-      const streets = await this.fetcher.fetchBbox(bbox, controller.signal, (done, total) => {
-        if (gen === this.generation) this.publish({ progress: { done, total } });
-      });
+      this.publish({ state: "fetching", error: null, sweep: null });
+      const { streets, truncatedKeys, failedKeys } = await this.fetcher.fetchBbox(
+        bbox,
+        controller.signal,
+        (done, total) => {
+          if (gen === this.generation) this.publish({ progress: { done, total } });
+        },
+      );
       if (gen !== this.generation) return;
 
       this.publish({ state: "evaluating", progress: null });
       const index = new OfficialIndex(streets);
       this.lastIndex = index;
       this.lastSpatialIndex = new SpatialIndex(index.list);
-      this.coveredTiles = new Set(tileKeysForBbox(bbox));
+      // segments on failed tiles must be skipped, not flagged as NOT_FOUND
+      const failed = new Set(failedKeys);
+      this.coveredTiles = new Set(tileKeysForBbox(bbox).filter((key) => !failed.has(key)));
       const completed = await this.runEvaluation(index);
       if (!completed || gen !== this.generation) return;
-      this.publish({ state: "done", officialStreetCount: index.streetCount });
+      this.publish({
+        state: "done",
+        officialStreetCount: index.streetCount,
+        truncatedTileCount: truncatedKeys.length,
+        failedTileCount: failedKeys.length,
+      });
     } catch (err) {
       if (controller.signal.aborted || gen !== this.generation) return;
       log.error("Scan failed", err);
       this.publish({ state: "error", error: err instanceof Error ? err.message : String(err) });
     }
+  }
+
+  /**
+   * Explicit progressive sweep of a viewport too large for the auto-scan:
+   * fetches officials batch by batch, re-evaluating and publishing after each
+   * one so partial results stream into the UI. Started only from the
+   * "Scan this area" button; a map move does NOT cancel it (see onMove).
+   */
+  async scanArea(): Promise<void> {
+    if (this.paused || this.sweepActive || !this.settings.get().enabled) return;
+    // a pending debounced auto-scan (pan just before the click) would bump the
+    // generation mid-sweep and silently kill it
+    clearTimeout(this.debounceTimer);
+    const gen = ++this.generation;
+    this.controller?.abort();
+    const controller = new AbortController();
+    this.controller = controller;
+    this.sweepActive = true;
+
+    try {
+      if (this.sdk.Map.getZoomLevel() < this.settings.get().minZoom) {
+        // below minZoom WME loads no segments: officials would be fetched for nothing
+        this.publish({ state: "zoom-gated", issues: new Map(), sweep: null });
+        return;
+      }
+      const bbox = padBbox(this.sdk.Map.getMapExtent() as Bbox);
+      if (!intersectsSwitzerland(bbox)) {
+        this.publish({ state: "outside-ch", issues: new Map(), sweep: null });
+        return;
+      }
+      if (bboxAreaKm2(bbox) > MAX_SWEEP_AREA_KM2) {
+        this.publish({ state: "area-gated", issues: new Map(), sweep: null, sweepEligible: false });
+        return;
+      }
+
+      const keys = tileKeysForBbox(bbox);
+      const byEsid = new Map<number, OfficialStreet>();
+      const covered = new Set<string>();
+      let truncatedTileCount = 0;
+      let failedTileCount = 0;
+      let tilesDone = 0;
+      this.publish({
+        state: "sweeping",
+        error: null,
+        progress: null,
+        sweep: { tilesDone: 0, tilesTotal: keys.length },
+      });
+
+      const batches = chunk(keys, SWEEP_BATCH_TILES);
+      for (let b = 0; b < batches.length; b++) {
+        const batch = batches[b] as string[];
+        const result = await this.fetcher.fetchTiles(batch, controller.signal);
+        if (gen !== this.generation) return;
+        for (const street of result.streets) byEsid.set(street.esid, street);
+        truncatedTileCount += result.truncatedKeys.length;
+        failedTileCount += result.failedKeys.length;
+        const failed = new Set(result.failedKeys);
+        for (const key of batch) if (!failed.has(key)) covered.add(key);
+        tilesDone += batch.length;
+
+        const index = new OfficialIndex([...byEsid.values()]);
+        this.lastIndex = index;
+        this.lastSpatialIndex = new SpatialIndex(index.list);
+        this.coveredTiles = covered;
+        // intermediate batches skip nationwide lookups (budget 0): only the
+        // final pass may spend the fair-use find() quota
+        const isLast = b === batches.length - 1;
+        const completed = await this.runEvaluation(index, isLast ? undefined : 0);
+        if (!completed || gen !== this.generation) return;
+        this.publish({
+          sweep: { tilesDone, tilesTotal: keys.length },
+          officialStreetCount: index.streetCount,
+          truncatedTileCount,
+          failedTileCount,
+        });
+      }
+      this.publish({ state: "done", sweep: null });
+    } catch (err) {
+      if (controller.signal.aborted || gen !== this.generation) return;
+      log.error("Area sweep failed", err);
+      this.publish({
+        state: "error",
+        sweep: null,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      this.sweepActive = false;
+    }
+  }
+
+  /** Stop a running sweep, keeping the partial results (valid for covered tiles). */
+  cancelSweep(): void {
+    if (!this.sweepActive) return;
+    this.generation++;
+    this.controller?.abort();
+    this.sweepActive = false;
+    this.publish({ state: "done", sweep: null });
   }
 
   /**
@@ -279,8 +428,13 @@ export class Scanner {
   /**
    * Evaluate all loaded segments in chunks, yielding to the event loop between
    * chunks. Returns false when superseded by a newer evaluation.
+   * `continuationBudget` caps nationwide find() lookups: a sweep passes 0 for
+   * intermediate batches so partial passes never burn the fair-use quota.
    */
-  private async runEvaluation(index: OfficialIndex): Promise<boolean> {
+  private async runEvaluation(
+    index: OfficialIndex,
+    continuationBudget = MAX_CONTINUATION_LOOKUPS_PER_RUN,
+  ): Promise<boolean> {
     const gen = ++this.evalGeneration;
     // reevaluate() reaches here without going through scan(), the only place that
     // creates a controller. After setPaused(true) aborts the last scan's controller,
@@ -360,7 +514,14 @@ export class Scanner {
           break;
       }
     }
-    if (!(await this.reclassifyContinuations(issues, stats, gen, signal))) return false;
+    const continuation = await this.reclassifyContinuations(
+      issues,
+      stats,
+      gen,
+      signal,
+      continuationBudget,
+    );
+    if (!continuation.completed) return false;
     if (gen !== this.evalGeneration) return false;
     // Lock checks are independent of the structural-guideline toggle: they run
     // whenever a lock status is enabled, so disabling micro/loop/narrow noise does
@@ -392,7 +553,12 @@ export class Scanner {
         }
       }
     }
-    this.publish({ issues, stats, unsavedCount: this.safeUnsavedCount() });
+    this.publish({
+      issues,
+      stats,
+      unsavedCount: this.safeUnsavedCount(),
+      continuationLookupsExhausted: continuation.exhausted,
+    });
     return true;
   }
 
@@ -401,28 +567,34 @@ export class Scanner {
    * when an official axis with the exact same name exists within 3 km, e.g.
    * "Route de Berne" between Payerne (where the register entry lives) and
    * Corcelles-près-Payerne (out of town, no register entry).
-   * Returns false when superseded by a newer evaluation.
+   * `completed` is false when superseded by a newer evaluation; `exhausted` is
+   * true when the lookup budget ran out with candidates left unchecked.
    */
   private async reclassifyContinuations(
     issues: Map<number, Issue>,
     stats: ScanStats,
     gen: number,
     signal: AbortSignal,
-  ): Promise<boolean> {
+    budget: number,
+  ): Promise<{ completed: boolean; exhausted: boolean }> {
     let lookups = 0;
+    let exhausted = false;
     for (const issue of [...issues.values()]) {
       if (issue.status !== "NOT_FOUND" || !issue.currentName) continue;
       if (!CONTINUATION_ROAD_TYPES.has(issue.roadType)) continue;
       let lines = this.nameLinesCache.get(issue.currentName);
       if (lines === undefined) {
-        if (lookups >= MAX_CONTINUATION_LOOKUPS_PER_RUN) continue;
+        if (lookups >= budget) {
+          exhausted = true;
+          continue;
+        }
         lookups++;
         try {
           lines = await findStreetLinesByName(issue.currentName, signal);
         } catch {
           continue; // aborted or network error: stays NOT_FOUND, retried next scan
         }
-        if (gen !== this.evalGeneration) return false;
+        if (gen !== this.evalGeneration) return { completed: false, exhausted };
         this.nameLinesCache.set(issue.currentName, lines);
       }
       if (lines && distanceToLinesM(issue.geometry, lines) <= CONTINUATION_MAX_M) {
@@ -430,7 +602,7 @@ export class Scanner {
         stats.ok++;
       }
     }
-    return true;
+    return { completed: true, exhausted };
   }
 
   private isCovered(segment: Segment): boolean {

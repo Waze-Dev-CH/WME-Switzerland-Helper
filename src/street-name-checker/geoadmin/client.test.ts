@@ -75,6 +75,39 @@ describe("extractLines", () => {
   });
 });
 
+describe("fetchOfficialStreets truncation", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  function stubIdentify(pageSizes: number[]): void {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        const page = Number(new URL(url).searchParams.get("offset")) / 200;
+        const count = pageSizes[page] ?? 0;
+        const results = Array.from({ length: count }, (_, i) => ({
+          properties: { ...GEOJSON_RESULT.properties, str_esid: page * 200 + i + 1 },
+          geometry: GEOJSON_RESULT.geometry,
+        }));
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ results }) });
+      }),
+    );
+  }
+
+  it("reports truncated=false when a short page ends the paging", async () => {
+    stubIdentify([200, 5]);
+    const result = await fetchOfficialStreets([7.03, 46.87, 7.05, 46.89], undefined, new RateLimiter());
+    expect(result.truncated).toBe(false);
+    expect(result.streets).toHaveLength(205);
+  });
+
+  it("reports truncated=true when the page cap is exhausted", async () => {
+    stubIdentify(Array.from({ length: 15 }, () => 200)); // 15 full pages, cap reached
+    const result = await fetchOfficialStreets([7.03, 46.87, 7.05, 46.89], undefined, new RateLimiter());
+    expect(result.truncated).toBe(true);
+    expect(result.streets).toHaveLength(15 * 200);
+  });
+});
+
 describe("findStreetLinesByName pagination", () => {
   afterEach(() => vi.unstubAllGlobals());
 
@@ -107,7 +140,7 @@ describe("identify integration (real API)", () => {
   it("parses at least one street with geometry from the Avenches tile", async () => {
     let streets;
     try {
-      streets = await fetchOfficialStreets([7.03, 46.87, 7.05, 46.89], undefined, new RateLimiter());
+      ({ streets } = await fetchOfficialStreets([7.03, 46.87, 7.05, 46.89], undefined, new RateLimiter()));
     } catch {
       console.warn("[integration] network unavailable, skipping");
       return;

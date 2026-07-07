@@ -116,6 +116,17 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+### [Unreleased]
+
+#### Added
+
+- **Scan this area** button: viewports too large for the automatic scan (above 6 km²) can now be scanned on demand, up to 50 km². The sweep fetches the official register batch by batch, streams partial results into the list as it goes, shows tile progress in the status banner and can be cancelled at any time (partial results are kept). Panning the map does not interrupt a running sweep.
+- Data-quality warnings under the status banner: dense areas truncated by the register API (a possible cause of false "not found"), areas that failed to load, and an exhausted nationwide-lookup budget are now reported instead of being silently logged.
+
+#### Fixed
+
+- A single failed register request no longer aborts the whole scan: the affected area is skipped (its segments are left unchecked rather than wrongly flagged) and retried on the next scan.
+
 ### [1.4.0] - 2026-06-16
 
 #### Added
