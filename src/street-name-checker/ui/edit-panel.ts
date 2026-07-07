@@ -21,7 +21,6 @@ import { getLocale, t } from "../i18n";
 const CONTAINER_ID = "chk-edit-helper";
 /** The WME edit panel renders asynchronously after a selection; retry injection. */
 const INJECT_RETRY_DELAYS_MS = [0, 250, 750];
-const OK_COLOR = "#4a8f3c";
 
 /** All issues sharing the reference issue's group (same status, name and suggestion). */
 export function issuesInSameGroup(issues: ReadonlyMap<number, Issue>, ref: Issue): Issue[] {
@@ -124,11 +123,11 @@ export class EditPanelBox {
 
     if (!issue) {
       if (snapshot.state !== "done") {
-        dot.style.background = "#bbb";
+        dot.style.background = "var(--chk-muted)";
         statusText.textContent = t(STATE_KEYS[snapshot.state]);
         statusText.className = "chk-muted";
       } else if (this.isCheckedAndNamed(segmentId)) {
-        dot.style.background = OK_COLOR;
+        dot.style.background = "var(--chk-ok)";
         statusText.textContent = t("helperOk");
       } else {
         container.remove(); // nothing meaningful to say (skipped type, uncovered area)
@@ -146,6 +145,7 @@ export class EditPanelBox {
     geoLink.target = "_blank";
     geoLink.rel = "noopener";
     geoLink.title = t("geoAdminLinkTitle");
+    geoLink.setAttribute("aria-label", t("geoAdminLinkTitle"));
     head.appendChild(geoLink);
     const cantonLink = cantonMapLink(issue.geometry, issue.cantonName);
     if (cantonLink) head.appendChild(cantonLink);

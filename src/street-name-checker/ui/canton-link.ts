@@ -22,6 +22,7 @@ export function cantonMapLink(
   a.target = "_blank";
   a.rel = "noopener";
   a.title = t("cantonMapLinkTitle", { canton: code.toUpperCase() });
+  a.setAttribute("aria-label", a.title);
 
   const flag = FLAGS[code];
   if (flag) {
