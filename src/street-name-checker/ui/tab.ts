@@ -49,6 +49,7 @@ export const STATE_KEYS: Record<ScanSnapshot["state"], StringKey> = {
   "area-gated": "stateAreaGated",
   fetching: "stateFetching",
   evaluating: "stateEvaluating",
+  sweeping: "stateSweeping",
   done: "stateDone",
   paused: "statePaused",
   error: "stateError",
@@ -65,6 +66,19 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
+/** Perceived-luminance verdict for a CSS color; null when transparent or unparseable. */
+export function isDarkBackground(cssColor: string): boolean | null {
+  const match = cssColor.match(/rgba?\(([^)]+)\)/);
+  if (!match || !match[1]) return null;
+  const parts = match[1].split(",").map((p) => parseFloat(p));
+  const r = parts[0] ?? 0;
+  const g = parts[1] ?? 0;
+  const b = parts[2] ?? 0;
+  const a = parts[3] ?? 1;
+  if (a <= 0) return null;
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5;
+}
+
 /**
  * Detect WME's editor theme by measuring the first opaque background up the
  * pane's ancestry and checking its perceived luminance. This follows the actual
@@ -73,15 +87,8 @@ function el<K extends keyof HTMLElementTagNameMap>(
 function wmeThemeIsDark(start: HTMLElement): boolean {
   let node: HTMLElement | null = start;
   while (node) {
-    const match = getComputedStyle(node).backgroundColor.match(/rgba?\(([^)]+)\)/);
-    if (match && match[1]) {
-      const parts = match[1].split(",").map((p) => parseFloat(p));
-      const r = parts[0] ?? 0;
-      const g = parts[1] ?? 0;
-      const b = parts[2] ?? 0;
-      const a = parts[3] ?? 1;
-      if (a > 0) return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5;
-    }
+    const verdict = isDarkBackground(getComputedStyle(node).backgroundColor);
+    if (verdict !== null) return verdict;
     node = node.parentElement;
   }
   return false;
@@ -183,12 +190,41 @@ export function geometryIntersectsBbox(geometry: LineString, bbox: Bbox): boolea
   return minLon <= bbox[2] && maxLon >= bbox[0] && minLat <= bbox[3] && maxLat >= bbox[1];
 }
 
+/**
+ * Padded bounding box around every segment of a group, or null when no issue
+ * carries coordinates. 30% padding with a floor so a single short segment
+ * keeps street-level context.
+ */
+export function bboxOfIssues(issues: Issue[]): Bbox | null {
+  let minLon = Infinity;
+  let minLat = Infinity;
+  let maxLon = -Infinity;
+  let maxLat = -Infinity;
+  for (const issue of issues) {
+    for (const point of issue.geometry.coordinates) {
+      const lon = point[0] as number;
+      const lat = point[1] as number;
+      minLon = Math.min(minLon, lon);
+      minLat = Math.min(minLat, lat);
+      maxLon = Math.max(maxLon, lon);
+      maxLat = Math.max(maxLat, lat);
+    }
+  }
+  if (!Number.isFinite(minLon)) return null;
+  const padLon = Math.max((maxLon - minLon) * 0.3, 0.001);
+  const padLat = Math.max((maxLat - minLat) * 0.3, 0.0007);
+  return [minLon - padLon, minLat - padLat, maxLon + padLon, maxLat + padLat];
+}
+
 /** Delay before the "updating" veil appears, to avoid flashing on quick rescans. */
 const BUSY_DELAY_MS = 250;
 
 export class TabUI {
   private pane!: HTMLElement;
   private statusLine!: HTMLElement;
+  private statusText!: HTMLElement;
+  private bannerBtn!: HTMLButtonElement;
+  private warnLine!: HTMLElement;
   private unsavedBadge!: HTMLElement;
   private chipsBox!: HTMLElement;
   private groupsBox!: HTMLElement;
@@ -204,6 +240,10 @@ export class TabUI {
   private busyTimer: ReturnType<typeof setTimeout> | null = null;
   /** Debounce timer for viewport re-filtering on pan; null when idle. */
   private panTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Checkboxes of the duplicated viewport-only toggle (master row + Settings). */
+  private viewportInputs: HTMLInputElement[] = [];
+  /** Last theme re-measure timestamp (belt-and-braces next to the observer). */
+  private lastThemeCheck = 0;
 
   constructor(
     private sdk: WmeSDK,
@@ -216,7 +256,8 @@ export class TabUI {
     const { tabLabel, tabPane } = await this.sdk.Sidebar.registerScriptTab();
     tabLabel.textContent = `🇨🇭 ${t("appName")}`;
     this.pane = tabPane;
-    document.documentElement.classList.toggle("chk-theme-dark", wmeThemeIsDark(this.pane));
+    this.applyTheme();
+    this.watchWmeTheme();
     this.buildSkeleton();
     this.scanner.onUpdate((snapshot) => this.render(snapshot));
     this.sdk.Events.on({
@@ -242,6 +283,38 @@ export class TabUI {
     this.render(this.scanner.getSnapshot());
   }
 
+  /** Re-measure the WME skin and apply our dark class only when it changed. */
+  private applyTheme(): void {
+    const dark = wmeThemeIsDark(this.pane);
+    document.documentElement.classList.toggle("chk-theme-dark", dark);
+  }
+
+  /**
+   * WME can switch skins at runtime without a page reload. Any skin switch
+   * churns class/style attributes on body or html, so observe those as a
+   * trigger to re-measure the actual background luminance. Our own class
+   * toggle re-fires the observer once with an identical measurement, so the
+   * chain stops immediately. The delayed re-check covers async stylesheet
+   * swaps that land after the attribute change.
+   */
+  private watchWmeTheme(): void {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const remeasure = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        this.applyTheme();
+        setTimeout(() => this.applyTheme(), 500);
+      }, 150);
+    };
+    const observer = new MutationObserver(remeasure);
+    const options = {
+      attributes: true,
+      attributeFilter: ["class", "style", "wz-theme", "data-theme"],
+    };
+    observer.observe(document.documentElement, options);
+    observer.observe(document.body, options);
+  }
+
   /** Rebuild all static DOM (after a language change). */
   private rebuild(): void {
     this.pane.replaceChildren();
@@ -252,6 +325,7 @@ export class TabUI {
 
   private buildSkeleton(): void {
     this.pane.classList.add("chk-pane");
+    this.viewportInputs = []; // rebuild() re-creates both toggle instances
 
     const brand = el("div", "chk-brand");
     brand.append(
@@ -269,7 +343,19 @@ export class TabUI {
     this.unsavedBadge = el("span", "chk-unsaved", "");
     toolbar.append(rescanBtn, nextBtn, this.unsavedBadge);
 
-    this.statusLine = el("div", "chk-banner", t("stateIdle"));
+    // The banner holds a text span plus an action button (Scan this area /
+    // Cancel), so render() must only touch the span, not the whole banner.
+    this.statusLine = el("div", "chk-banner");
+    this.statusText = el("span", "chk-banner-text", t("stateIdle"));
+    this.bannerBtn = el("button", "chk-btn chk-banner-btn", "");
+    this.bannerBtn.hidden = true;
+    this.bannerBtn.addEventListener("click", () => {
+      if (this.scanner.getSnapshot().state === "sweeping") this.scanner.cancelSweep();
+      else void this.scanner.scanArea();
+    });
+    this.statusLine.append(this.statusText, this.bannerBtn);
+    this.warnLine = el("div", "chk-warn");
+    this.warnLine.hidden = true;
     this.chipsBox = el("div", "chk-chips");
     this.groupsBox = el("div", "chk-groups");
     this.listBox = el("div", "chk-list");
@@ -281,6 +367,7 @@ export class TabUI {
       brand,
       toolbar,
       this.statusLine,
+      this.warnLine,
       this.buildMasterToggles(),
       this.listBox,
       this.buildLegend(),
@@ -312,8 +399,33 @@ export class TabUI {
         },
         t("toggleAutoScanTitle"),
       ),
+      // surfaced here because it silently changes the list and every counter;
+      // the Settings entry remains, both stay in sync via viewportInputs
+      this.viewportOnlyToggle(),
     );
     return row;
+  }
+
+  /**
+   * Viewport-only toggle, shown both in the master row and in Settings. The
+   * settings store has no observer, so every instance registers its checkbox
+   * and the shared handler mirrors the state across them.
+   */
+  private viewportOnlyToggle(): HTMLElement {
+    const label = this.toggleSwitch(
+      t("viewportOnly"),
+      this.settings.get().viewportOnly,
+      (checked) => {
+        this.settings.update({ viewportOnly: checked });
+        for (const input of this.viewportInputs) input.checked = checked;
+        // display-only filter: refresh the rendered list, no rescan
+        this.render(this.scanner.getSnapshot(), true);
+      },
+      t("viewportOnlyTitle"),
+    );
+    const input = label.querySelector("input");
+    if (input) this.viewportInputs.push(input);
+    return label;
   }
 
   /** iOS-style toggle: a visually hidden checkbox plus a CSS track/knob and a label. */
@@ -375,6 +487,11 @@ export class TabUI {
   }
 
   private render(snapshot: ScanSnapshot, force = false): void {
+    // covers a skin switch the attribute observer cannot see (stylesheet swap)
+    if (Date.now() - this.lastThemeCheck > 5000) {
+      this.lastThemeCheck = Date.now();
+      this.applyTheme();
+    }
     const { state, issues, stats, officialStreetCount, progress, error } = snapshot;
     // Base set for the list and counters: the segments currently on screen
     // (or all scanned ones when the viewport filter is off / unavailable).
@@ -382,6 +499,13 @@ export class TabUI {
 
     let statusText = t(STATE_KEYS[state]);
     if (state === "fetching" && progress) statusText += ` ${progress.done}/${progress.total}`;
+    if (state === "area-gated" && !snapshot.sweepEligible) statusText = t("sweepTooLarge");
+    if (state === "sweeping") {
+      statusText = t("stateSweeping", {
+        done: snapshot.sweep?.tilesDone ?? 0,
+        total: snapshot.sweep?.tilesTotal ?? 0,
+      });
+    }
     if (state === "done") {
       statusText = t("stateDone", {
         issues: inViewport.length,
@@ -390,9 +514,13 @@ export class TabUI {
       });
     }
     if (state === "error" && error) statusText += `: ${error}`;
-    this.statusLine.textContent = statusText;
+    this.statusText.textContent = statusText;
     this.statusLine.classList.toggle("chk-error", state === "error");
     this.statusLine.classList.toggle("chk-banner-ok", state === "done" && inViewport.length === 0);
+    this.renderBannerButton(snapshot);
+    this.renderWarnings(snapshot);
+    // The sweep streams partial results into the list batch by batch; veiling
+    // it for the sweep's whole duration would hide exactly what it publishes.
     this.setBusy(state === "fetching" || state === "evaluating");
 
     this.unsavedBadge.textContent =
@@ -410,6 +538,38 @@ export class TabUI {
     this.orderedIssueIds = groups.flatMap((g) => g.issues.map((i) => i.segmentId));
     this.renderChips(inViewport);
     this.renderGroups(groups, visible.length, state);
+  }
+
+  /** Banner action: start a sweep when area-gated (and eligible), cancel one while sweeping. */
+  private renderBannerButton(snapshot: ScanSnapshot): void {
+    const { state } = snapshot;
+    if (state === "sweeping") {
+      this.bannerBtn.hidden = false;
+      this.bannerBtn.textContent = t("cancelSweep");
+      this.bannerBtn.title = "";
+    } else if (state === "area-gated" && snapshot.sweepEligible) {
+      this.bannerBtn.hidden = false;
+      this.bannerBtn.textContent = t("scanArea");
+      this.bannerBtn.title = t("scanAreaTitle");
+    } else {
+      this.bannerBtn.hidden = true;
+    }
+  }
+
+  /** Data-quality caveats for the finished scan (truncated/failed tiles, lookup cap). */
+  private renderWarnings(snapshot: ScanSnapshot): void {
+    const parts: string[] = [];
+    if (snapshot.state === "done") {
+      if (snapshot.truncatedTileCount > 0) {
+        parts.push(t("warnTruncated", { n: snapshot.truncatedTileCount }));
+      }
+      if (snapshot.failedTileCount > 0) {
+        parts.push(t("warnFailedTiles", { n: snapshot.failedTileCount }));
+      }
+      if (snapshot.continuationLookupsExhausted) parts.push(t("warnContinuationCap"));
+    }
+    this.warnLine.hidden = parts.length === 0;
+    this.warnLine.textContent = parts.join(" · ");
   }
 
   /**
@@ -467,6 +627,7 @@ export class TabUI {
       if (count === 0) continue;
       const chip = el("button", "chk-chip");
       chip.classList.toggle("chk-chip-active", this.activeFilters.has(status));
+      chip.setAttribute("aria-pressed", String(this.activeFilters.has(status)));
       const dot = el("span", "chk-dot");
       dot.style.background = STATUS_STYLES[status].strokeColor;
       chip.append(dot, `${status} ${count}`);
@@ -504,11 +665,17 @@ export class TabUI {
   private renderGroup(group: IssueGroup): HTMLElement {
     const box = el("div", "chk-group");
     const header = el("div", "chk-group-header");
-    const badge = el("span", `chk-badge chk-badge-${group.status}`);
-    badge.title = group.status;
+    // dot + visible status code (same pattern as the chips), so the status is
+    // not conveyed by color alone
+    const badge = el("span", "chk-status");
+    badge.append(el("span", `chk-badge chk-badge-${group.status}`), el("span", "chk-status-code", group.status));
 
     const noteText = formatNote(group.note);
-    const names = el("span", "chk-group-names");
+    // a real button (styled as plain text) so expand/collapse works with the
+    // keyboard; its click bubbles to the header listener below
+    const names = el("button", "chk-group-names chk-group-toggle");
+    const expanded = this.expandedGroups.has(group.key) || group.issues.length === 1;
+    names.setAttribute("aria-expanded", String(expanded));
     const emoji = statusEmoji(group.status);
     if (emoji) names.appendChild(el("span", "", `${emoji} `));
     names.appendChild(el("span", "", group.currentName ?? t("unnamed")));
@@ -519,42 +686,55 @@ export class TabUI {
     if (noteText) {
       names.appendChild(el("span", "chk-note", ` (${noteText})`));
     }
-    names.title = `${group.status}${noteText ? ` · ${noteText}` : ""}`;
+    if (noteText) names.title = noteText;
 
     const count = el("span", "chk-count", `×${group.issues.length}`);
-    header.append(badge, names, count);
+    const zoomBtn = el("button", "chk-locate chk-group-zoom", "⌖");
+    zoomBtn.title = t("zoomToGroupTitle");
+    zoomBtn.setAttribute("aria-label", t("zoomToGroupTitle"));
+    zoomBtn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      this.zoomToGroup(group);
+    });
 
-    if (group.fixable && group.issues.length > 1) {
-      const fixAllBtn = el(
-        "button",
-        "chk-fix-all",
-        t("fixAll", { n: Math.min(group.issues.length, GROUP_FIX_CAP) }),
-      );
+    // Explicit lines instead of one flex-wrap soup: status/count/zoom on top,
+    // the (possibly long) name on its own line, action buttons at the bottom.
+    const topLine = el("div", "chk-group-top");
+    topLine.append(badge, count, zoomBtn);
+    header.append(topLine, names);
+
+    const fixAllBtn =
+      group.fixable && group.issues.length > 1
+        ? el("button", "chk-fix-all", t("fixAll", { n: Math.min(group.issues.length, GROUP_FIX_CAP) }))
+        : null;
+    if (fixAllBtn) {
       fixAllBtn.addEventListener("click", (ev) => {
         ev.stopPropagation();
         this.onFixGroup(group, fixAllBtn);
       });
-      header.appendChild(fixAllBtn);
     }
-
     // Ignore the whole group at once (any status, fixable or not).
-    if (group.issues.length > 1) {
-      const ignoreAllBtn = el("button", "chk-ignore", t("ignoreAll", { n: group.issues.length }));
+    const ignoreAllBtn =
+      group.issues.length > 1
+        ? el("button", "chk-ignore", t("ignoreAll", { n: group.issues.length }))
+        : null;
+    if (ignoreAllBtn) {
       ignoreAllBtn.addEventListener("click", (ev) => {
         ev.stopPropagation();
         this.onIgnoreGroup(group);
       });
-      header.appendChild(ignoreAllBtn);
+    }
+    if (fixAllBtn || ignoreAllBtn) {
+      const actions = el("div", "chk-group-actions");
+      if (fixAllBtn) actions.appendChild(fixAllBtn);
+      if (ignoreAllBtn) actions.appendChild(ignoreAllBtn);
+      header.appendChild(actions);
     }
 
+    // expand/collapse only; the map moves solely via the explicit ⌖ buttons
     header.addEventListener("click", () => {
-      const expanding = !this.expandedGroups.has(group.key);
-      if (expanding) {
-        this.expandedGroups.add(group.key);
-        this.zoomToGroup(group);
-      } else {
-        this.expandedGroups.delete(group.key);
-      }
+      if (this.expandedGroups.has(group.key)) this.expandedGroups.delete(group.key);
+      else this.expandedGroups.add(group.key);
       this.render(this.scanner.getSnapshot(), true);
     });
     box.appendChild(header);
@@ -572,33 +752,47 @@ export class TabUI {
   private renderRow(issue: Issue): HTMLElement {
     const row = el("div", "chk-row");
     row.dataset["segmentId"] = String(issue.segmentId);
-    row.classList.toggle("chk-selected", this.selectedSegmentIds.has(issue.segmentId));
+    const selected = this.selectedSegmentIds.has(issue.segmentId);
+    row.classList.toggle("chk-selected", selected);
+    if (selected) row.setAttribute("aria-current", "true");
+    // a real button so segment selection works with the keyboard; its click
+    // bubbles to the row listener below
     const meta = el(
-      "span",
-      "chk-row-meta",
+      "button",
+      "chk-row-meta chk-row-select",
       `${ROAD_TYPE_LABELS.get(issue.roadType) ?? `type ${issue.roadType}`} · ${Math.round(issue.length)} m${issue.cityName ? ` · ${issue.cityName}` : ""}`,
     );
     row.appendChild(meta);
+    // controls on their own line under the meta, so the meta text keeps the
+    // full row width instead of being squeezed into an early ellipsis
+    const controls = el("div", "chk-row-controls");
+    row.appendChild(controls);
+    // both external-viewer links grouped in one bordered box, visually apart
+    // from the in-map actions; one stopPropagation covers the whole box so a
+    // near-miss click no longer selects the segment
+    const links = el("span", "chk-row-links");
+    links.addEventListener("click", (ev) => ev.stopPropagation());
     const geoLink = el("a", "chk-locate chk-geolink", "↗") as HTMLAnchorElement;
     geoLink.href = mapGeoAdminUrlForGeometry(issue.geometry, getLocale());
     geoLink.target = "_blank";
     geoLink.rel = "noopener";
     geoLink.title = t("geoAdminLinkTitle");
-    geoLink.addEventListener("click", (ev) => ev.stopPropagation());
-    row.appendChild(geoLink);
+    geoLink.setAttribute("aria-label", t("geoAdminLinkTitle"));
+    links.appendChild(geoLink);
     const cantonLink = cantonMapLink(issue.geometry, issue.cantonName);
     if (cantonLink) {
       cantonLink.classList.add("chk-locate");
-      cantonLink.addEventListener("click", (ev) => ev.stopPropagation());
-      row.appendChild(cantonLink);
+      links.appendChild(cantonLink);
     }
+    controls.appendChild(links);
     const locateBtn = el("button", "chk-locate", "⌖");
     locateBtn.title = t("locateTitle");
+    locateBtn.setAttribute("aria-label", t("locateTitle"));
     locateBtn.addEventListener("click", (ev) => {
       ev.stopPropagation();
       this.locateSegment(issue);
     });
-    row.appendChild(locateBtn);
+    controls.appendChild(locateBtn);
     if (issue.fixable) {
       const fixBtn = el("button", "chk-fix-all", t("fix"));
       fixBtn.title = LOCK_STATUSES.has(issue.status)
@@ -608,7 +802,7 @@ export class TabUI {
         ev.stopPropagation();
         this.onFixOne(issue, fixBtn);
       });
-      row.appendChild(fixBtn);
+      controls.appendChild(fixBtn);
     }
     const ignoreBtn = el("button", "chk-ignore", t("ignore"));
     ignoreBtn.title = t("ignoreTitle");
@@ -616,7 +810,7 @@ export class TabUI {
       ev.stopPropagation();
       this.onIgnore(issue);
     });
-    row.appendChild(ignoreBtn);
+    controls.appendChild(ignoreBtn);
     row.addEventListener("click", () => this.selectSegment(issue.segmentId));
     return row;
   }
@@ -633,28 +827,10 @@ export class TabUI {
   private zoomToGroup(group: IssueGroup): void {
     // our own navigation must not trigger a rescan nor wipe the list
     this.scanner.suppressAutoScan();
-    let minLon = Infinity;
-    let minLat = Infinity;
-    let maxLon = -Infinity;
-    let maxLat = -Infinity;
-    for (const issue of group.issues) {
-      for (const point of issue.geometry.coordinates) {
-        const lon = point[0] as number;
-        const lat = point[1] as number;
-        minLon = Math.min(minLon, lon);
-        minLat = Math.min(minLat, lat);
-        maxLon = Math.max(maxLon, lon);
-        maxLat = Math.max(maxLat, lat);
-      }
-    }
-    if (!Number.isFinite(minLon)) return;
-    // 30% padding, with a floor so a single short segment keeps street-level context
-    const padLon = Math.max((maxLon - minLon) * 0.3, 0.001);
-    const padLat = Math.max((maxLat - minLat) * 0.3, 0.0007);
+    const bbox = bboxOfIssues(group.issues);
+    if (!bbox) return;
     try {
-      this.sdk.Map.zoomToExtent({
-        bbox: [minLon - padLon, minLat - padLat, maxLon + padLon, maxLat + padLat],
-      });
+      this.sdk.Map.zoomToExtent({ bbox });
       // never land below the scan gate: that state clears the issue list
       const minZoom = this.settings.get().minZoom;
       if (this.sdk.Map.getZoomLevel() < minZoom) {
@@ -703,6 +879,8 @@ export class TabUI {
       const id = Number(row.dataset["segmentId"]);
       const selected = this.selectedSegmentIds.has(id);
       row.classList.toggle("chk-selected", selected);
+      if (selected) row.setAttribute("aria-current", "true");
+      else row.removeAttribute("aria-current");
       if (selected && !first) first = row;
     });
     (first as HTMLElement | null)?.scrollIntoView({ block: "nearest" });
@@ -796,16 +974,8 @@ export class TabUI {
         titleKey ? t(titleKey) : undefined,
       );
 
-    // Display-only filter: refresh the rendered list, no rescan / re-evaluation.
-    const viewportToggle = this.toggleSwitch(
-      t("viewportOnly"),
-      settings.viewportOnly,
-      (checked) => {
-        this.settings.update({ viewportOnly: checked });
-        this.render(this.scanner.getSnapshot(), true);
-      },
-      t("viewportOnlyTitle"),
-    );
+    // second instance of the shared viewport-only toggle (see viewportOnlyToggle)
+    const viewportToggle = this.viewportOnlyToggle();
 
     const options = [
       optionToggle("altOk", "altNameCountsAsOk", "altOkTitle"),

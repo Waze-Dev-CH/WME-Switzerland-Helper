@@ -25,21 +25,9 @@
   },
   "swissimageUpdateText": "This <a href=\"https://map.geo.admin.ch/#/map?lang=fr&center=2638909.25,1198316.5&z=1.967&topic=swisstopo&layers=ch.swisstopo.images-swissimage-dop10.metadata&bgLayer=ch.swisstopo.pixelkarte-farbe&featureInfo=default&catalogNodes=swisstopo\" target=\"_blank\" rel=\"noopener noreferrer\">map</a> shows when the <b>{{layer}}</b> map was updated for each region.",
   "publicTransportStopsNote": "Public transport stops appear as <strong>orange circular icons</strong> <img src=\"data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OSIgaGVpZ2h0PSI0OCIgZmlsbD0iYmxhY2siPjxjaXJjbGUgY3g9IjI0LjcyNiIgY3k9IjI0IiByPSIyMyIgZmlsbD0iI2U2N2UyMiIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiLz48cGF0aCBmaWxsPSIjZmZmIiBkPSJNMjkuNzI2IDE0YTMgMyAwIDAgMSAyLjk5NSAyLjgyNGwuMDA1LjE3NnYxaDEuMDE3bC4xNS4wMDVjLjkzOC4wNiAxLjc2LjY4NCAxLjg0MyAxLjU5MWwuMDA3LjE1NFYyMmwtLjAwNy4xMTdhMSAxIDAgMCAxLS44NzYuODc2bC0uMTE3LjAwNy0uMTE3LS4wMDdhMSAxIDAgMCAxLS44NzYtLjg3NkwzMy43NDMgMjJ2LTJoLTEuMDE3djEwYTEgMSAwIDAgMS0uODgzLjk5M2wtLjExNy4wMDdoLTF2MS41YTEuNSAxLjUgMCAwIDEtMyAwVjMxaC02djEuNWExLjUgMS41IDAgMCAxLTMgMFYzMWgtMWExIDEgMCAwIDEtLjk5My0uODgzTDE2LjcyNiAzMFYyMGgtMXYyYTEgMSAwIDAgMS0uODgzLjk5M2wtLjExNy4wMDdhMSAxIDAgMCAxLS45OTMtLjg4M0wxMy43MjYgMjJ2LTIuMjVjMC0uOTkuODYtMS42ODIgMS44NS0xLjc0NWwuMTUtLjAwNWgxdi0xYTMgMyAwIDAgMSAyLjgyNC0yLjk5NWwuMTc2LS4wMDV6bS0xIDEzaC0xYTEgMSAwIDEgMCAwIDJoMWExIDEgMCAxIDAgMC0ybS03IDBoLTFhMSAxIDAgMSAwIDAgMmgxYTEgMSAwIDEgMCAwLTJtLS40MjktMTFoLTEuNTdsLS4xMTcuMDA3YTEgMSAwIDAgMC0uODc3Ljg3NmwtLjAwNy4xMTd2OGgxMnYtOGwtLjAwNy0uMTE3YTEgMSAwIDAgMC0uNzY0LS44NTdsLS4xMTItLjAyLS4xMTctLjAwNmgtMS41NzJsLS44NTQgMS40OTYtLjA2NS4xYTEgMSAwIDAgMS0uODAzLjQwNEgyMy4wMmwtLjExOS0uMDA3YTEgMSAwIDAgMS0uNzUtLjQ5N3oiLz48c2NyaXB0IHhtbG5zPSIiLz48L3N2Zz4=\" style=\"height: 20px; width: 20px; vertical-align: middle;\"> on the map. Click on them to create or update venues. Stops already mapped by a venue with the same name within a <strong>75-meter radius</strong> are hidden, so only the ones still needing work are shown.",
-  "reloadStops": "Refresh public transport stops",
-  "deleteObsoleteStop": {
-    "message": "The venue \"{{name}}\" has no matching SBB stop. Do you want to delete it?",
-    "confirm": "Delete",
-    "cancel": "Cancel"
-  },
-  "venueMatchDialog": {
-    "cancel": "Cancel",
-    "selectMessage": "Multiple matching stops found. Choose which one to merge with:",
-    "merge": "Merge",
-    "mergeWithCoords": "Merge and update coordinates",
-    "saveNew": "Save new",
-    "message": "It seems {{venueCount}} stop(s) with this name already exist.<br/>We have selected them for you.<br/>What would you like to do?<br/>Selecting <pre style=\"display: inline;\">Merge</pre> will apply the information to the existing stops without creating a new one."
-  },
   "streetCheck": {
+    "appName": "Street names",
+    "tabNote": "Compares Waze street names against the official Swiss register and flags mismatches, with one-click fixes. Open the dedicated 🇨🇭 Street names tab to review the issues.",
     "stateIdle": "Idle",
     "stateDisabled": "Script disabled",
     "stateOutsideCh": "Outside Switzerland",
@@ -49,6 +37,14 @@
     "toggleAutoScanTitle": "Scan automatically when the map moves; off = use the Rescan button",
     "stateZoomGated": "Zoom in to scan",
     "stateAreaGated": "View too large to scan",
+    "stateSweeping": "Scanning area… {{done}}/{{total}} tiles",
+    "scanArea": "Scan this area",
+    "scanAreaTitle": "Fetch the official register for the whole view, tile by tile. May take a minute or two.",
+    "cancelSweep": "Cancel",
+    "sweepTooLarge": "View too large to scan, even area by area",
+    "warnTruncated": "{{n}} dense area(s) truncated by the register API, some official names may be missing (possible false \"not found\")",
+    "warnFailedTiles": "{{n}} area(s) failed to load, affected segments were not checked",
+    "warnContinuationCap": "lookup budget reached, some \"not found\" may clear on the next scan",
     "stateFetching": "Fetching official register…",
     "stateEvaluating": "Comparing names…",
     "statePaused": "Paused (layer unchecked)",
@@ -61,6 +57,7 @@
     "nextIssue": "Next issue",
     "nextIssueTitle": "Select the next mismatching segment",
     "locateTitle": "Center the map on the segment",
+    "zoomToGroupTitle": "Zoom the map to all segments of this group",
     "geoAdminLinkTitle": "Open this spot on map.geo.admin.ch (official register layer)",
     "cantonMapLinkTitle": "Open this spot on the {{canton}} cantonal map",
     "filterChipTitle": "Filter the list by this status",
@@ -72,7 +69,6 @@
     "noteOwnDistance": "its official axis is ~{{m}} m away",
     "noteLock": "L{{current}} → expected L{{expected}}",
     "fixAll": "Fix all ({{n}})",
-    "appName": "Street names",
     "fix": "Fix",
     "fixTitle": "Apply \"{{name}}\"",
     "fixLockTitle": "Set lock to L{{n}}",
@@ -137,8 +133,21 @@
     "errNoCity": "Segment has no city; set the city first",
     "errStreetCreate": "Could not find or create the street record",
     "errLockAboveRank": "Lock L{{expected}} is above your editor level (L{{user}})",
-    "tabNote": "Compares Waze street names against the official Swiss register and flags mismatches, with one-click fixes. Open the dedicated 🇨🇭 Street names tab to review the issues.",
     "ignoreAll": "Ignore all ({{n}})",
     "confirmIgnoreAll": "Ignore all {{n}} findings in this group? They are hidden locally and can be restored from the settings (Reset)."
+  },
+  "reloadStops": "Refresh public transport stops",
+  "deleteObsoleteStop": {
+    "message": "The venue \"{{name}}\" has no matching SBB stop. Do you want to delete it?",
+    "confirm": "Delete",
+    "cancel": "Cancel"
+  },
+  "venueMatchDialog": {
+    "cancel": "Cancel",
+    "selectMessage": "Multiple matching stops found. Choose which one to merge with:",
+    "merge": "Merge",
+    "mergeWithCoords": "Merge and update coordinates",
+    "saveNew": "Save new",
+    "message": "It seems {{venueCount}} stop(s) with this name already exist.<br/>We have selected them for you.<br/>What would you like to do?<br/>Selecting <pre style=\"display: inline;\">Merge</pre> will apply the information to the existing stops without creating a new one."
   }
 }

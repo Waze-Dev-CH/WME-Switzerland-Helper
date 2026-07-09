@@ -1,5 +1,6 @@
-import { fetchOfficialStreets } from "./client";
+import { fetchOfficialStreets, type FetchStreetsResult } from "./client";
 import type { TileStoreLike } from "./idb-store";
+import { log } from "../log";
 import type { Bbox, OfficialStreet } from "./types";
 
 /** ~1.6 x 2.2 km at Swiss latitudes; a viewport at working zoom spans a few tiles. */
@@ -39,8 +40,13 @@ export function tileKeyToBbox(key: string): Bbox {
   ];
 }
 
-interface CacheSlot {
+export interface CachedTile {
   entries: OfficialStreet[];
+  /** The register fetch hit the page cap: entries are incomplete for this tile. */
+  truncated: boolean;
+}
+
+interface CacheSlot extends CachedTile {
   fetchedAt: number;
 }
 
@@ -53,7 +59,7 @@ export class TileCache {
     private now: () => number = Date.now,
   ) {}
 
-  get(key: string): OfficialStreet[] | null {
+  get(key: string): CachedTile | null {
     const slot = this.slots.get(key);
     if (!slot) return null;
     if (this.now() - slot.fetchedAt > this.ttlMs) {
@@ -63,13 +69,13 @@ export class TileCache {
     // LRU touch: re-insert to move to the end of iteration order
     this.slots.delete(key);
     this.slots.set(key, slot);
-    return slot.entries;
+    return slot;
   }
 
   /** fetchedAt lets persisted tiles keep their original age (TTL coherence). */
-  set(key: string, entries: OfficialStreet[], fetchedAt = this.now()): void {
+  set(key: string, entries: OfficialStreet[], truncated = false, fetchedAt = this.now()): void {
     this.slots.delete(key);
-    this.slots.set(key, { entries, fetchedAt });
+    this.slots.set(key, { entries, truncated, fetchedAt });
     while (this.slots.size > this.maxTiles) {
       const oldest = this.slots.keys().next().value;
       if (oldest === undefined) break;
@@ -82,7 +88,19 @@ export class TileCache {
   }
 }
 
-export type FetchTileFn = (bbox: Bbox, signal?: AbortSignal) => Promise<OfficialStreet[]>;
+export type FetchTileFn = (bbox: Bbox, signal?: AbortSignal) => Promise<FetchStreetsResult>;
+
+export interface FetchTilesResult {
+  streets: OfficialStreet[];
+  /** Tiles whose register data was cut at the page cap (possible false NOT_FOUND). */
+  truncatedKeys: string[];
+  /** Tiles that failed to load (network error); their segments must be skipped. */
+  failedKeys: string[];
+}
+
+interface TileResult extends CachedTile {
+  failed: boolean;
+}
 
 export class TileFetcher {
   constructor(
@@ -102,39 +120,61 @@ export class TileFetcher {
     bbox: Bbox,
     signal?: AbortSignal,
     onProgress?: (done: number, total: number) => void,
-  ): Promise<OfficialStreet[]> {
-    const keys = tileKeysForBbox(bbox);
+  ): Promise<FetchTilesResult> {
+    return this.fetchTiles(tileKeysForBbox(bbox), signal, onProgress);
+  }
+
+  /** Same as fetchBbox for an explicit tile-key list (progressive area sweep). */
+  async fetchTiles(
+    keys: string[],
+    signal?: AbortSignal,
+    onProgress?: (done: number, total: number) => void,
+  ): Promise<FetchTilesResult> {
     let done = 0;
     onProgress?.(0, keys.length);
     const perTile = await Promise.all(
       keys.map(async (key) => {
-        const entries = await this.resolveTile(key, signal);
+        const result = await this.resolveTile(key, signal);
         done++;
         onProgress?.(done, keys.length);
-        return entries;
+        return { key, ...result };
       }),
     );
     const byEsid = new Map<number, OfficialStreet>();
-    for (const entries of perTile) {
-      for (const e of entries) byEsid.set(e.esid, e);
+    const truncatedKeys: string[] = [];
+    const failedKeys: string[] = [];
+    for (const tile of perTile) {
+      for (const e of tile.entries) byEsid.set(e.esid, e);
+      if (tile.truncated) truncatedKeys.push(tile.key);
+      if (tile.failed) failedKeys.push(tile.key);
     }
-    return [...byEsid.values()];
+    return { streets: [...byEsid.values()], truncatedKeys, failedKeys };
   }
 
-  private async resolveTile(key: string, signal?: AbortSignal): Promise<OfficialStreet[]> {
+  private async resolveTile(key: string, signal?: AbortSignal): Promise<TileResult> {
     const cached = this.cache.get(key);
-    if (cached) return cached;
+    if (cached) return { ...cached, failed: false };
 
     const persisted = await this.persistent?.get(key);
     if (persisted && Date.now() - persisted.fetchedAt <= CACHE_TTL_MS) {
-      this.cache.set(key, persisted.entries, persisted.fetchedAt);
-      return persisted.entries;
+      const truncated = persisted.truncated ?? false;
+      this.cache.set(key, persisted.entries, truncated, persisted.fetchedAt);
+      return { entries: persisted.entries, truncated, failed: false };
     }
 
-    const entries = await this.fetchTile(tileKeyToBbox(key), signal);
-    this.cache.set(key, entries);
-    void this.persistent?.set({ key, entries, fetchedAt: Date.now() });
-    return entries;
+    try {
+      const { streets, truncated } = await this.fetchTile(tileKeyToBbox(key), signal);
+      this.cache.set(key, streets, truncated);
+      void this.persistent?.set({ key, entries: streets, truncated, fetchedAt: Date.now() });
+      return { entries: streets, truncated, failed: false };
+    } catch (err) {
+      // Abort keeps its meaning (scan superseded / cancelled). Any other error is
+      // reported as a failed tile so one flaky request no longer kills the whole
+      // scan; the failure is not cached, so the next scan retries the tile.
+      if (err instanceof DOMException && err.name === "AbortError") throw err;
+      log.warn(`Tile ${key} failed to load; its segments will be skipped`, err);
+      return { entries: [], truncated: false, failed: true };
+    }
   }
 
   /** Used by Rescan: drop both cache levels. */

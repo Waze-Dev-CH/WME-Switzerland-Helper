@@ -178,15 +178,23 @@ export async function findStreetLinesByName(
   return lines.length > 0 ? lines : null;
 }
 
+export interface FetchStreetsResult {
+  streets: OfficialStreet[];
+  /** True when the page cap was hit: register entries are missing for this bbox. */
+  truncated: boolean;
+}
+
 /**
  * Fetch all official street entries intersecting the bbox (WGS84),
  * paging through the identify endpoint until a short page is returned.
+ * `truncated` is surfaced (not just logged) because missing register entries
+ * turn into false NOT_FOUND verdicts downstream.
  */
 export async function fetchOfficialStreets(
   bbox: Bbox,
   signal?: AbortSignal,
   limiter: RateLimiter = rateLimiter,
-): Promise<OfficialStreet[]> {
+): Promise<FetchStreetsResult> {
   const out: OfficialStreet[] = [];
   for (let page = 0; page < MAX_PAGES_PER_TILE; page++) {
     await limiter.acquire();
@@ -211,8 +219,8 @@ export async function fetchOfficialStreets(
       const street = parseAttributes(r.properties ?? r.attributes, r.geometry);
       if (street) out.push(street);
     }
-    if (results.length < PAGE_SIZE) return out;
+    if (results.length < PAGE_SIZE) return { streets: out, truncated: false };
   }
   log.warn(`Page cap (${MAX_PAGES_PER_TILE}) reached for bbox ${bbox.join(",")}; results truncated`);
-  return out;
+  return { streets: out, truncated: true };
 }
