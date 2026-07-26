@@ -135,19 +135,77 @@ describe("findStreetLinesByName pagination", () => {
   });
 });
 
-// Guard against response-shape drift: hits the real API once. Network-gated.
-describe("identify integration (real API)", () => {
-  it("parses at least one street with geometry from the Avenches tile", async () => {
-    let streets;
+/**
+ * A dead network and a changed API are not the same event, and the previous version of
+ * this block caught both and returned: a response-shape drift makes fetchOfficialStreets
+ * throw, so the one test meant to catch it passed in silence. Only transport failures are
+ * skipped now; anything else fails the suite.
+ */
+export function isTransportFailure(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  // Node wraps DNS and connection failures as "fetch failed" with a cause attached.
+  if (err.message === "fetch failed") return true;
+  // Our own wrappers. 5xx is the server having a bad day; a 4xx means the endpoint or
+  // its parameters moved, which is exactly the drift this test exists to catch.
+  return /geo\.admin\.ch HTTP 5\d\d|network error|timeout/.test(err.message);
+}
+
+describe("isTransportFailure", () => {
+  it("skips only on transport failures", () => {
+    expect(isTransportFailure(new Error("fetch failed"))).toBe(true);
+    expect(isTransportFailure(new Error("geo.admin.ch HTTP 503"))).toBe(true);
+    expect(isTransportFailure(new Error("GM_xmlhttpRequest network error"))).toBe(true);
+    expect(isTransportFailure(new Error("GM_xmlhttpRequest timeout"))).toBe(true);
+  });
+
+  it("fails the suite on anything that smells like drift", () => {
+    // A moved endpoint or changed parameters.
+    expect(isTransportFailure(new Error("geo.admin.ch HTTP 404"))).toBe(false);
+    expect(isTransportFailure(new Error("geo.admin.ch HTTP 400"))).toBe(false);
+    // A renamed field: the exact case the old catch-all swallowed.
+    expect(isTransportFailure(new TypeError("Cannot read properties of undefined"))).toBe(false);
+    expect(isTransportFailure("boom")).toBe(false);
+  });
+});
+
+// Read off globalThis: the repo has no @types/node, and pulling one in for a single
+// env lookup is not worth the dependency.
+const integrationEnabled =
+  (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env
+    ?.WME_CH_INTEGRATION === "1";
+
+// Hits the real API. Kept out of the default suite so `npm test` stays hermetic and fast:
+//   WME_CH_INTEGRATION=1 npx vitest run src/street-name-checker/geoadmin/client.test.ts
+describe.runIf(integrationEnabled)("identify integration (real API)", () => {
+  it("parses streets with geometry from the Avenches tile", async () => {
+    let streets: Awaited<ReturnType<typeof fetchOfficialStreets>>["streets"];
     try {
-      ({ streets } = await fetchOfficialStreets([7.03, 46.87, 7.05, 46.89], undefined, new RateLimiter()));
-    } catch {
-      console.warn("[integration] network unavailable, skipping");
-      return;
+      ({ streets } = await fetchOfficialStreets(
+        [7.03, 46.87, 7.05, 46.89],
+        undefined,
+        new RateLimiter(),
+      ));
+    } catch (err) {
+      if (isTransportFailure(err)) {
+        console.warn("[integration] network unavailable, skipping", err);
+        return;
+      }
+      throw err;
     }
+
     expect(streets.length).toBeGreaterThan(10);
+    // The shape assertions, not the sample: every street must carry a usable label and
+    // parsed geometry, which is what the scanner relies on.
+    for (const street of streets) {
+      expect(typeof street.label).toBe("string");
+      expect(street.label.length).toBeGreaterThan(0);
+    }
+    expect(streets.some((s) => (s.lines?.length ?? 0) > 0)).toBe(true);
+
+    // Data sanity on a stable sample. If swisstopo ever renames it this fails loudly,
+    // which is the intended outcome: someone should look.
     const guerite = streets.find((s) => s.label === "Route de la Guérite");
-    expect(guerite).toBeDefined();
+    expect(guerite, "Route de la Guérite missing from the Avenches bbox").toBeDefined();
     expect(guerite?.lines?.length).toBeGreaterThan(0);
   }, 30_000);
 });
