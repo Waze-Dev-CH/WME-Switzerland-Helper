@@ -122,13 +122,26 @@ export class HighlightLayer {
   }
 }
 
-/** Layer-switcher checkbox controlling both layer visibility and scan pausing. */
-export function registerLayerCheckbox(sdk: WmeSDK, onToggle: (checked: boolean) => void): void {
-  sdk.LayerSwitcher.addLayerCheckbox({ name: getLayerName(), isChecked: true });
+/**
+ * Layer-switcher checkbox controlling both layer visibility and scanning. `isChecked` comes
+ * from the persisted settings: hardcoding it meant the box came back checked after every
+ * reload, restarting a scan the editor had switched off.
+ */
+export function registerLayerCheckbox(
+  sdk: WmeSDK,
+  isChecked: boolean,
+  onToggle: (checked: boolean) => void,
+): void {
+  sdk.LayerSwitcher.addLayerCheckbox({ name: getLayerName(), isChecked });
   sdk.Events.on({
     eventName: "wme-layer-checkbox-toggled",
     eventHandler: (payload) => {
       if (payload.name === getLayerName()) onToggle(payload.checked);
     },
   });
+}
+
+/** Realigns the checkbox after the feature was toggled from the tab instead. */
+export function setLayerCheckbox(sdk: WmeSDK, isChecked: boolean): void {
+  sdk.LayerSwitcher.setLayerCheckboxChecked({ name: getLayerName(), isChecked });
 }

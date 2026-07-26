@@ -249,6 +249,8 @@ export class TabUI {
     private sdk: WmeSDK,
     private scanner: Scanner,
     private settings: SettingsStore,
+    /** Routed through activation.ts so this toggle and the layer checkbox stay in step. */
+    private onEnabledChange: (enabled: boolean) => void,
   ) {}
 
   async init(): Promise<void> {
@@ -383,11 +385,7 @@ export class TabUI {
       this.toggleSwitch(
         t("toggleEnabled"),
         settings.enabled,
-        (checked) => {
-          this.settings.update({ enabled: checked });
-          if (checked) this.scanner.requestScan();
-          else this.scanner.disable();
-        },
+        (checked) => this.onEnabledChange(checked),
         t("toggleEnabledTitle"),
       ),
       this.toggleSwitch(

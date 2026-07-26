@@ -4,11 +4,12 @@
  * Licensed under the repository's GNU AGPL v3.0 or later (see /src note in README).
  */
 import type { WmeSDK } from "wme-sdk-typings";
+import { type ActivationContext, setCheckerEnabled } from "./activation";
 import { IdbTileStore } from "./geoadmin/idb-store";
 import { TileFetcher } from "./geoadmin/tiles";
 import { resolveLocale, setLocale } from "./i18n";
 import { log } from "./log";
-import { HighlightLayer, registerLayerCheckbox } from "./map-layer";
+import { HighlightLayer, registerLayerCheckbox, setLayerCheckbox } from "./map-layer";
 import { Scanner } from "./scan";
 import { registerShortcuts } from "./shortcuts";
 import { SettingsStore } from "./settings";
@@ -41,10 +42,18 @@ export async function initStreetNameChecker(): Promise<void> {
   const layer = new HighlightLayer(sdk, settings);
 
   layer.init();
-  registerLayerCheckbox(sdk, (checked) => {
-    layer.setVisible(checked);
-    scanner.setPaused(!checked);
-  });
+
+  // The layer checkbox and the tab's master toggle are two faces of settings.enabled;
+  // both go through setCheckerEnabled so neither can drift from the persisted value.
+  const activation: ActivationContext = {
+    settings,
+    scanner,
+    layer,
+    syncCheckbox: (checked) => setLayerCheckbox(sdk, checked),
+  };
+  const enabled = settings.get().enabled;
+  layer.setVisible(enabled);
+  registerLayerCheckbox(sdk, enabled, (checked) => setCheckerEnabled(activation, checked, "checkbox"));
 
   // Resync the OpenLayers layer only when results actually change; progress
   // ticks during a fetch reuse the same issues map and must stay free.
@@ -56,7 +65,9 @@ export async function initStreetNameChecker(): Promise<void> {
     }
   });
 
-  const tab = new TabUI(sdk, scanner, settings);
+  const tab = new TabUI(sdk, scanner, settings, (checked) =>
+    setCheckerEnabled(activation, checked, "tab"),
+  );
   await tab.init();
 
   new EditPanelBox(sdk, scanner, settings).init();
