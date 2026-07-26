@@ -13,7 +13,7 @@ import { STATUS_STYLES } from "../map-layer";
 import type { Issue } from "../matching/evaluate";
 import type { Scanner } from "../scan";
 import type { SettingsStore } from "../settings";
-import { formatNote, LEGEND_KEYS, STATE_KEYS, statusEmoji } from "./tab";
+import { formatNote, LEGEND_KEYS, STATE_KEYS, statusEmoji } from "./format";
 import { cantonMapLink } from "./canton-link";
 import { mapGeoAdminUrlForGeometry } from "../geoadmin/links";
 import { getLocale, t } from "../i18n";

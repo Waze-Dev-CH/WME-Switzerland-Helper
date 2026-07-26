@@ -1,4 +1,3 @@
-import type { LineString } from "geojson";
 import type { WmeSDK } from "wme-sdk-typings";
 import {
   GROUP_FIX_CAP,
@@ -8,76 +7,34 @@ import {
   runFix,
   runFixGroup,
 } from "../fix";
-import { LANGUAGE_CHOICES, resolveLocale, setLocale, t, type LanguagePreference, type StringKey } from "../i18n";
+import { t } from "../i18n";
 import { STATUS_STYLES } from "../map-layer";
-import { type Issue, type IssueNote, type IssueStatus } from "../matching/evaluate";
+import { type Issue, type IssueStatus } from "../matching/evaluate";
 import type { ScanSnapshot, Scanner } from "../scan";
-import { ALL_STATUSES, ROAD_TYPE_OPTIONS, type CityScoping, type Settings, type SettingsStore } from "../settings";
+import { ROAD_TYPE_OPTIONS, type SettingsStore } from "../settings";
 import { mapGeoAdminUrlForGeometry } from "../geoadmin/links";
 import type { Bbox } from "../geoadmin/types";
 import { getLocale } from "../i18n";
 import { cantonMapLink } from "./canton-link";
+import { el, toggleSwitch } from "./dom";
+import {
+  bboxOfIssues,
+  formatNote,
+  geometryIntersectsBbox,
+  groupIssues,
+  isDarkBackground,
+  LEGEND_KEYS,
+  STATE_KEYS,
+  statusEmoji,
+  type IssueGroup,
+} from "./format";
+import { buildSettingsPanel } from "./settings-panel";
 import { injectStyles } from "./styles";
 
 // Road type names stay in English on purpose: they are the WME community's
 // shared vocabulary and Waze's own localized terms vary by UI version.
 const ROAD_TYPE_LABELS = new Map(ROAD_TYPE_OPTIONS.map((r) => [r.id, r.label]));
 
-export const LEGEND_KEYS: Record<IssueStatus, StringKey> = {
-  COSMETIC: "legendCOSMETIC",
-  VARIANT: "legendVARIANT",
-  NEAR: "legendNEAR",
-  WRONG_TYPE: "legendWRONG_TYPE",
-  BILINGUAL: "legendBILINGUAL",
-  WRONG_STREET: "legendWRONG_STREET",
-  WRONG_CITY: "legendWRONG_CITY",
-  NOT_FOUND: "legendNOT_FOUND",
-  UNNAMED: "legendUNNAMED",
-  UNDER_LOCK: "legendUNDER_LOCK",
-  MICRO_SEGMENT: "legendMICRO_SEGMENT",
-  LOOP: "legendLOOP",
-  NARROW_MISUSE: "legendNARROW_MISUSE",
-  OVER_LOCK: "legendOVER_LOCK",
-  UNNAMED_NO_MATCH: "legendUNNAMED_NO_MATCH",
-};
-
-export const STATE_KEYS: Record<ScanSnapshot["state"], StringKey> = {
-  idle: "stateIdle",
-  disabled: "stateDisabled",
-  "outside-ch": "stateOutsideCh",
-  "zoom-gated": "stateZoomGated",
-  "area-gated": "stateAreaGated",
-  fetching: "stateFetching",
-  evaluating: "stateEvaluating",
-  sweeping: "stateSweeping",
-  done: "stateDone",
-  paused: "statePaused",
-  error: "stateError",
-};
-
-function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  className?: string,
-  text?: string,
-): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text !== undefined) node.textContent = text;
-  return node;
-}
-
-/** Perceived-luminance verdict for a CSS color; null when transparent or unparseable. */
-export function isDarkBackground(cssColor: string): boolean | null {
-  const match = cssColor.match(/rgba?\(([^)]+)\)/);
-  if (!match || !match[1]) return null;
-  const parts = match[1].split(",").map((p) => parseFloat(p));
-  const r = parts[0] ?? 0;
-  const g = parts[1] ?? 0;
-  const b = parts[2] ?? 0;
-  const a = parts[3] ?? 1;
-  if (a <= 0) return null;
-  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5;
-}
 
 /**
  * Detect WME's editor theme by measuring the first opaque background up the
@@ -92,128 +49,6 @@ function wmeThemeIsDark(start: HTMLElement): boolean {
     node = node.parentElement;
   }
   return false;
-}
-
-/** Leading emoji for a status, or "" when none. WRONG_STREET is flagged: a different
- *  official street runs under a validly-named segment — easy to miss in the list. */
-export function statusEmoji(status: IssueStatus): string {
-  return status === "WRONG_STREET" ? "⚠️" : "";
-}
-
-export function formatNote(note: IssueNote | null): string {
-  if (!note) return "";
-  const parts: string[] = [];
-  if (note.unofficial) parts.push(t("noteUnofficial"));
-  if (note.planned) parts.push(t("notePlanned"));
-  if (note.fullLabel) parts.push(t("noteFullLabel", { label: note.fullLabel }));
-  if (note.existsIn) parts.push(t("noteExistsIn", { place: note.existsIn }));
-  if (note.ownDistanceM !== undefined) parts.push(t("noteOwnDistance", { m: note.ownDistanceM }));
-  if (note.currentLock !== undefined && note.expectedLock !== undefined) {
-    // currentLock / expectedLock are already 1-6 levels (see guidelines.ts).
-    parts.push(t("noteLock", { current: note.currentLock, expected: note.expectedLock }));
-  }
-  return parts.join(", ");
-}
-
-export interface IssueGroup {
-  key: string;
-  status: IssueStatus;
-  currentName: string | null;
-  suggestion: string | null;
-  note: IssueNote | null;
-  fixable: boolean;
-  issues: Issue[];
-}
-
-/** Display order: safe fixes first, then risky ones, unnamed and guideline checks last. */
-const SEVERITY_ORDER: Record<IssueStatus, number> = {
-  COSMETIC: 0,
-  VARIANT: 1,
-  BILINGUAL: 2,
-  NEAR: 3,
-  WRONG_TYPE: 4,
-  WRONG_STREET: 5,
-  WRONG_CITY: 6,
-  NOT_FOUND: 7,
-  UNNAMED: 8,
-  UNDER_LOCK: 9,
-  MICRO_SEGMENT: 10,
-  LOOP: 11,
-  NARROW_MISUSE: 12,
-  OVER_LOCK: 13,
-  UNNAMED_NO_MATCH: 14,
-};
-
-export function groupIssues(issues: Iterable<Issue>): IssueGroup[] {
-  const groups = new Map<string, IssueGroup>();
-  for (const issue of issues) {
-    const key = `${issue.status}|${issue.currentName ?? ""}|${issue.suggestion ?? ""}`;
-    let group = groups.get(key);
-    if (!group) {
-      group = {
-        key,
-        status: issue.status,
-        currentName: issue.currentName,
-        suggestion: issue.suggestion,
-        note: issue.note,
-        fixable: issue.fixable,
-        issues: [],
-      };
-      groups.set(key, group);
-    }
-    group.issues.push(issue);
-  }
-  return [...groups.values()].sort(
-    (a, b) => SEVERITY_ORDER[a.status] - SEVERITY_ORDER[b.status] || b.issues.length - a.issues.length,
-  );
-}
-
-/**
- * True when the segment's bounding box overlaps the viewport bbox. Using a
- * bbox overlap (rather than "a vertex falls inside") also keeps a long segment
- * that crosses the screen without any vertex inside it.
- */
-export function geometryIntersectsBbox(geometry: LineString, bbox: Bbox): boolean {
-  let minLon = Infinity;
-  let minLat = Infinity;
-  let maxLon = -Infinity;
-  let maxLat = -Infinity;
-  for (const point of geometry.coordinates) {
-    const lon = point[0] as number;
-    const lat = point[1] as number;
-    minLon = Math.min(minLon, lon);
-    minLat = Math.min(minLat, lat);
-    maxLon = Math.max(maxLon, lon);
-    maxLat = Math.max(maxLat, lat);
-  }
-  if (!Number.isFinite(minLon)) return false;
-  return minLon <= bbox[2] && maxLon >= bbox[0] && minLat <= bbox[3] && maxLat >= bbox[1];
-}
-
-/**
- * Padded bounding box around every segment of a group, or null when no issue
- * carries coordinates. 30% padding with a floor so a single short segment
- * keeps street-level context.
- */
-export function bboxOfIssues(issues: Issue[]): Bbox | null {
-  let minLon = Infinity;
-  let minLat = Infinity;
-  let maxLon = -Infinity;
-  let maxLat = -Infinity;
-  for (const issue of issues) {
-    for (const point of issue.geometry.coordinates) {
-      const lon = point[0] as number;
-      const lat = point[1] as number;
-      minLon = Math.min(minLon, lon);
-      minLat = Math.min(minLat, lat);
-      maxLon = Math.max(maxLon, lon);
-      maxLat = Math.max(maxLat, lat);
-    }
-  }
-  if (!Number.isFinite(minLon)) return null;
-  const padLon = Math.max((maxLon - minLon) * 0.3, 0.001);
-  const padLat = Math.max((maxLat - minLat) * 0.3, 0.0007);
-  return [minLon - padLon, minLat - padLat, maxLon + padLon, maxLat + padLat];
 }
 
 /** Delay before the "updating" veil appears, to avoid flashing on quick rescans. */
@@ -373,7 +208,13 @@ export class TabUI {
       this.buildMasterToggles(),
       this.listBox,
       this.buildLegend(),
-      this.buildSettings(),
+      buildSettingsPanel({
+        sdk: this.sdk,
+        settings: this.settings,
+        scanner: this.scanner,
+        rebuild: () => this.rebuild(),
+        viewportOnlyToggle: () => this.viewportOnlyToggle(),
+      }),
       this.buildFooter(),
     );
   }
@@ -382,13 +223,13 @@ export class TabUI {
     const row = el("div", "chk-master");
     const settings = this.settings.get();
     row.append(
-      this.toggleSwitch(
+      toggleSwitch(
         t("toggleEnabled"),
         settings.enabled,
         (checked) => this.onEnabledChange(checked),
         t("toggleEnabledTitle"),
       ),
-      this.toggleSwitch(
+      toggleSwitch(
         t("toggleAutoScan"),
         settings.autoScan,
         (checked) => {
@@ -410,7 +251,7 @@ export class TabUI {
    * and the shared handler mirrors the state across them.
    */
   private viewportOnlyToggle(): HTMLElement {
-    const label = this.toggleSwitch(
+    const label = toggleSwitch(
       t("viewportOnly"),
       this.settings.get().viewportOnly,
       (checked) => {
@@ -427,35 +268,6 @@ export class TabUI {
   }
 
   /** iOS-style toggle: a visually hidden checkbox plus a CSS track/knob and a label. */
-  private toggleSwitch(
-    text: string,
-    checked: boolean,
-    onChange: (checked: boolean) => void,
-    title?: string,
-  ): HTMLElement {
-    const label = el("label", "chk-switch");
-    if (title) label.title = title;
-    const input = el("input") as HTMLInputElement;
-    input.type = "checkbox";
-    input.checked = checked;
-    input.addEventListener("change", () => onChange(input.checked));
-    const track = el("span", "chk-switch-track");
-    track.appendChild(el("span", "chk-switch-knob"));
-    label.append(input, track, el("span", "chk-switch-label", text));
-    return label;
-  }
-
-  /** A collapsible settings sub-section with an icon header. */
-  private buildSubsection(icon: string, title: string, children: HTMLElement[]): HTMLElement {
-    const details = el("details", "chk-subsection");
-    const summary = el("summary");
-    summary.append(el("span", "chk-section-icon", icon), el("span", "", title));
-    details.appendChild(summary);
-    const body = el("div", "chk-subsection-body");
-    for (const child of children) body.appendChild(child);
-    details.appendChild(body);
-    return details;
-  }
 
   private buildFooter(): HTMLElement {
     const footer = el("div", "chk-footer");
@@ -901,161 +713,4 @@ export class TabUI {
     );
   }
 
-  private buildSettings(): HTMLElement {
-    const details = el("details", "chk-section");
-    const summary = el("summary");
-    summary.append(el("span", "chk-section-icon", "⚙️"), el("span", "", t("settingsTitle")));
-    details.appendChild(summary);
-    const body = el("div", "chk-section-body");
-    const settings = this.settings.get();
-
-    const apply = (partial: Partial<Settings>, rescan = false): void => {
-      this.settings.update(partial);
-      if (rescan) this.scanner.requestScan();
-      else this.scanner.reevaluate();
-    };
-
-    const grid = el("div", "chk-settings-grid");
-    for (const option of ROAD_TYPE_OPTIONS) {
-      const label = el("label");
-      const cb = el("input") as HTMLInputElement;
-      cb.type = "checkbox";
-      cb.checked = settings.checkedRoadTypes.includes(option.id);
-      cb.addEventListener("change", () => {
-        const current = new Set(this.settings.get().checkedRoadTypes);
-        if (cb.checked) current.add(option.id);
-        else current.delete(option.id);
-        apply({ checkedRoadTypes: [...current] });
-      });
-      label.append(cb, option.label);
-      grid.appendChild(label);
-    }
-
-    const statusGrid = el("div", "chk-settings-grid");
-    for (const status of ALL_STATUSES) {
-      const label = el("label");
-      label.title = t(LEGEND_KEYS[status]);
-      const cb = el("input") as HTMLInputElement;
-      cb.type = "checkbox";
-      cb.checked = settings.enabledStatuses.includes(status);
-      cb.addEventListener("change", () => {
-        const current = new Set(this.settings.get().enabledStatuses);
-        if (cb.checked) current.add(status);
-        else current.delete(status);
-        this.settings.update({ enabledStatuses: ALL_STATUSES.filter((s) => current.has(s)) });
-        this.scanner.reevaluate();
-      });
-      const dot = el("span", "chk-dot");
-      dot.style.background = STATUS_STYLES[status].strokeColor;
-      label.append(cb, dot, status);
-      statusGrid.appendChild(label);
-    }
-
-    const optionToggle = (
-      textKey: StringKey,
-      key: keyof Pick<
-        Settings,
-        | "altNameCountsAsOk"
-        | "showMapLabels"
-        | "keepOldNameAsAlt"
-        | "guidelineChecks"
-        | "editPanelHelper"
-        | "geometryMatching"
-        | "editableOnly"
-      >,
-      titleKey?: StringKey,
-    ): HTMLElement =>
-      this.toggleSwitch(
-        t(textKey),
-        settings[key],
-        (checked) => apply({ [key]: checked }),
-        titleKey ? t(titleKey) : undefined,
-      );
-
-    // second instance of the shared viewport-only toggle (see viewportOnlyToggle)
-    const viewportToggle = this.viewportOnlyToggle();
-
-    const options = [
-      optionToggle("altOk", "altNameCountsAsOk", "altOkTitle"),
-      optionToggle("showMapLabels", "showMapLabels"),
-      optionToggle("keepOldName", "keepOldNameAsAlt", "keepOldNameTitle"),
-      optionToggle("guidelineChecks", "guidelineChecks", "guidelineChecksTitle"),
-      optionToggle("helperSetting", "editPanelHelper"),
-      optionToggle("geometryMatching", "geometryMatching", "geometryMatchingTitle"),
-      optionToggle("editableOnly", "editableOnly", "editableOnlyTitle"),
-      viewportToggle,
-    ];
-
-    const scopingRow = el("div", "chk-settings-row");
-    scopingRow.appendChild(el("span", "", t("scopingLabel")));
-    const select = el("select") as HTMLSelectElement;
-    const scopingLabels: Record<CityScoping, string> = {
-      off: t("scopingOff"),
-      warn: t("scopingWarn"),
-      strict: t("scopingStrict"),
-    };
-    for (const value of ["off", "warn", "strict"] as CityScoping[]) {
-      const opt = el("option", "", scopingLabels[value]) as HTMLOptionElement;
-      opt.value = value;
-      select.appendChild(opt);
-    }
-    select.value = settings.cityScoping;
-    select.title = t("scopingTitle");
-    select.addEventListener("change", () => apply({ cityScoping: select.value as CityScoping }));
-    scopingRow.appendChild(select);
-
-    const zoomRow = el("div", "chk-settings-row");
-    zoomRow.appendChild(el("span", "", t("minZoomLabel")));
-    const zoomInput = el("input") as HTMLInputElement;
-    zoomInput.type = "number";
-    zoomInput.min = "12";
-    zoomInput.max = "22";
-    zoomInput.value = String(settings.minZoom);
-    zoomInput.addEventListener("change", () => {
-      const v = Number(zoomInput.value);
-      if (Number.isFinite(v) && v >= 12 && v <= 22) apply({ minZoom: v }, true);
-    });
-    zoomRow.appendChild(zoomInput);
-
-    const langRow = el("div", "chk-settings-row");
-    langRow.appendChild(el("span", "", t("languageLabel")));
-    const langSelect = el("select") as HTMLSelectElement;
-    for (const choice of LANGUAGE_CHOICES) {
-      const opt = el(
-        "option",
-        "",
-        choice.value === "auto" ? t("languageAuto") : choice.label,
-      ) as HTMLOptionElement;
-      opt.value = choice.value;
-      langSelect.appendChild(opt);
-    }
-    langSelect.value = settings.language;
-    langSelect.addEventListener("change", () => {
-      const language = langSelect.value as LanguagePreference;
-      this.settings.update({ language });
-      setLocale(resolveLocale(language, this.sdk.Settings.getLocale().localeCode));
-      this.rebuild();
-    });
-    langRow.appendChild(langSelect);
-
-    const ignoredRow = el("div", "chk-settings-row");
-    ignoredRow.appendChild(el("span", "", t("ignoredCount", { n: settings.ignoredKeys.length })));
-    const resetIgnoredBtn = el("button", "", t("resetIgnored")) as HTMLButtonElement;
-    resetIgnoredBtn.disabled = settings.ignoredKeys.length === 0;
-    resetIgnoredBtn.addEventListener("click", () => {
-      this.settings.update({ ignoredKeys: [] });
-      this.scanner.reevaluate();
-      this.rebuild();
-    });
-    ignoredRow.appendChild(resetIgnoredBtn);
-
-    body.append(
-      this.buildSubsection("🛣️", t("roadTypesLabel"), [grid]),
-      this.buildSubsection("🏷️", t("statusesLabel"), [statusGrid]),
-      this.buildSubsection("🎛️", t("optionsLabel"), options),
-      this.buildSubsection("📍", t("scopeDisplayLabel"), [scopingRow, zoomRow, langRow, ignoredRow]),
-    );
-    details.appendChild(body);
-    return details;
-  }
 }

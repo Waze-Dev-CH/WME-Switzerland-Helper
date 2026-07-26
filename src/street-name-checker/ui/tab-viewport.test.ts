@@ -1,7 +1,7 @@
 import type { LineString } from "geojson";
 import { describe, expect, it } from "vitest";
 import type { Bbox } from "../geoadmin/types";
-import { geometryIntersectsBbox } from "../ui/tab";
+import { geometryIntersectsBbox } from "../ui/format";
 
 // Viewport over central Lausanne: [minLon, minLat, maxLon, maxLat].
 const VIEWPORT: Bbox = [6.6, 46.51, 6.65, 46.53];
