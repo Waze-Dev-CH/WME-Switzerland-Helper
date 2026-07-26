@@ -285,7 +285,6 @@ describe("runFix (shared UI runner)", () => {
   });
 
   it("aborts an OVER_LOCK fix (no edit, no onComplete) when the confirm is declined", async () => {
-    vi.stubGlobal("confirm", () => false);
     const { sdk, lockUpdates } = makeSdk(4);
     let completed = false;
     const overLock = issue({
@@ -293,7 +292,10 @@ describe("runFix (shared UI runner)", () => {
       suggestion: null,
       note: { currentLock: 5, expectedLock: 2 },
     });
-    await runFix(sdk, overLock, DEFAULT_SETTINGS, { onComplete: () => (completed = true) });
+    await runFix(sdk, overLock, DEFAULT_SETTINGS, {
+      confirm: async () => false,
+      onComplete: () => (completed = true),
+    });
     expect(lockUpdates).toHaveLength(0);
     expect(completed).toBe(false);
   });

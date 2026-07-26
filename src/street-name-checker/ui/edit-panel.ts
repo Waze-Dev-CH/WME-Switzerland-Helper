@@ -219,7 +219,7 @@ export class EditPanelBox {
   }
 
   private onIgnoreGroup(group: Issue[]): void {
-    ignoreIssues(this.settings, group, () => {
+    void ignoreIssues(this.settings, group, () => {
       this.scanner.reevaluate();
       this.schedule();
     });

@@ -134,7 +134,10 @@
     "errStreetCreate": "Impossible de trouver ou de créer la rue",
     "errLockAboveRank": "Verrou L{{expected}} au-dessus de ton niveau d'éditeur (L{{user}})",
     "ignoreAll": "Tout ignorer ({{n}})",
-    "confirmIgnoreAll": "Ignorer les {{n}} signalements de ce groupe ? Masqués localement, récupérables dans les réglages (Réinitialiser)."
+    "confirmIgnoreAll": "Ignorer les {{n}} signalements de ce groupe ? Masqués localement, récupérables dans les réglages (Réinitialiser).",
+    "dialogConfirm": "Confirmer",
+    "dialogCancel": "Annuler",
+    "dialogOk": "OK"
   },
   "reloadStops": "Recharger les arrêts de transport public",
   "deleteObsoleteStop": {

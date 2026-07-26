@@ -818,7 +818,7 @@ export class TabUI {
   }
 
   private onIgnoreGroup(group: IssueGroup): void {
-    ignoreIssues(this.settings, group.issues, () => this.scanner.reevaluate());
+    void ignoreIssues(this.settings, group.issues, () => this.scanner.reevaluate());
   }
 
   /** Fit the map to every segment of the group, with padding for context. */

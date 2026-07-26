@@ -1299,6 +1299,9 @@ class PublicTransportStopsLayer extends FeatureLayer {
 
     const result = await showWmeDialog({
       message: i18next.t("common:venueMatchDialog.message", { venueCount: 1 }),
+      // This one string carries its own <br/> and <pre> markup; every other caller
+      // relies on showWmeDialog escaping the message.
+      allowHtml: true,
       buttons,
     });
     return result as "merge" | "merge-with-coords" | "save" | "cancel";

@@ -1,5 +1,6 @@
 import type { WmeSDK } from "wme-sdk-typings";
 import { fixSegment, withFixLock } from "./fix";
+import { confirmDialog } from "./prompt";
 import { t } from "./i18n";
 import { log } from "./log";
 import type { Scanner } from "./scan";
@@ -42,15 +43,18 @@ export function registerShortcuts(
     if (selection?.objectType !== "segment" || selection.ids.length !== 1) return;
     const issue = scanner.getSnapshot().issues.get(selection.ids[0] as number);
     if (!issue?.fixable) return;
-    // Lowering an over-lock is often unwanted; confirm before applying.
-    if (
-      issue.status === "OVER_LOCK" &&
-      !confirm(t("confirmOverLockFix", { n: issue.note?.expectedLock ?? "" }))
-    ) {
-      return;
-    }
-    void withFixLock(async () => fixSegment(sdk, issue, settings.get())).then((result) => {
+    // The confirm is a dialog now, so the whole flow has to await; the shortcut API
+    // itself stays synchronous.
+    void (async () => {
+      // Lowering an over-lock is often unwanted; confirm before applying.
+      if (
+        issue.status === "OVER_LOCK" &&
+        !(await confirmDialog(t("confirmOverLockFix", { n: issue.note?.expectedLock ?? "" })))
+      ) {
+        return;
+      }
+      const result = await withFixLock(async () => fixSegment(sdk, issue, settings.get()));
       if (result !== null) scanner.reevaluate();
-    });
+    })();
   });
 }

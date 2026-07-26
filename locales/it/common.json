@@ -134,7 +134,10 @@
     "errStreetCreate": "Impossibile trovare o creare la strada",
     "errLockAboveRank": "Blocco L{{expected}} oltre il tuo livello editor (L{{user}})",
     "ignoreAll": "Ignora tutti ({{n}})",
-    "confirmIgnoreAll": "Ignorare tutte le {{n}} segnalazioni del gruppo? Nascoste localmente, ripristinabili dalle impostazioni (Reimposta)."
+    "confirmIgnoreAll": "Ignorare tutte le {{n}} segnalazioni del gruppo? Nascoste localmente, ripristinabili dalle impostazioni (Reimposta).",
+    "dialogConfirm": "Conferma",
+    "dialogCancel": "Annulla",
+    "dialogOk": "OK"
   },
   "reloadStops": "Ricarica le fermate del trasporto pubblico",
   "deleteObsoleteStop": {

@@ -134,7 +134,10 @@
     "errStreetCreate": "Strasse konnte nicht gefunden oder erstellt werden",
     "errLockAboveRank": "Sperrstufe L{{expected}} über deiner Editor-Stufe (L{{user}})",
     "ignoreAll": "Alle ignorieren ({{n}})",
-    "confirmIgnoreAll": "Alle {{n}} Befunde dieser Gruppe ignorieren? Lokal ausgeblendet, über die Einstellungen (Zurücksetzen) wiederherstellbar."
+    "confirmIgnoreAll": "Alle {{n}} Befunde dieser Gruppe ignorieren? Lokal ausgeblendet, über die Einstellungen (Zurücksetzen) wiederherstellbar.",
+    "dialogConfirm": "Bestätigen",
+    "dialogCancel": "Abbrechen",
+    "dialogOk": "OK"
   },
   "reloadStops": "Haltestellen des öffentlichen Verkehrs neu laden",
   "deleteObsoleteStop": {

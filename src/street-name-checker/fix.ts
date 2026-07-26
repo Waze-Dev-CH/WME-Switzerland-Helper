@@ -2,6 +2,7 @@ import type { UserRank, WmeSDK } from "wme-sdk-typings";
 import { t } from "./i18n";
 import { log } from "./log";
 import { issueKey, type Issue } from "./matching/evaluate";
+import { type Confirm, confirmDialog, type Notify, notifyDialog } from "./prompt";
 import type { Settings, SettingsStore } from "./settings";
 
 export const GROUP_FIX_CAP = 50;
@@ -205,6 +206,9 @@ export interface FixUiHooks {
   button?: HTMLButtonElement;
   /** Called after a fix actually ran (not when the re-entrance lock was held). */
   onComplete?: () => void;
+  /** Overridable so the fix flows can be tested without a DOM. */
+  confirm?: Confirm;
+  notify?: Notify;
 }
 
 /**
@@ -216,12 +220,12 @@ export async function runFix(
   sdk: WmeSDK,
   issue: Issue,
   settings: Settings,
-  { button, onComplete }: FixUiHooks = {},
+  { button, onComplete, confirm = confirmDialog, notify = notifyDialog }: FixUiHooks = {},
 ): Promise<void> {
   // Lowering an over-lock is often unwanted; confirm before applying.
   if (
     issue.status === "OVER_LOCK" &&
-    !confirm(t("confirmOverLockFix", { n: issue.note?.expectedLock ?? "" }))
+    !(await confirm(t("confirmOverLockFix", { n: issue.note?.expectedLock ?? "" })))
   ) {
     return;
   }
@@ -231,7 +235,7 @@ export async function runFix(
       button.textContent = "…";
     }
     const outcome = fixSegment(sdk, issue, settings);
-    if (!outcome.ok) alert(t("fixFailed", { error: formatFixError(outcome) }));
+    if (!outcome.ok) await notify(t("fixFailed", { error: formatFixError(outcome) }));
     return outcome;
   });
   // null = another fix was already running; its own completion will re-render.
@@ -251,14 +255,14 @@ export async function runFixGroup(
   issues: Issue[],
   header: GroupFixHeader,
   settings: Settings,
-  { button, onComplete }: FixUiHooks = {},
+  { button, onComplete, confirm = confirmDialog, notify = notifyDialog }: FixUiHooks = {},
 ): Promise<void> {
   const n = Math.min(issues.length, GROUP_FIX_CAP);
   if (header.status === "OVER_LOCK") {
-    if (!confirm(t("confirmOverLockFix", { n: header.expectedLock ?? "" }))) return;
+    if (!(await confirm(t("confirmOverLockFix", { n: header.expectedLock ?? "" })))) return;
   } else if (
     n > GROUP_FIX_CONFIRM_THRESHOLD &&
-    !confirm(t("confirmGroupFix", { name: header.suggestion ?? "", n }))
+    !(await confirm(t("confirmGroupFix", { name: header.suggestion ?? "", n })))
   ) {
     return;
   }
@@ -269,7 +273,7 @@ export async function runFixGroup(
     });
     const failed = outcomes.find((o) => !o.ok);
     if (failed) {
-      alert(
+      await notify(
         t("fixStopped", {
           done: outcomes.filter((o) => o.ok).length,
           total: n,
@@ -292,11 +296,16 @@ export function ignoreIssue(settings: SettingsStore, issue: Issue, onComplete?: 
 }
 
 /** Dismiss a whole group of findings at once; confirms a large mass-hide first. */
-export function ignoreIssues(settings: SettingsStore, issues: Issue[], onComplete?: () => void): void {
+export async function ignoreIssues(
+  settings: SettingsStore,
+  issues: Issue[],
+  onComplete?: () => void,
+  confirm: Confirm = confirmDialog,
+): Promise<void> {
   // Reversible (Settings → Reset), but confirm a large mass-hide to avoid accidents.
   if (
     issues.length > GROUP_FIX_CONFIRM_THRESHOLD &&
-    !confirm(t("confirmIgnoreAll", { n: issues.length }))
+    !(await confirm(t("confirmIgnoreAll", { n: issues.length })))
   ) {
     return;
   }
