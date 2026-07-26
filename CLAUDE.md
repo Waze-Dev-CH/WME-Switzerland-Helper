@@ -40,12 +40,46 @@ Build pipeline: `src/*.ts` + `main.user.ts` → Rollup → `.out/main.user.js` �
 - `src/stopGeometry.ts` — haversine/turf geometry for Point/Polygon/MultiPolygon
 - `src/utils.ts` — shared utilities (haversineDistance, showWmeDialog, waitForMapIdle)
 
+### Street-name checker (`src/street-name-checker/`)
+
+Roughly half the source. Ported from the standalone `WME-CH-Street-Name-Checker`
+userscript, so it does not follow the layer hierarchy above. Entry point:
+`initStreetNameChecker()` (`index.ts`), called last from `main.user.ts`.
+
+Pipeline: `TileFetcher` (geoadmin/) → `OfficialIndex` + `SpatialIndex` (matching/) →
+`Scanner.evaluateSegment` → `Issue` → `HighlightLayer` on the map and `TabUI` in the
+sidebar. `fix.ts` applies corrections into the WME edit stack; nothing is ever saved
+automatically.
+
+- `activation.ts`: single entry point for the on/off state. Both the layer checkbox and
+  the tab toggle route through it, and `settings.enabled` is the persisted truth.
+- `settings.ts`: own store, localStorage key `wme-ch-name-check.settings`, versioned with
+  a merging migration so `ignoredKeys` survives an unknown version.
+- `geoadmin/idb-store.ts`: IndexedDB tile cache, degrades to a no-op when unavailable.
+- `prompt.ts`: injectable dialog helpers over `showWmeDialog`, so the fix flows stay
+  testable without a DOM.
+
+**Deliberate deviations, do not "fix" them:**
+
+| Deviation | Why |
+| --- | --- |
+| Own SDK instance and `scriptId` (`index.ts`) | `registerScriptTab()` throws if the host's scriptId already owns a tab |
+| Own i18next instance (`i18n.ts`) | The checker's language is a per-feature preference; sharing the host singleton would flip the whole UI. Strings still live in `locales/<lang>/common.json`, under `streetCheck` |
+| DOM injection into the segment edit panel (`ui/edit-panel.ts`) | The SDK exposes no extension point there. This is the one sanctioned exception to the no-DOM-hacks rule below |
+| Canton flags as base64 data URIs (`ui/canton-flags.ts`) | Rollup has no SVG asset loader in this setup |
+| `GM_xmlhttpRequest` rather than `fetch` (`geoadmin/client.ts`) | WME's CSP blocks `connect-src` to geo.admin.ch |
+
+Tests: `npx vitest run src/street-name-checker`. The geo.admin.ch integration block is
+excluded by default and runs with `WME_CH_INTEGRATION=1`.
+
 ## WME SDK Rules
 
 - All WME API interactions use `wme-sdk-typings`. Consult `node_modules/wme-sdk-typings/index.d.ts` and https://www.waze.com/editor/sdk/index.html before implementing features.
 - Do not guess or invent SDK APIs — if information is missing from typings or docs, flag it.
 - Do not use deprecated WME globals (documented in migration guide's "Pre-SDK usage" section).
-- No direct DOM hacks that bypass SDK events.
+- No direct DOM hacks that bypass SDK events. One sanctioned exception, listed above:
+  `src/street-name-checker/ui/edit-panel.ts`, where the SDK offers no extension point.
+  Adding another one means documenting it in the deviations table with its reason.
 
 ## Localization
 
