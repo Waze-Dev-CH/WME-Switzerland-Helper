@@ -91,6 +91,11 @@ Imports official Swiss house numbers from the federal building register (RegBL/G
 WME. Entry point: `initHouseNumberImporter()` (`index.ts`), called from `main.user.ts`
 right after the checker, with its own scriptId for the same reason.
 
+Idea credited to "WME Quick HN Importer CH" by Ari (Reloaded) and Gerhard (GPL-2.0), after
+Tom 'Glodenox' Puttemans's concept for Belgium. **No code was taken from it** and none
+should be: it drives the DOM where we use the SDK, sends no paging, and hangs every number
+on the selected segment. Keep the credit in `index.ts` and in the four READMEs.
+
 Pipeline: `GwrTileFetcher` (gwr/) → `computeStatuses` (status.ts, using `matching.ts` and
 the numbers read by `existing.ts`) → `AddressPointLayer` on the map, `TabUI` in the sidebar
 and `EditPanelBox` in the segment panel. `import.ts` is the only module that writes.

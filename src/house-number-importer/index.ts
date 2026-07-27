@@ -1,6 +1,16 @@
 /**
  * Swiss house-number importer: reads official address points from the federal building and
  * dwelling register (RegBL/GWR) and creates the missing house numbers in WME.
+ *
+ * The idea comes from "WME Quick HN Importer CH" by Ari (Reloaded) and Gerhard
+ * (https://greasyfork.org/en/scripts/551495-wme-quick-hn-importer-ch, GPL-2.0), itself
+ * based on Tom 'Glodenox' Puttemans's original concept for Belgium. Credit for showing
+ * that register address points belong on the map goes to them.
+ *
+ * No code was taken from it: this implementation is written against the WME SDK, where the
+ * original drives the DOM, and it differs on how it pages the API, assigns each number to
+ * its own segment, matches bilingual street names and guards against duplicates.
+ *
  * Licensed under the repository's GNU AGPL v3.0 or later (see /src note in README).
  */
 import type { WmeSDK } from "wme-sdk-typings";
