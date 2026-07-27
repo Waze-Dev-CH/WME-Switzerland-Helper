@@ -114,7 +114,7 @@ export class EditPanelBox {
     const head = document.createElement("div");
     head.className = "chk-helper-head";
     const title = document.createElement("b");
-    title.textContent = `🇨🇭 ${t("appName")}`;
+    title.textContent = `🛣️ ${t("appName")}`;
     const dot = document.createElement("span");
     dot.className = "chk-dot";
     const statusText = document.createElement("span");

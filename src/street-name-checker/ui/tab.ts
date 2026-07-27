@@ -96,7 +96,7 @@ export class TabUI {
   async init(): Promise<void> {
     injectStyles();
     const { tabLabel, tabPane } = await this.sdk.Sidebar.registerScriptTab();
-    tabLabel.textContent = `🇨🇭 ${t("appName")}`;
+    tabLabel.textContent = `🛣️ ${t("appName")}`;
     this.tabPane = tabPane;
     this.pane = tabPane;
     this.applyTheme();
@@ -196,7 +196,7 @@ export class TabUI {
 
     const brand = el("div", "chk-brand");
     brand.append(
-      el("span", "chk-brand-icon", "🇨🇭"),
+      el("span", "chk-brand-icon", "🛣️"),
       el("span", "chk-brand-title", t("appName")),
     );
 

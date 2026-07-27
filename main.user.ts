@@ -202,7 +202,7 @@ function initScript() {
     // Street-name checker note item
     notesSection.addChild(
       new SidebarItem({
-        name: `🇨🇭 ${i18next.t("common:streetCheck.appName", "Street names")}`,
+        name: `🛣️ ${i18next.t("common:streetCheck.appName", "Street names")}`,
         icon: "w-icon-map",
         content: i18next.t(
           "common:streetCheck.tabNote",

@@ -58,7 +58,7 @@ export class FloatingWindow {
     this.root.setAttribute("aria-label", t("appName"));
 
     this.bar = el("div", "chk-window-bar");
-    const title = el("span", "chk-window-title", `🇨🇭 ${t("appName")}`);
+    const title = el("span", "chk-window-title", `🛣️ ${t("appName")}`);
 
     this.minimizeBtn = el("button", "chk-window-btn");
     this.minimizeBtn.type = "button";
