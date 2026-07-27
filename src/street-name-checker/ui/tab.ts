@@ -272,7 +272,10 @@ export class TabUI {
     // Detached: the window carries the working surface, the sidebar keeps the options.
     // Both are still built in this single pass, which is what keeps the two instances
     // of the viewport-only switch in sync through viewportInputs.
-    this.pane.append(brand, toolbar, this.statusLine, this.warnLine, this.listBox);
+    //
+    // No brand block here: the window's own title bar already carries the name, and
+    // repeating it right underneath wastes the height the list needs.
+    this.pane.append(toolbar, this.statusLine, this.warnLine, this.listBox);
     this.optionsPane.append(masterToggles, legend, settingsPanel, footer);
   }
 
