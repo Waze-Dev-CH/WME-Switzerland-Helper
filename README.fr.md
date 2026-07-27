@@ -44,6 +44,16 @@ Vous n'avez pas besoin d'être un programmeur ou d'avoir des compétences techni
 
 _Et voilà ! Le script s'exécute automatiquement lorsque vous utilisez l'éditeur de cartes Waze._
 
+### Tester la version beta
+
+Envie d'essayer ce qui arrive et de signaler les problèmes avant que tout le monde ne l'ait ?
+
+- Installez plutôt depuis ce lien :  
+  [Installer la version beta](https://raw.githubusercontent.com/Waze-Dev-CH/WME-Switzerland-Helper/beta-releases/releases/main.user.js)
+- La beta **remplace** la version stable dans Tampermonkey, elle ne s'ajoute pas à côté. N'installez jamais les deux : deux copies actives en même temps se cassent mutuellement.
+- Pour les distinguer, regardez le numéro de version : une beta en a quatre, `1.4.1.57`, là où la version stable en a trois, `1.4.1`.
+- Pour revenir en arrière, recliquez sur le lien d'installation normal ci-dessus.
+
 ---
 
 ## 🌟 Caractéristiques

@@ -44,6 +44,16 @@ You don’t need to be a programmer or have any special technical skills to use 
 
 _That’s it! The script runs automatically when you use the Waze Map Editor._
 
+### Testing the beta version
+
+Want to try what is coming next and report problems before everyone gets it?
+
+- Install from this link instead:  
+  [Install the beta version](https://raw.githubusercontent.com/Waze-Dev-CH/WME-Switzerland-Helper/beta-releases/releases/main.user.js)
+- The beta **replaces** the stable version in Tampermonkey, it does not sit next to it. Never install both: two copies running at once break each other.
+- You can tell them apart by the version number: a beta has four parts, `1.4.1.57`, where the stable version has three, `1.4.1`.
+- To go back, click the normal install link above again.
+
 ---
 
 ## 🌟 Features

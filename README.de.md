@@ -44,6 +44,16 @@ Sie müssen kein Programmierer sein oder besondere technische Fähigkeiten haben
 
 \*Das war's! Das Skript wird automatisch ausgeführt, wenn Sie den Waze Map Editor verwenden
 
+### Die Beta-Version testen
+
+Möchten Sie ausprobieren, was als Nächstes kommt, und Probleme melden, bevor alle es bekommen?
+
+- Installieren Sie stattdessen über diesen Link:  
+  [Beta-Version installieren](https://raw.githubusercontent.com/Waze-Dev-CH/WME-Switzerland-Helper/beta-releases/releases/main.user.js)
+- Die Beta **ersetzt** die stabile Version in Tampermonkey, sie kommt nicht daneben. Installieren Sie niemals beide: Zwei gleichzeitig laufende Kopien stören einander.
+- Unterscheiden lassen sie sich an der Versionsnummer: Eine Beta hat vier Teile, `1.4.1.57`, die stabile Version drei, `1.4.1`.
+- Um zurückzukehren, klicken Sie einfach erneut auf den normalen Installationslink oben.
+
 ---
 
 ## 🌟 Merkmale

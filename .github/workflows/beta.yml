@@ -1,0 +1,72 @@
+name: Build Beta UserScript
+
+on:
+  push:
+    branches:
+      - beta
+
+permissions:
+  contents: write
+
+jobs:
+  build-beta:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # git describe needs the tags
+
+      - name: Compute beta version
+        id: version
+        # Four segments, so the beta always sorts above the stable release it
+        # branched from and Tampermonkey offers the update.
+        run: |
+          BASE=$(git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0)
+          echo "beta_version=${BASE#v}.${{ github.run_number }}" >> $GITHUB_OUTPUT
+
+      - name: Set version in package.json
+        run: |
+          jq --arg v "${{ steps.version.outputs.beta_version }}" '.version=$v' package.json > package.tmp.json
+          mv package.tmp.json package.json
+
+      # Before the build, so the shipped userscript carries the beta channel and
+      # does not update testers back to stable.
+      - name: Point the userscript at the beta channel
+        run: sed -i 's|WME-Switzerland-Helper/releases/releases/|WME-Switzerland-Helper/beta-releases/releases/|g' header.js
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Not in release.yml: a broken beta lands straight on editors' maps.
+      - name: Run tests
+        run: npm test
+
+      - name: Install rollup globally
+        run: npm install --global rollup
+
+      - name: Build script
+        run: npm run release
+
+      - name: Rename build
+        run: cp releases/release-${{ steps.version.outputs.beta_version }}.user.js releases/main.user.js
+
+      - name: Publish to the `beta-releases` branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Own branch: `releases` is force-pushed by release.yml and the two
+          # channels would overwrite each other.
+          git checkout -B beta-releases
+
+          git add .
+
+          git commit -m "beta: Userscript version ${{ steps.version.outputs.beta_version }}"
+
+          git push origin beta-releases --force
