@@ -79,12 +79,50 @@ first-day editor installed it:
 | --- | --- |
 | Own SDK instance and `scriptId` (`index.ts`) | `registerScriptTab()` throws if the host's scriptId already owns a tab |
 | Own i18next instance (`i18n.ts`) | The checker's language is a per-feature preference; sharing the host singleton would flip the whole UI. Strings still live in `locales/<lang>/common.json`, under `streetCheck` |
-| DOM injection into the segment edit panel (`ui/edit-panel.ts`) | The SDK exposes no extension point there |
+| DOM injection into the segment edit panel (`ui/edit-panel.ts`, in the checker and in the house-number importer) | The SDK exposes no extension point there. Two features now mount a box in `#edit-panel`, each under its own container id; the containment rule is unchanged, the DOM is only a mount point |
 | Floating window injected into `document.body` (`ui/floating-window.ts`, `ui/window-mode.ts`) | WME switches the sidebar to its Selection panel the moment a segment is clicked, hiding the tab exactly when it is being used. The SDK offers no way to keep a script tab visible, and no window or panel API. The window only hosts DOM the tab already builds; scanning, selection and editing still go through SDK events |
+| Reordering our own tabs in the Scripts bar (`src/ui/tab-group.ts`) | The SDK's `Sidebar` module exposes only `registerScriptTab()` and `removeScriptTab()`, neither taking arguments: no ordering, grouping, icon or colour. Label and pane are moved together so a pairing by position survives; every failure is silent, and the tabs then simply keep their native place, still prefixed `CH ·` |
 | Canton flags as base64 data URIs (`ui/canton-flags.ts`) | Rollup has no SVG asset loader in this setup |
 | `GM_xmlhttpRequest` rather than `fetch` (`geoadmin/client.ts`) | WME's CSP blocks `connect-src` to geo.admin.ch |
 
-Tests: `npx vitest run src/street-name-checker`. The geo.admin.ch integration block is
+### House-number importer (`src/house-number-importer/`)
+
+Imports official Swiss house numbers from the federal building register (RegBL/GWR) into
+WME. Entry point: `initHouseNumberImporter()` (`index.ts`), called from `main.user.ts`
+right after the checker, with its own scriptId for the same reason.
+
+Pipeline: `GwrTileFetcher` (gwr/) → `computeStatuses` (status.ts, using `matching.ts` and
+the numbers read by `existing.ts`) → `AddressPointLayer` on the map, `TabUI` in the sidebar
+and `EditPanelBox` in the segment panel. `import.ts` is the only module that writes.
+
+- `gwr/tiles.ts`: tiles are `0.005°`, four times finer than the checker's. Measured in
+  central Zurich, a `0.02°` tile holds 4549 addresses (23 pages, past the cap) against 166
+  at `0.005°`. TTL is 7 days; the register moves monthly.
+- `existing.ts`: duplicates are looked for on every loaded segment of the same street, not
+  only the selected one. WME splits a street at each junction, so number 15 often sits on
+  the piece next door.
+- `status.ts`: `existingNumbers === null` means "not known yet" and is not the same as
+  empty. Matching points stay `NEUTRAL` and the click is inert until `fetchHouseNumbers`
+  resolves, otherwise the editor is invited to create a duplicate during the round trip.
+- `matching.ts`: compares every register name against every segment name (primary and
+  alternates), which is what makes bilingual communes work.
+
+**Safety rules, same spirit as the checker.** Creating a number overwrites nothing and is
+undoable, so there is no rank gate here; the guard rails are elsewhere:
+
+- `IMPORT_CAP` (50) lives in `import.ts` and `importPoints` slices to it internally. Three
+  surfaces trigger an import; a cap enforced only in the UI would be one missed check away
+  from being gone.
+- `segmentId` is always passed to `addHouseNumber`. Without it the SDK picks the closest
+  segment, which on a corner building is regularly the cross street.
+- `MAX_SNAP_DISTANCE_M` (150) rejects a point too far from the selected segment, whatever
+  the SDK would have done with it.
+- A truncated tile hides the bulk-import button (hidden, not greyed) because "N missing"
+  would then be a number the feature cannot vouch for.
+- Nothing is ever saved automatically.
+
+Tests: `npx vitest run src/house-number-importer` and
+`npx vitest run src/street-name-checker`. The geo.admin.ch integration block is
 excluded by default and runs with `WME_CH_INTEGRATION=1`.
 
 ## WME SDK Rules

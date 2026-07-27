@@ -4,7 +4,9 @@
  * Licensed under the repository's GNU AGPL v3.0 or later (see /src note in README).
  */
 import type { WmeSDK } from "wme-sdk-typings";
+import { registerStreetNameProvider } from "../street-check-bridge";
 import { type ActivationContext, setCheckerEnabled } from "./activation";
+import { createStreetNameProvider } from "./name-verdict";
 import { IdbTileStore } from "./geoadmin/idb-store";
 import { TileFetcher } from "./geoadmin/tiles";
 import { resolveLocale, setLocale } from "./i18n";
@@ -90,5 +92,13 @@ export async function initStreetNameChecker(): Promise<void> {
   });
 
   scanner.start();
+
+  // Publish "is this street's name official?" for the other features. A function, not the
+  // Scanner: they get the answer without being able to touch the scan, and the tricky part
+  // (an absent issue only means "conform" once a scan has completed) stays here.
+  registerStreetNameProvider(
+    createStreetNameProvider({ sdk, settings, getSnapshot: () => scanner.getSnapshot() }),
+  );
+
   log.info(`ready (SDK ${sdk.getSDKVersion()}, WME ${sdk.getWMEVersion()})`);
 }

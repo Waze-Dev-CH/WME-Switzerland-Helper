@@ -17,13 +17,14 @@ import { mapGeoAdminUrlForGeometry } from "../geoadmin/links";
 import type { Bbox } from "../geoadmin/types";
 import { getLocale } from "../i18n";
 import { cantonMapLink } from "./canton-link";
+import { groupScriptTab, tabLabelText } from "../../ui/tab-group";
+import { applyThemeClass, watchTheme } from "../../ui/theme";
 import { el, toggleSwitch } from "./dom";
 import {
   bboxOfIssues,
   formatNote,
   geometryIntersectsBbox,
   groupIssues,
-  isDarkBackground,
   LEGEND_KEYS,
   STATE_KEYS,
   statusEmoji,
@@ -36,21 +37,6 @@ import { injectStyles } from "./styles";
 // shared vocabulary and Waze's own localized terms vary by UI version.
 const ROAD_TYPE_LABELS = new Map(ROAD_TYPE_OPTIONS.map((r) => [r.id, r.label]));
 
-/**
- * Detect WME's editor theme by measuring the first opaque background up the
- * pane's ancestry and checking its perceived luminance. This follows the actual
- * editor skin rather than the OS prefers-color-scheme, which can disagree.
- */
-function wmeThemeIsDark(start: HTMLElement): boolean {
-  let node: HTMLElement | null = start;
-  while (node) {
-    const verdict = isDarkBackground(getComputedStyle(node).backgroundColor);
-    if (verdict !== null) return verdict;
-    node = node.parentElement;
-  }
-  return false;
-}
-
 /** Delay before the "updating" veil appears, to avoid flashing on quick rescans. */
 const BUSY_DELAY_MS = 250;
 
@@ -61,6 +47,7 @@ export class TabUI {
   private optionsPane!: HTMLElement;
   /** The sidebar pane, kept for good even while detached: it is the theme probe. */
   private tabPane!: HTMLElement;
+  private tabLabel: HTMLElement | null = null;
   private statusLine!: HTMLElement;
   private statusText!: HTMLElement;
   private bannerBtn!: HTMLButtonElement;
@@ -98,7 +85,11 @@ export class TabUI {
   async init(): Promise<void> {
     injectStyles();
     const { tabLabel, tabPane } = await this.sdk.Sidebar.registerScriptTab();
-    tabLabel.textContent = `🛣️ ${t("appName")}`;
+    // Kept, so a language change can relabel it; the emoji now lives in the panel header
+    // only, where it identifies the feature without crowding the Scripts bar.
+    this.tabLabel = tabLabel;
+    this.refreshLabel();
+    groupScriptTab(tabLabel, tabPane, "street-names");
     this.tabPane = tabPane;
     this.pane = tabPane;
     this.optionsPane = tabPane;
@@ -139,8 +130,7 @@ export class TabUI {
    * one, and getComputedStyle still resolves on a hidden element.
    */
   private applyTheme(): void {
-    const dark = wmeThemeIsDark(this.tabPane);
-    document.documentElement.classList.toggle("chk-theme-dark", dark);
+    applyThemeClass(this.tabPane);
   }
 
   /** The sidebar pane, so the caller can show its own placeholder while detached. */
@@ -172,25 +162,17 @@ export class TabUI {
    * swaps that land after the attribute change.
    */
   private watchWmeTheme(): void {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const remeasure = () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        this.applyTheme();
-        setTimeout(() => this.applyTheme(), 500);
-      }, 150);
-    };
-    const observer = new MutationObserver(remeasure);
-    const options = {
-      attributes: true,
-      attributeFilter: ["class", "style", "wz-theme", "data-theme"],
-    };
-    observer.observe(document.documentElement, options);
-    observer.observe(document.body, options);
+    watchTheme(this.tabPane);
+  }
+
+  /** The Scripts-bar label, prefixed so it reads as part of this script. */
+  private refreshLabel(): void {
+    if (this.tabLabel) this.tabLabel.textContent = tabLabelText(t("tabTitle"));
   }
 
   /** Rebuild all static DOM (after a language change, or a dock/detach). */
   private rebuild(): void {
+    this.refreshLabel();
     // Set, because both are the same element when docked and emptying twice would be
     // harmless but confusing to read.
     for (const container of new Set([this.pane, this.optionsPane])) container.replaceChildren();

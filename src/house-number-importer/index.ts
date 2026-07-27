@@ -1,0 +1,74 @@
+/**
+ * Swiss house-number importer: reads official address points from the federal building and
+ * dwelling register (RegBL/GWR) and creates the missing house numbers in WME.
+ * Licensed under the repository's GNU AGPL v3.0 or later (see /src note in README).
+ */
+import type { WmeSDK } from "wme-sdk-typings";
+import { type ActivationContext, setImporterEnabled } from "./activation";
+import { Controller } from "./controller";
+import { createGwrTileStore, GwrTileFetcher } from "./gwr/tiles";
+import { resolveLocale, setLocale } from "./i18n";
+import { log } from "./log";
+import { AddressPointLayer, registerLayerCheckbox, setLayerCheckbox } from "./map-layer";
+import { SettingsStore } from "./settings";
+import { registerShortcuts } from "./shortcuts";
+import { EditPanelBox } from "./ui/edit-panel";
+import { TabUI } from "./ui/tab";
+
+// Own scriptId so the importer gets its own Scripts-sidebar tab and layer checkbox:
+// registerScriptTab() throws if the host's scriptId already owns a tab, so the feature
+// runs as a co-resident SDK consumer rather than reusing the host SDK instance.
+const SCRIPT_ID = "wme-ch-house-number-importer";
+const SCRIPT_NAME = "WME CH House Number Importer";
+
+/**
+ * Bootstrap the house-number importer. Called from the host `initScript`; it acquires its
+ * own SDK instance and wires the tile fetcher, the layer and the controller once WME is
+ * ready.
+ */
+export async function initHouseNumberImporter(): Promise<void> {
+  await unsafeWindow.SDK_INITIALIZED;
+  if (!unsafeWindow.getWmeSdk) throw new Error("getWmeSdk is not available on the page");
+  const sdk: WmeSDK = unsafeWindow.getWmeSdk({ scriptId: SCRIPT_ID, scriptName: SCRIPT_NAME });
+
+  await sdk.Events.once({ eventName: "wme-ready" });
+
+  const settings = new SettingsStore();
+  setLocale(resolveLocale(settings.get().language, sdk.Settings.getLocale().localeCode));
+
+  const fetcher = new GwrTileFetcher(undefined, undefined, createGwrTileStore());
+  const layer = new AddressPointLayer(sdk, settings);
+  const controller = new Controller(sdk, fetcher, settings, layer);
+
+  layer.init();
+
+  // The layer checkbox and the tab's master toggle are two faces of settings.enabled;
+  // both go through setImporterEnabled so neither can drift from the persisted value.
+  const activation: ActivationContext = {
+    settings,
+    controller,
+    layer,
+    syncCheckbox: (checked) => setLayerCheckbox(sdk, checked),
+  };
+  const enabled = settings.get().enabled;
+  layer.setVisible(enabled);
+  registerLayerCheckbox(sdk, enabled, (checked) =>
+    setImporterEnabled(activation, checked, "checkbox"),
+  );
+
+  const tab = new TabUI(sdk, controller, settings, (checked) =>
+    setImporterEnabled(activation, checked, "tab"),
+  );
+  await tab.init();
+
+  // The bulk-import button also lives in the segment edit panel: WME switches the sidebar
+  // to its Selection panel exactly when a segment is picked, hiding the tab at the moment
+  // the action is wanted.
+  new EditPanelBox(sdk, controller, settings).init();
+  registerShortcuts(sdk, controller, settings, {
+    toggleLayer: () => setImporterEnabled(activation, !settings.get().enabled, "tab"),
+  });
+
+  controller.start();
+  log.info(`ready (SDK ${sdk.getSDKVersion()}, WME ${sdk.getWMEVersion()})`);
+}

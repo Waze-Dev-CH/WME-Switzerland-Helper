@@ -1,7 +1,8 @@
 import type { LineString } from "geojson";
 import { describe, expect, it } from "vitest";
 import type { Issue, IssueStatus } from "../matching/evaluate";
-import { bboxOfIssues, formatNote, groupIssues, isDarkBackground } from "../ui/format";
+import { isDarkBackground } from "../../ui/theme";
+import { bboxOfIssues, formatNote, groupIssues } from "../ui/format";
 import { setLocale } from "../i18n";
 
 const GEOMETRY: LineString = {
