@@ -123,7 +123,12 @@ describe("IdbTileStore", () => {
 
   describe("prune", () => {
     it("drops tiles older than the TTL and keeps the rest", async () => {
+      // Frozen clock: prune() reads its own Date.now(), so a tile sitting exactly on the
+      // TTL boundary expired or survived depending on how many milliseconds the test
+      // itself took. It passed for a day, then failed on an unrelated commit.
       const now = Date.now();
+      vi.useFakeTimers();
+      vi.setSystemTime(now);
       const idb = makeIdb({
         existingVersion: 2,
         records: [
@@ -134,9 +139,13 @@ describe("IdbTileStore", () => {
       });
       vi.stubGlobal("indexedDB", idb.indexedDB);
 
-      await new IdbTileStore().prune(24 * 3_600_000);
+      const pruning = new IdbTileStore().prune(24 * 3_600_000);
+      await vi.runAllTimersAsync();
+      await pruning;
 
+      // "edge" sits exactly on the TTL and the cutoff is strictly greater, so it stays.
       expect([...idb.data.keys()]).toEqual(["fresh", "edge"]);
+      vi.useRealTimers();
     });
 
     it("drops the oldest tiles beyond the 2000 cap", async () => {
