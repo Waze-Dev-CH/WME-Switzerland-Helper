@@ -15,7 +15,7 @@ export function registerShortcuts(
   sdk: WmeSDK,
   scanner: Scanner,
   settings: SettingsStore,
-  actions: { nextIssue: () => void },
+  actions: { nextIssue: () => void; toggleWindow: () => void },
 ): void {
   const create = (shortcutId: string, description: string, keys: string, callback: () => void) => {
     try {
@@ -36,6 +36,10 @@ export function registerShortcuts(
   create("chk-next-issue", t("shortcutNextIssue"), "A+n", () => {
     if (settings.get().enabled) actions.nextIssue();
   });
+
+  // Deliberately not gated on `enabled`: this is how you get the window back after
+  // closing it, and a disabled checker still has a panel worth reaching.
+  create("chk-toggle-window", t("shortcutToggleWindow"), "A+w", () => actions.toggleWindow());
 
   create("chk-fix-selected", t("shortcutFixSelected"), "A+f", () => {
     if (!settings.get().enabled) return;

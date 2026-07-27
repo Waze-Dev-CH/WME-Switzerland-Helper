@@ -1,6 +1,10 @@
 import type { LanguagePreference } from "./i18n";
 import type { IssueStatus } from "./matching/evaluate";
 import { log } from "./log";
+import type { WindowRect } from "./ui/window-geometry";
+
+/** Sidebar tab, or a floating window that survives WME's tab switching. */
+export type WindowMode = "sidebar" | "floating";
 
 // Road type ids from the WME SDK ROAD_TYPE constant (values verified against
 // wme-sdk-typings v2.354). The SDK package is types-only, so ids are restated here.
@@ -95,6 +99,15 @@ export interface Settings {
   viewportOnly: boolean;
   /** Evaluate only segments the current editor rank can actually edit. */
   editableOnly: boolean;
+  /**
+   * Where the UI lives. WME switches the sidebar to its Selection panel as soon as a
+   * segment is clicked, which hides the tab exactly when it is being used; "floating"
+   * moves the same DOM into a window that stays put.
+   */
+  windowMode: WindowMode;
+  /** Last window geometry in pixels; null until the window has been used. */
+  windowRect: WindowRect | null;
+  windowMinimized: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -116,6 +129,10 @@ export const DEFAULT_SETTINGS: Settings = {
   geometryMatching: true,
   viewportOnly: true,
   editableOnly: false,
+  // Sidebar by default: nobody's editor should change shape without asking for it.
+  windowMode: "sidebar",
+  windowRect: null,
+  windowMinimized: false,
 };
 
 const STORAGE_KEY = "wme-ch-name-check.settings";

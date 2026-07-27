@@ -65,7 +65,8 @@ automatically.
 | --- | --- |
 | Own SDK instance and `scriptId` (`index.ts`) | `registerScriptTab()` throws if the host's scriptId already owns a tab |
 | Own i18next instance (`i18n.ts`) | The checker's language is a per-feature preference; sharing the host singleton would flip the whole UI. Strings still live in `locales/<lang>/common.json`, under `streetCheck` |
-| DOM injection into the segment edit panel (`ui/edit-panel.ts`) | The SDK exposes no extension point there. This is the one sanctioned exception to the no-DOM-hacks rule below |
+| DOM injection into the segment edit panel (`ui/edit-panel.ts`) | The SDK exposes no extension point there |
+| Floating window injected into `document.body` (`ui/floating-window.ts`, `ui/window-mode.ts`) | WME switches the sidebar to its Selection panel the moment a segment is clicked, hiding the tab exactly when it is being used. The SDK offers no way to keep a script tab visible, and no window or panel API. The window only hosts DOM the tab already builds; scanning, selection and editing still go through SDK events |
 | Canton flags as base64 data URIs (`ui/canton-flags.ts`) | Rollup has no SVG asset loader in this setup |
 | `GM_xmlhttpRequest` rather than `fetch` (`geoadmin/client.ts`) | WME's CSP blocks `connect-src` to geo.admin.ch |
 
@@ -77,9 +78,11 @@ excluded by default and runs with `WME_CH_INTEGRATION=1`.
 - All WME API interactions use `wme-sdk-typings`. Consult `node_modules/wme-sdk-typings/index.d.ts` and https://www.waze.com/editor/sdk/index.html before implementing features.
 - Do not guess or invent SDK APIs — if information is missing from typings or docs, flag it.
 - Do not use deprecated WME globals (documented in migration guide's "Pre-SDK usage" section).
-- No direct DOM hacks that bypass SDK events. One sanctioned exception, listed above:
-  `src/street-name-checker/ui/edit-panel.ts`, where the SDK offers no extension point.
-  Adding another one means documenting it in the deviations table with its reason.
+- No direct DOM hacks that bypass SDK events. Two sanctioned exceptions, both listed in
+  the deviations table above and both in `src/street-name-checker/ui/`: the edit-panel box
+  and the floating window, where the SDK offers no extension point at all. Adding a third
+  means documenting it there with its reason, and keeping the same containment: the DOM is
+  only a mount point, everything else still goes through SDK events.
 
 ## Localization
 

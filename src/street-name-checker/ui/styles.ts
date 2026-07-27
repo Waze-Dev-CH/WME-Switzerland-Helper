@@ -17,7 +17,7 @@ const statusChipRules = (Object.keys(STATUS_STYLES) as IssueStatus[])
 // WME's own theme). The exact --wz-color-* names are best-effort: a wrong name
 // simply falls back, it never breaks the layout.
 const tokens = `
-.chk-pane, .chk-helper {
+.chk-pane, .chk-helper, .chk-window {
   --chk-bg: var(--wz-color-background, #ffffff);
   --chk-surface: var(--wz-color-background-variant, #f4f6f8);
   --chk-text: var(--wz-color-on-background, #1b1d20);
@@ -35,7 +35,7 @@ const tokens = `
   --chk-ignore: #6b7280;
   --chk-radius: 8px;
 }
-html.chk-theme-dark .chk-pane, html.chk-theme-dark .chk-helper {
+html.chk-theme-dark .chk-pane, html.chk-theme-dark .chk-helper, html.chk-theme-dark .chk-window {
   --chk-bg: var(--wz-color-background, #1f2226);
   --chk-surface: var(--wz-color-background-variant, #2a2e33);
   --chk-text: var(--wz-color-on-background, #e6e8eb);
@@ -103,6 +103,58 @@ ${tokens}
 .chk-spinner { width: 26px; height: 26px; border: 3px solid var(--chk-border); border-top-color: var(--chk-primary); border-radius: 50%; animation: chk-spin .8s linear infinite; }
 .chk-busy-text { font-size: 12px; font-weight: 600; color: var(--chk-text); }
 @keyframes chk-spin { to { transform: rotate(360deg); } }
+
+/* ---- Floating window ---------------------------------------------------- */
+/* z-index sits below showWmeDialog's 10000 so the fix confirmations stay on top. */
+.chk-window {
+  position: fixed;
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  min-width: 320px;
+  min-height: 220px;
+  resize: both;
+  overflow: hidden;
+  background: var(--chk-bg);
+  color: var(--chk-text);
+  border: 1px solid var(--chk-border);
+  border-radius: var(--chk-radius);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .35);
+}
+.chk-window-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--chk-surface);
+  border-bottom: 1px solid var(--chk-border);
+  cursor: move;
+  user-select: none;
+  flex: 0 0 auto;
+  touch-action: none;
+}
+.chk-window-title { flex: 1; font-weight: 600; font-size: 13px; }
+.chk-window-btn {
+  border: 1px solid var(--chk-border);
+  background: var(--chk-bg);
+  color: var(--chk-text);
+  border-radius: 4px;
+  width: 24px;
+  height: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+.chk-window-btn:hover { background: var(--chk-surface); }
+/* min-height:0 lets the inner flex column actually shrink instead of overflowing. */
+.chk-window-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.chk-window-minimized { height: auto !important; resize: none; }
+.chk-window-minimized .chk-window-content { display: none; }
+
+/* The sidebar's 100vh budget is meaningless in a window the user sizes: let the
+   list take the height the window actually has. */
+.chk-window .chk-pane { height: 100%; }
+.chk-window .chk-groups { max-height: none; flex: 1 1 auto; min-height: 0; }
 
 /* Adaptive window: ~340px accounts for the chrome above/below the list, so the
    list uses the available height without pushing Legend/Settings out of reach. */

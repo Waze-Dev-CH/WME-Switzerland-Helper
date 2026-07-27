@@ -55,7 +55,10 @@ function wmeThemeIsDark(start: HTMLElement): boolean {
 const BUSY_DELAY_MS = 250;
 
 export class TabUI {
+  /** Container the UI is currently mounted in: the sidebar pane, or the window body. */
   private pane!: HTMLElement;
+  /** The sidebar pane, kept for good even while detached: it is the theme probe. */
+  private tabPane!: HTMLElement;
   private statusLine!: HTMLElement;
   private statusText!: HTMLElement;
   private bannerBtn!: HTMLButtonElement;
@@ -86,12 +89,15 @@ export class TabUI {
     private settings: SettingsStore,
     /** Routed through activation.ts so this toggle and the layer checkbox stay in step. */
     private onEnabledChange: (enabled: boolean) => void,
+    /** Owned by index.ts, which arbitrates sidebar and floating modes. */
+    private onDetach: () => void,
   ) {}
 
   async init(): Promise<void> {
     injectStyles();
     const { tabLabel, tabPane } = await this.sdk.Sidebar.registerScriptTab();
     tabLabel.textContent = `🇨🇭 ${t("appName")}`;
+    this.tabPane = tabPane;
     this.pane = tabPane;
     this.applyTheme();
     this.watchWmeTheme();
@@ -120,10 +126,34 @@ export class TabUI {
     this.render(this.scanner.getSnapshot());
   }
 
-  /** Re-measure the WME skin and apply our dark class only when it changed. */
+  /**
+   * Re-measure the WME skin and apply our dark class only when it changed.
+   *
+   * Always measured from the sidebar pane, never from the current container: the probe
+   * walks up the ancestry looking for the first opaque background, and a floating window
+   * parented to document.body would report the body's background instead of the editor's
+   * actual skin. The sidebar pane stays in the DOM even when its tab is not the visible
+   * one, and getComputedStyle still resolves on a hidden element.
+   */
   private applyTheme(): void {
-    const dark = wmeThemeIsDark(this.pane);
+    const dark = wmeThemeIsDark(this.tabPane);
     document.documentElement.classList.toggle("chk-theme-dark", dark);
+  }
+
+  /** The sidebar pane, so the caller can show its own placeholder while detached. */
+  sidebarPane(): HTMLElement {
+    return this.tabPane;
+  }
+
+  /**
+   * Move the whole UI into another container. rebuild() already empties the target,
+   * re-runs buildSkeleton and redraws, so nothing else has to be reset by hand.
+   */
+  remountInto(container: HTMLElement): void {
+    this.pane.replaceChildren();
+    this.pane.classList.remove("chk-pane");
+    this.pane = container;
+    this.rebuild();
   }
 
   /**
@@ -242,6 +272,14 @@ export class TabUI {
       // the Settings entry remains, both stay in sync via viewportInputs
       this.viewportOnlyToggle(),
     );
+    // Only offered while docked: once floating, the window's own bar carries the
+    // controls and this row is not the place to duplicate them.
+    if (this.settings.get().windowMode === "sidebar") {
+      const detachBtn = el("button", "chk-btn", t("detach"));
+      detachBtn.title = t("detachTitle");
+      detachBtn.addEventListener("click", () => this.onDetach());
+      row.appendChild(detachBtn);
+    }
     return row;
   }
 

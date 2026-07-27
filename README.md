@@ -120,6 +120,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+- **Detachable panel** for the street-name check: WME switches the sidebar to its Selection panel as soon as you click a segment, which hid the findings list exactly when you were working through it. The panel can now be detached into a floating window that stays visible, and that you can move, resize and minimise. Its position, size and state are remembered between sessions, and the window is brought back on screen if your browser window shrank in the meantime. Dock it back from the window's own button or from the sidebar tab, or toggle it with <kbd>Alt</kbd>+<kbd>W</kbd> (remappable in WME's keyboard settings). The sidebar tab stays the default: nothing changes until you ask for it.
 - **Scan this area** button: viewports too large for the automatic scan (above 6 km²) can now be scanned on demand, up to 50 km². The sweep fetches the official register batch by batch, streams partial results into the list as it goes, shows tile progress in the status banner and can be cancelled at any time (partial results are kept). Panning the map does not interrupt a running sweep.
 - Data-quality warnings under the status banner: dense areas truncated by the register API (a possible cause of false "not found"), areas that failed to load, and an exhausted nationwide-lookup budget are now reported instead of being silently logged.
 

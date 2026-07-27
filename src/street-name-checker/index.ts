@@ -15,6 +15,7 @@ import { registerShortcuts } from "./shortcuts";
 import { SettingsStore } from "./settings";
 import { EditPanelBox } from "./ui/edit-panel";
 import { TabUI } from "./ui/tab";
+import { createWindowMode } from "./ui/window-mode";
 
 // Own scriptId so the checker gets its own Scripts-sidebar tab and layer checkbox:
 // registerScriptTab() throws if the host's scriptId already owns a tab, so the feature
@@ -65,13 +66,28 @@ export async function initStreetNameChecker(): Promise<void> {
     }
   });
 
-  const tab = new TabUI(sdk, scanner, settings, (checked) =>
-    setCheckerEnabled(activation, checked, "tab"),
+  // The controller needs a built tab, and the tab needs a way to reach the controller.
+  // The indirection resolves it: the handler is only ever called on a user click, long
+  // after both exist.
+  let detachHandler = (): void => undefined;
+  const tab = new TabUI(
+    sdk,
+    scanner,
+    settings,
+    (checked) => setCheckerEnabled(activation, checked, "tab"),
+    () => detachHandler(),
   );
   await tab.init();
 
+  const windowMode = createWindowMode(settings, tab);
+  detachHandler = () => windowMode.detach();
+  windowMode.restore();
+
   new EditPanelBox(sdk, scanner, settings).init();
-  registerShortcuts(sdk, scanner, settings, { nextIssue: () => tab.selectNextIssue() });
+  registerShortcuts(sdk, scanner, settings, {
+    nextIssue: () => tab.selectNextIssue(),
+    toggleWindow: () => windowMode.toggle(),
+  });
 
   scanner.start();
   log.info(`ready (SDK ${sdk.getSDKVersion()}, WME ${sdk.getWMEVersion()})`);
