@@ -139,17 +139,16 @@ ${tokens}
   background: var(--chk-bg);
   color: var(--chk-text);
   border-radius: 4px;
-  width: 24px;
   height: 22px;
   line-height: 1;
   cursor: pointer;
-  padding: 0;
+  padding: 0 8px;
+  font-size: 12px;
+  white-space: nowrap;
 }
 .chk-window-btn:hover { background: var(--chk-surface); }
 /* min-height:0 lets the inner flex column actually shrink instead of overflowing. */
 .chk-window-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-.chk-window-minimized { height: auto !important; resize: none; }
-.chk-window-minimized .chk-window-content { display: none; }
 
 /* The sidebar's 100vh budget is meaningless in a window the user sizes: let the
    list take the height the window actually has. */

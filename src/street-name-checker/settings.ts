@@ -107,7 +107,6 @@ export interface Settings {
   windowMode: WindowMode;
   /** Last window geometry in pixels; null until the window has been used. */
   windowRect: WindowRect | null;
-  windowMinimized: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -132,7 +131,6 @@ export const DEFAULT_SETTINGS: Settings = {
   // Sidebar by default: nobody's editor should change shape without asking for it.
   windowMode: "sidebar",
   windowRect: null,
-  windowMinimized: false,
 };
 
 const STORAGE_KEY = "wme-ch-name-check.settings";

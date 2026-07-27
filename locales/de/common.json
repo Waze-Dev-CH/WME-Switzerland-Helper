@@ -142,9 +142,6 @@
     "detachTitle": "Das Panel in ein schwebendes Fenster verschieben, das sichtbar bleibt, wenn WME zum Selection-Tab wechselt",
     "dock": "Andocken",
     "dockTitle": "Das Panel zurück in den Sidebar-Tab setzen",
-    "minimize": "Minimieren",
-    "restore": "Wiederherstellen",
-    "detachedNotice": "Das Panel ist in einem schwebenden Fenster geöffnet.",
     "shortcutToggleWindow": "Schwebendes Fenster umschalten"
   },
   "reloadStops": "Haltestellen des öffentlichen Verkehrs neu laden",

@@ -142,9 +142,6 @@
     "detachTitle": "Move the panel into a floating window that stays visible when WME switches to the Selection tab",
     "dock": "Dock",
     "dockTitle": "Put the panel back into the sidebar tab",
-    "minimize": "Minimize",
-    "restore": "Restore",
-    "detachedNotice": "The panel is open in a floating window.",
     "shortcutToggleWindow": "Toggle the floating window"
   },
   "reloadStops": "Refresh public transport stops",

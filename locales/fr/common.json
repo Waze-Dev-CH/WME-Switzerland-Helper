@@ -142,9 +142,6 @@
     "detachTitle": "Déplacer le panneau dans une fenêtre flottante qui reste visible quand WME bascule sur l onglet Selection",
     "dock": "Rattacher",
     "dockTitle": "Remettre le panneau dans l onglet de la barre latérale",
-    "minimize": "Réduire",
-    "restore": "Agrandir",
-    "detachedNotice": "Le panneau est ouvert dans une fenêtre flottante.",
     "shortcutToggleWindow": "Basculer la fenêtre flottante"
   },
   "reloadStops": "Recharger les arrêts de transport public",

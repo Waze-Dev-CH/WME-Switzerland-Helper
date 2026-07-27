@@ -1,6 +1,4 @@
-import { t } from "../i18n";
 import type { SettingsStore } from "../settings";
-import { el } from "./dom";
 import { FloatingWindow } from "./floating-window";
 import type { TabUI } from "./tab";
 import { clampRect, defaultRect, isWindowRect, type WindowRect } from "./window-geometry";
@@ -40,35 +38,22 @@ export function createWindowMode(settings: SettingsStore, tab: TabUI): WindowMod
       onViewportResize = null;
     }
     settings.update({ windowMode: "sidebar" });
-    tab.remountInto(tab.sidebarPane());
-  };
-
-  /** What the sidebar tab shows while the content lives in the window. */
-  const showDetachedNotice = (): void => {
-    const pane = tab.sidebarPane();
-    pane.replaceChildren();
-    pane.classList.add("chk-pane");
-    const notice = el("div", "chk-note", t("detachedNotice"));
-    const dockBtn = el("button", "chk-btn", t("dock"));
-    dockBtn.title = t("dockTitle");
-    dockBtn.addEventListener("click", () => dock());
-    pane.append(notice, dockBtn);
+    tab.setContainers(tab.sidebarPane(), tab.sidebarPane());
   };
 
   const detach = (): void => {
     if (current) return;
-    const win = new FloatingWindow(startingRect(), settings.get().windowMinimized, {
+    const win = new FloatingWindow(startingRect(), {
       onGeometry: (rect) => settings.update({ windowRect: rect }),
-      onMinimize: (minimized) => settings.update({ windowMinimized: minimized }),
       onDock: () => dock(),
     });
     win.mount();
     current = win;
-    // Written before remounting: buildSkeleton reads windowMode to decide whether to
-    // offer the Detach button, and it must not offer it inside the window.
+    // Written before the remount: buildSkeleton reads windowMode to decide whether to
+    // offer the Detach button, which has no place once the window is already open.
     settings.update({ windowMode: "floating" });
-    tab.remountInto(win.body());
-    showDetachedNotice();
+    // Working surface into the window, options left in the sidebar tab.
+    tab.setContainers(win.body(), tab.sidebarPane());
 
     onViewportResize = () => win.reclamp();
     window.addEventListener("resize", onViewportResize);

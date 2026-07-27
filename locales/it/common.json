@@ -142,9 +142,6 @@
     "detachTitle": "Sposta il pannello in una finestra mobile che resta visibile quando WME passa alla scheda Selection",
     "dock": "Aggancia",
     "dockTitle": "Rimetti il pannello nella scheda della barra laterale",
-    "minimize": "Riduci",
-    "restore": "Ripristina",
-    "detachedNotice": "Il pannello è aperto in una finestra mobile.",
     "shortcutToggleWindow": "Attiva o disattiva la finestra mobile"
   },
   "reloadStops": "Ricarica le fermate del trasporto pubblico",

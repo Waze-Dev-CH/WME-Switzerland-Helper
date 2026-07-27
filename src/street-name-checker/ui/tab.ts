@@ -55,8 +55,10 @@ function wmeThemeIsDark(start: HTMLElement): boolean {
 const BUSY_DELAY_MS = 250;
 
 export class TabUI {
-  /** Container the UI is currently mounted in: the sidebar pane, or the window body. */
+  /** Working surface: the sidebar pane when docked, the window body when detached. */
   private pane!: HTMLElement;
+  /** Switches, legend and settings. Always the sidebar pane. */
+  private optionsPane!: HTMLElement;
   /** The sidebar pane, kept for good even while detached: it is the theme probe. */
   private tabPane!: HTMLElement;
   private statusLine!: HTMLElement;
@@ -99,6 +101,7 @@ export class TabUI {
     tabLabel.textContent = `🛣️ ${t("appName")}`;
     this.tabPane = tabPane;
     this.pane = tabPane;
+    this.optionsPane = tabPane;
     this.applyTheme();
     this.watchWmeTheme();
     this.buildSkeleton();
@@ -146,13 +149,17 @@ export class TabUI {
   }
 
   /**
-   * Move the whole UI into another container. rebuild() already empties the target,
-   * re-runs buildSkeleton and redraws, so nothing else has to be reset by hand.
+   * Point the UI at its containers. Pass the same element twice to dock everything into
+   * the sidebar; pass the window body plus the sidebar pane to put the working surface
+   * in the window and leave the options behind.
    */
-  remountInto(container: HTMLElement): void {
-    this.pane.replaceChildren();
-    this.pane.classList.remove("chk-pane");
-    this.pane = container;
+  setContainers(work: HTMLElement, options: HTMLElement): void {
+    for (const old of new Set([this.pane, this.optionsPane])) {
+      old.replaceChildren();
+      old.classList.remove("chk-pane");
+    }
+    this.pane = work;
+    this.optionsPane = options;
     this.rebuild();
   }
 
@@ -182,9 +189,11 @@ export class TabUI {
     observer.observe(document.body, options);
   }
 
-  /** Rebuild all static DOM (after a language change). */
+  /** Rebuild all static DOM (after a language change, or a dock/detach). */
   private rebuild(): void {
-    this.pane.replaceChildren();
+    // Set, because both are the same element when docked and emptying twice would be
+    // harmless but confusing to read.
+    for (const container of new Set([this.pane, this.optionsPane])) container.replaceChildren();
     this.buildSkeleton();
     this.lastRenderedIssues = null;
     this.render(this.scanner.getSnapshot());
@@ -192,6 +201,7 @@ export class TabUI {
 
   private buildSkeleton(): void {
     this.pane.classList.add("chk-pane");
+    this.optionsPane.classList.add("chk-pane");
     this.viewportInputs = []; // rebuild() re-creates both toggle instances
 
     const brand = el("div", "chk-brand");
@@ -230,23 +240,39 @@ export class TabUI {
     busy.append(el("span", "chk-spinner"), el("span", "chk-busy-text", t("updating")));
     this.listBox.append(this.chipsBox, this.groupsBox, busy);
 
-    this.pane.append(
-      brand,
-      toolbar,
-      this.statusLine,
-      this.warnLine,
-      this.buildMasterToggles(),
-      this.listBox,
-      this.buildLegend(),
-      buildSettingsPanel({
-        sdk: this.sdk,
-        settings: this.settings,
-        scanner: this.scanner,
-        rebuild: () => this.rebuild(),
-        viewportOnlyToggle: () => this.viewportOnlyToggle(),
-      }),
-      this.buildFooter(),
-    );
+    const masterToggles = this.buildMasterToggles();
+    const legend = this.buildLegend();
+    const settingsPanel = buildSettingsPanel({
+      sdk: this.sdk,
+      settings: this.settings,
+      scanner: this.scanner,
+      rebuild: () => this.rebuild(),
+      viewportOnlyToggle: () => this.viewportOnlyToggle(),
+    });
+    const footer = this.buildFooter();
+
+    if (this.pane === this.optionsPane) {
+      // Docked: one column, and the historical order is kept exactly, toggles above
+      // the list rather than pushed below it by the split.
+      this.pane.append(
+        brand,
+        toolbar,
+        this.statusLine,
+        this.warnLine,
+        masterToggles,
+        this.listBox,
+        legend,
+        settingsPanel,
+        footer,
+      );
+      return;
+    }
+
+    // Detached: the window carries the working surface, the sidebar keeps the options.
+    // Both are still built in this single pass, which is what keeps the two instances
+    // of the viewport-only switch in sync through viewportInputs.
+    this.pane.append(brand, toolbar, this.statusLine, this.warnLine, this.listBox);
+    this.optionsPane.append(masterToggles, legend, settingsPanel, footer);
   }
 
   private buildMasterToggles(): HTMLElement {

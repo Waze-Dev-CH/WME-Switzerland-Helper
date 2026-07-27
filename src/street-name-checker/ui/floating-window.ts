@@ -12,7 +12,6 @@ import {
 export interface FloatingWindowCallbacks {
   /** Fired once a drag or a resize settles, with the geometry to persist. */
   onGeometry: (rect: WindowRect) => void;
-  onMinimize: (minimized: boolean) => void;
   /** Put the content back into the sidebar tab. */
   onDock: () => void;
 }
@@ -37,20 +36,16 @@ export class FloatingWindow {
   private root: HTMLElement;
   private bar: HTMLElement;
   private content: HTMLElement;
-  private minimizeBtn: HTMLButtonElement;
   private rect: WindowRect;
-  private minimized: boolean;
   private resizeObserver: ResizeObserver | null = null;
   /** Set while dragging, so the ResizeObserver does not fight the drag. */
   private dragging = false;
 
   constructor(
     rect: WindowRect,
-    minimized: boolean,
     private callbacks: FloatingWindowCallbacks,
   ) {
     this.rect = rect;
-    this.minimized = minimized;
 
     this.root = el("div", "chk-window");
     this.root.id = CONTAINER_ID;
@@ -60,21 +55,17 @@ export class FloatingWindow {
     this.bar = el("div", "chk-window-bar");
     const title = el("span", "chk-window-title", `🛣️ ${t("appName")}`);
 
-    this.minimizeBtn = el("button", "chk-window-btn");
-    this.minimizeBtn.type = "button";
-    this.minimizeBtn.addEventListener("click", () => this.setMinimized(!this.minimized));
-
-    const dockBtn = el("button", "chk-window-btn", "▣");
+    // Spelled out rather than a glyph: this is the way back to the sidebar, and it is
+    // the only control the window carries.
+    const dockBtn = el("button", "chk-window-btn", t("dock"));
     dockBtn.type = "button";
     dockBtn.title = t("dockTitle");
-    dockBtn.setAttribute("aria-label", t("dock"));
     dockBtn.addEventListener("click", () => this.callbacks.onDock());
 
-    this.bar.append(title, this.minimizeBtn, dockBtn);
+    this.bar.append(title, dockBtn);
     this.content = el("div", "chk-window-content");
     this.root.append(this.bar, this.content);
 
-    this.applyMinimized();
     this.applyRect();
     this.installDrag();
   }
@@ -107,22 +98,7 @@ export class FloatingWindow {
     this.root.style.left = `${this.rect.x}px`;
     this.root.style.top = `${this.rect.y}px`;
     this.root.style.width = `${this.rect.w}px`;
-    if (!this.minimized) this.root.style.height = `${this.rect.h}px`;
-  }
-
-  private applyMinimized(): void {
-    this.root.classList.toggle("chk-window-minimized", this.minimized);
-    // While minimized the bar alone drives the height, so the stored height survives.
-    this.root.style.height = this.minimized ? "" : `${this.rect.h}px`;
-    this.minimizeBtn.textContent = this.minimized ? "▢" : "–";
-    this.minimizeBtn.title = this.minimized ? t("restore") : t("minimize");
-    this.minimizeBtn.setAttribute("aria-label", this.minimizeBtn.title);
-  }
-
-  setMinimized(minimized: boolean): void {
-    this.minimized = minimized;
-    this.applyMinimized();
-    this.callbacks.onMinimize(minimized);
+    this.root.style.height = `${this.rect.h}px`;
   }
 
   /** Re-clamp after the browser window changed size. */
@@ -172,7 +148,7 @@ export class FloatingWindow {
   private observeResize(): void {
     if (typeof ResizeObserver === "undefined") return;
     this.resizeObserver = new ResizeObserver(() => {
-      if (this.dragging || this.minimized) return;
+      if (this.dragging) return;
       const w = Math.max(MIN_WIDTH, this.root.offsetWidth);
       const h = Math.max(MIN_HEIGHT, this.root.offsetHeight);
       if (w === this.rect.w && h === this.rect.h) return;
