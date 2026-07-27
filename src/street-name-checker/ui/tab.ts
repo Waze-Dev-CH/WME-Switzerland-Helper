@@ -36,7 +36,6 @@ import { injectStyles } from "./styles";
 // shared vocabulary and Waze's own localized terms vary by UI version.
 const ROAD_TYPE_LABELS = new Map(ROAD_TYPE_OPTIONS.map((r) => [r.id, r.label]));
 
-
 /**
  * Detect WME's editor theme by measuring the first opaque background up the
  * pane's ancestry and checking its perceived luminance. This follows the actual
@@ -335,8 +334,6 @@ export class TabUI {
     return label;
   }
 
-  /** iOS-style toggle: a visually hidden checkbox plus a CSS track/knob and a label. */
-
   private buildFooter(): HTMLElement {
     const footer = el("div", "chk-footer");
     const link = el("a", "", "Changelog");
@@ -567,7 +564,7 @@ export class TabUI {
     if (noteText) names.title = noteText;
 
     const count = el("span", "chk-count", `×${group.issues.length}`);
-    const zoomBtn = el("button", "chk-locate chk-group-zoom", "⌖");
+    const zoomBtn = el("button", "chk-locate", "⌖");
     zoomBtn.title = t("zoomToGroupTitle");
     zoomBtn.setAttribute("aria-label", t("zoomToGroupTitle"));
     zoomBtn.addEventListener("click", (ev) => {

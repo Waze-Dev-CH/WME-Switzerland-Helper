@@ -77,7 +77,6 @@
     "ignoredCount": "{{n}} ignorés",
     "resetIgnored": "Réinitialiser",
     "confirmOverLockFix": "Ce segment est verrouillé au-dessus du minimum suisse (souvent volontaire). Abaisser le verrou à L{{n}} ?",
-    "confirmGroupFix": "Appliquer «{{name}}» à {{n}} segments ?\nRien n'est sauvegardé automatiquement; relisez et sauvez dans WME.",
     "fixFailed": "Échec de la correction: {{error}}",
     "fixStopped": "{{done}}/{{total}} corrigés, puis arrêt: {{error}} (segment {{id}})",
     "allMatch": "Tous les noms de rues correspondent ✓",

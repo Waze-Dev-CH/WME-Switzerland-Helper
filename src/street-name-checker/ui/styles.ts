@@ -65,7 +65,6 @@ ${tokens}
 .chk-brand { display: flex; align-items: center; gap: 8px; }
 .chk-brand-icon { font-size: 16px; line-height: 1; }
 .chk-brand-title { font-weight: bold; font-size: 14px; color: var(--chk-text); }
-.chk-brand-version { margin-left: auto; font-size: 11px; color: var(--chk-muted); }
 
 .chk-toolbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .chk-btn { font-size: 11px; padding: 4px 10px; border: 1px solid var(--chk-border); border-radius: 6px; background: var(--chk-surface); color: var(--chk-text); }
@@ -238,7 +237,6 @@ a.chk-geolink { text-decoration: none; color: var(--chk-primary); flex-shrink: 0
 
 .chk-settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; margin: 2px 0; }
 .chk-settings-row { display: flex; align-items: center; gap: 8px; }
-.chk-settings-label { font-weight: 600; }
 
 .chk-empty { color: var(--chk-ok); font-weight: bold; padding: 10px 0; text-align: center; }
 .chk-muted { color: var(--chk-muted); }

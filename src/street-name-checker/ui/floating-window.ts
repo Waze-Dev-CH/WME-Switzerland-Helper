@@ -110,7 +110,7 @@ export class FloatingWindow {
 
   private installDrag(): void {
     this.bar.addEventListener("pointerdown", (event: PointerEvent) => {
-      // Clicking minimize or dock must not start a drag.
+      // Clicking Dock must not start a drag.
       if ((event.target as HTMLElement).closest("button")) return;
       if (event.button !== 0) return;
 

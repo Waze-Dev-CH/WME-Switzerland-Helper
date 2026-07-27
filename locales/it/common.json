@@ -77,7 +77,6 @@
     "ignoredCount": "{{n}} ignorati",
     "resetIgnored": "Reimposta",
     "confirmOverLockFix": "Questo segmento è bloccato oltre il minimo svizzero (spesso intenzionale). Abbassare il blocco a L{{n}}?",
-    "confirmGroupFix": "Applicare «{{name}}» a {{n}} segmenti?\nNulla viene salvato automaticamente; rivedi e salva in WME.",
     "fixFailed": "Correzione fallita: {{error}}",
     "fixStopped": "{{done}}/{{total}} corretti, poi interrotto: {{error}} (segmento {{id}})",
     "allMatch": "Tutti i nomi delle strade corrispondono ✓",

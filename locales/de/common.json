@@ -77,7 +77,6 @@
     "ignoredCount": "{{n}} ignoriert",
     "resetIgnored": "Zurücksetzen",
     "confirmOverLockFix": "Dieses Segment ist über dem Schweizer Minimum gesperrt (oft beabsichtigt). Sperrstufe auf L{{n}} senken?",
-    "confirmGroupFix": "«{{name}}» auf {{n}} Segmente anwenden?\nNichts wird automatisch gespeichert; in WME prüfen und speichern.",
     "fixFailed": "Korrektur fehlgeschlagen: {{error}}",
     "fixStopped": "{{done}}/{{total}} korrigiert, dann gestoppt: {{error}} (Segment {{id}})",
     "allMatch": "Alle Strassennamen stimmen überein ✓",

@@ -77,7 +77,6 @@
     "ignoredCount": "{{n}} ignored",
     "resetIgnored": "Reset",
     "confirmOverLockFix": "This segment is locked above the Swiss minimum (often intentional). Lower the lock to L{{n}}?",
-    "confirmGroupFix": "Apply \"{{name}}\" to {{n}} segments?\nNothing is saved automatically; review and save in WME.",
     "fixFailed": "Fix failed: {{error}}",
     "fixStopped": "Fixed {{done}}/{{total}}, then stopped: {{error}} (segment {{id}})",
     "allMatch": "All street names match ✓",
