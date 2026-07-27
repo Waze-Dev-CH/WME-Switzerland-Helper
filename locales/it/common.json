@@ -15,7 +15,7 @@
     "public_transport_stops": "Fermate dei trasporti pubblici"
   },
   "introduction": "Questo script aggiunge livelli di mappa che possono essere attivati tramite la barra di navigazione a destra in basso.",
-  "readmeLink": "Per ulteriori informazioni, consultare la <a href=\"https://github.com/73VW/WME-Switzerland-Helper/blob/public-transport-stops-layer/README.it.md\" target=\"_blank\" rel=\"noopener noreferrer\">documentazione completa</a>.",
+  "readmeLink": "Per ulteriori informazioni, consultare la <a href=\"https://github.com/Waze-Dev-CH/WME-Switzerland-Helper/blob/main/README.it.md\" target=\"_blank\" rel=\"noopener noreferrer\">documentazione completa</a>.",
   "note": {
     "layers": {
       "background": {

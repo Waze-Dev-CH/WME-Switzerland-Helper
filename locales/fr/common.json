@@ -15,7 +15,7 @@
     "public_transport_stops": "Arrêts de transports publics"
   },
   "introduction": "Ce script ajoute des couches cartographiques qui peuvent être activées via la barre de navigation de droite tout en bas.",
-  "readmeLink": "Pour plus d'informations, consultez la <a href=\"https://github.com/73VW/WME-Switzerland-Helper/blob/public-transport-stops-layer/README.fr.md\" target=\"_blank\" rel=\"noopener noreferrer\">documentation complète</a>.",
+  "readmeLink": "Pour plus d'informations, consultez la <a href=\"https://github.com/Waze-Dev-CH/WME-Switzerland-Helper/blob/main/README.fr.md\" target=\"_blank\" rel=\"noopener noreferrer\">documentation complète</a>.",
   "note": {
     "layers": {
       "background": {

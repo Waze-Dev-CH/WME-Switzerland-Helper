@@ -34,7 +34,7 @@ Sie müssen kein Programmierer sein oder besondere technische Fähigkeiten haben
 2. **Hinzufügen des WME Switzerland Helper Script**
 
 - Nachdem Sie Tampermonkey installiert haben, klicken Sie auf diesen Link:  
-  [WME Switzerland Helper installieren](https://raw.githubusercontent.com/73VW/WME-Switzerland-Helper/releases/releases/main.user.js)
+  [WME Switzerland Helper installieren](https://raw.githubusercontent.com/Waze-Dev-CH/WME-Switzerland-Helper/releases/releases/main.user.js)
 - Ihr Browser wird eine Seite anzeigen, auf der Sie gefragt werden, ob Sie das Skript installieren möchten. Klicken Sie auf die Schaltfläche <kbd>Installieren</kbd>.
 
 3. \*_Start Editing!_
@@ -83,7 +83,7 @@ Die Ebene **Haltestellen des öffentlichen Nahverkehrs** zeigt offizielle Haltes
 
 Wenn Sie Fragen haben, einen Fehler finden oder eine neue Funktion vorschlagen möchten:
 
-1. Gehen Sie zum [Issue Tracker des Projekts](https://github.com/73VW/WME-Switzerland-Helper/issues/new).
+1. Gehen Sie zum [Issue Tracker des Projekts](https://github.com/Waze-Dev-CH/WME-Switzerland-Helper/issues/new).
 2. Klicken Sie auf **"Neues Problem "**.
 3. Füllen Sie den Titel aus und beschreiben Sie Ihre Frage, Ihr Problem oder Ihre Idee.  
    (Keine Sorge, wenn Sie neu auf GitHub sind - Sie müssen möglicherweise ein kostenloses Konto erstellen)

@@ -15,7 +15,7 @@
     "public_transport_stops": "Public Transport Stops"
   },
   "introduction": "This script adds map layers that can be enabled via the right navigation bar at the very bottom.",
-  "readmeLink": "For more information, see the <a href=\"https://github.com/73VW/WME-Switzerland-Helper/blob/public-transport-stops-layer/README.md\" target=\"_blank\" rel=\"noopener noreferrer\">full documentation</a>.",
+  "readmeLink": "For more information, see the <a href=\"https://github.com/Waze-Dev-CH/WME-Switzerland-Helper/blob/main/README.md\" target=\"_blank\" rel=\"noopener noreferrer\">full documentation</a>.",
   "note": {
     "layers": {
       "background": {

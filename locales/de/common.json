@@ -15,7 +15,7 @@
     "public_transport_stops": "Haltestellen des öffentlichen Verkehrs"
   },
   "introduction": "Dieses Skript fügt Kartenebenen hinzu, die über die rechte Navigationsleiste ganz unten aktiviert werden können.",
-  "readmeLink": "Weitere Informationen finden Sie in der <a href=\"https://github.com/73VW/WME-Switzerland-Helper/blob/public-transport-stops-layer/README.de.md\" target=\"_blank\" rel=\"noopener noreferrer\">vollständigen Dokumentation</a>.",
+  "readmeLink": "Weitere Informationen finden Sie in der <a href=\"https://github.com/Waze-Dev-CH/WME-Switzerland-Helper/blob/main/README.de.md\" target=\"_blank\" rel=\"noopener noreferrer\">vollständigen Dokumentation</a>.",
   "note": {
     "layers": {
       "background": {

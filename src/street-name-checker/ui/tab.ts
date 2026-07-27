@@ -337,7 +337,11 @@ export class TabUI {
   private buildFooter(): HTMLElement {
     const footer = el("div", "chk-footer");
     const link = el("a", "", "Changelog");
-    link.href = "https://github.com/Waze-Dev-CH/WME-CH-Street-Name-Checker/blob/main/CHANGELOG.md";
+    // This repo's README, not the standalone checker's old CHANGELOG.md: since the port,
+    // the changelog lives in the README files (see CLAUDE.md) and the pre-merge history
+    // sits in docs/street-name-checker-changelog.md.
+    link.href =
+      "https://github.com/Waze-Dev-CH/WME-Switzerland-Helper/blob/main/README.md#-changelog";
     link.target = "_blank";
     link.rel = "noopener";
     footer.appendChild(link);
