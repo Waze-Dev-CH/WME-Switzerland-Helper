@@ -33,8 +33,7 @@ Invocation : `/deploy beta` (depuis la branche à faire tester).
 5. Vérifie le résultat publié :
 
    ```sh
-   gh api repos/Waze-Dev-CH/WME-Switzerland-Helper/contents/releases/main.user.js \
-     --ref beta-releases -q .content | base64 -d | head -8
+   curl -sL https://raw.githubusercontent.com/Waze-Dev-CH/WME-Switzerland-Helper/beta-releases/releases/main.user.js | head -8
    ```
 
    Attendu : `@version` à quatre segments (`1.4.1.57`) et `@updateURL` pointant sur
@@ -77,8 +76,7 @@ Invocation : `/deploy release [X.Y.Z]`.
    version :
 
    ```sh
-   gh api repos/Waze-Dev-CH/WME-Switzerland-Helper/contents/releases/main.user.js \
-     --ref releases -q .content | base64 -d | grep '@version'
+   curl -sL https://raw.githubusercontent.com/Waze-Dev-CH/WME-Switzerland-Helper/releases/releases/main.user.js | grep '@version'
    ```
 
 ## Pièges vérifiés
