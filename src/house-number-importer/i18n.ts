@@ -22,6 +22,10 @@ void i18n.init({
     it: { common: itCommon },
     de: { common: deCommon },
   },
+  // Same reason as the checker: these strings go to textContent, so i18next's default
+  // escaping would be displayed rather than applied. Street names carry slashes and
+  // apostrophes all the time here.
+  interpolation: { escapeValue: false },
 });
 
 export type LocaleCode = "en" | "fr" | "de" | "it";

@@ -48,4 +48,13 @@ describe("t", () => {
   it("interpolates parameters", () => {
     expect(t("countGwr", { count: 42 })).toContain("42");
   });
+
+  it("leaves slashes and apostrophes alone (every string is rendered as text)", () => {
+    // i18next escapes interpolated values by default, which surfaced as
+    // "Kapellweg &#x2F; Chemin de la Chapelle" in the panel instead of the street name.
+    expect(t("selectedStreet", { name: "Kapellweg / Chemin de la Chapelle" })).toContain(
+      "Kapellweg / Chemin de la Chapelle",
+    );
+    expect(t("selectedStreet", { name: "Rue de l'Hôpital" })).toContain("Rue de l'Hôpital");
+  });
 });
