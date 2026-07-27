@@ -142,7 +142,12 @@
     "detachTitle": "Move the panel into a floating window that stays visible when WME switches to the Selection tab",
     "dock": "Dock",
     "dockTitle": "Put the panel back into the sidebar tab",
-    "shortcutToggleWindow": "Toggle the floating window"
+    "shortcutToggleWindow": "Toggle the floating window",
+    "noteMatchConfidence": "match {{pct}}% of the segment, {{m}} m from its axis",
+    "noteRunnerUp": "next candidate {{m}} m behind",
+    "confirmWrongStreetFix": "This segment is named \"{{current}}\" but another official street runs underneath.\nRename it to \"{{suggestion}}\"?\nThis verdict comes from geometry, so check it on the map first.",
+    "confirmGroupFixDetailed": "Rename {{n}} segments from \"{{current}}\" to \"{{suggestion}}\"?\nNothing is saved automatically; review and save in WME.",
+    "errGroupFixRank": "Fixing a whole group needs editor level {{level}} or above. Fix the segments one by one."
   },
   "reloadStops": "Refresh public transport stops",
   "deleteObsoleteStop": {

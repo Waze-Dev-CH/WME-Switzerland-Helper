@@ -142,7 +142,12 @@
     "detachTitle": "Sposta il pannello in una finestra mobile che resta visibile quando WME passa alla scheda Selection",
     "dock": "Aggancia",
     "dockTitle": "Rimetti il pannello nella scheda della barra laterale",
-    "shortcutToggleWindow": "Attiva o disattiva la finestra mobile"
+    "shortcutToggleWindow": "Attiva o disattiva la finestra mobile",
+    "noteMatchConfidence": "copre il {{pct}} % del segmento, a {{m}} m dal suo asse",
+    "noteRunnerUp": "candidato successivo a {{m}} m di distanza",
+    "confirmWrongStreetFix": "Questo segmento si chiama « {{current}} » ma sotto passa un altra strada ufficiale.\nRinominarlo in « {{suggestion}} »?\nQuesto verdetto deriva dalla geometria, verificalo prima sulla mappa.",
+    "confirmGroupFixDetailed": "Rinominare {{n}} segmenti da « {{current}} » a « {{suggestion}} »?\nNulla viene salvato automaticamente; controlla e salva in WME.",
+    "errGroupFixRank": "La correzione di gruppo richiede il livello editor {{level}} o superiore. Correggi i segmenti uno per uno."
   },
   "reloadStops": "Ricarica le fermate del trasporto pubblico",
   "deleteObsoleteStop": {

@@ -142,7 +142,12 @@
     "detachTitle": "Déplacer le panneau dans une fenêtre flottante qui reste visible quand WME bascule sur l onglet Selection",
     "dock": "Rattacher",
     "dockTitle": "Remettre le panneau dans l onglet de la barre latérale",
-    "shortcutToggleWindow": "Basculer la fenêtre flottante"
+    "shortcutToggleWindow": "Basculer la fenêtre flottante",
+    "noteMatchConfidence": "correspond à {{pct}} % du segment, à {{m}} m de son axe",
+    "noteRunnerUp": "candidat suivant à {{m}} m derrière",
+    "confirmWrongStreetFix": "Ce segment s appelle « {{current}} » mais une autre rue officielle passe dessous.\nLe renommer en « {{suggestion}} » ?\nCe verdict vient de la géométrie, vérifie-le sur la carte avant.",
+    "confirmGroupFixDetailed": "Renommer {{n}} segments de « {{current}} » en « {{suggestion}} » ?\nRien n est enregistré automatiquement ; relis et enregistre dans WME.",
+    "errGroupFixRank": "La correction de groupe demande le niveau éditeur {{level}} ou plus. Corrige les segments un par un."
   },
   "reloadStops": "Recharger les arrêts de transport public",
   "deleteObsoleteStop": {

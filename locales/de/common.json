@@ -142,7 +142,12 @@
     "detachTitle": "Das Panel in ein schwebendes Fenster verschieben, das sichtbar bleibt, wenn WME zum Selection-Tab wechselt",
     "dock": "Andocken",
     "dockTitle": "Das Panel zurück in den Sidebar-Tab setzen",
-    "shortcutToggleWindow": "Schwebendes Fenster umschalten"
+    "shortcutToggleWindow": "Schwebendes Fenster umschalten",
+    "noteMatchConfidence": "deckt {{pct}} % des Segments ab, {{m}} m von seiner Achse",
+    "noteRunnerUp": "nächster Kandidat {{m}} m dahinter",
+    "confirmWrongStreetFix": "Dieses Segment heisst « {{current}} », aber darunter verläuft eine andere amtliche Strasse.\nIn « {{suggestion}} » umbenennen?\nDieses Urteil stammt aus der Geometrie, prüfe es zuerst auf der Karte.",
+    "confirmGroupFixDetailed": "{{n}} Segmente von « {{current}} » in « {{suggestion}} » umbenennen?\nEs wird nichts automatisch gespeichert; in WME prüfen und speichern.",
+    "errGroupFixRank": "Gruppenkorrektur erfordert Editor-Level {{level}} oder höher. Korrigiere die Segmente einzeln."
   },
   "reloadStops": "Haltestellen des öffentlichen Verkehrs neu laden",
   "deleteObsoleteStop": {

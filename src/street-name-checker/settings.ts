@@ -55,8 +55,13 @@ export const ALL_STATUSES: IssueStatus[] = [
   "UNNAMED_NO_MATCH",
 ];
 
-/** Lock-level checks gated behind a minimum editor rank by default. */
-const LOCK_STATUSES: IssueStatus[] = ["UNDER_LOCK", "OVER_LOCK"];
+/**
+ * Checks gated behind a minimum editor rank by default. Locks because low ranks rarely
+ * manage them, and WRONG_STREET because its verdict comes from geometry alone: it is the
+ * one finding that tells you to replace a name that reads as perfectly valid, and reading
+ * it right means knowing what a false positive looks like.
+ */
+const RANK_GATED_STATUSES: IssueStatus[] = ["UNDER_LOCK", "OVER_LOCK", "WRONG_STREET"];
 
 /**
  * Minimum editor rank (getUserInfo().rank scale) for the lock checks to be ON by
@@ -68,9 +73,9 @@ export const LOCK_DEFAULT_MIN_RANK = 2;
 
 /** First-run default statuses: all but UNNAMED_NO_MATCH, minus locks below the rank gate. */
 export function defaultEnabledStatuses(userRank: number | null): IssueStatus[] {
-  const lockOk = userRank !== null && userRank >= LOCK_DEFAULT_MIN_RANK;
+  const experienced = userRank !== null && userRank >= LOCK_DEFAULT_MIN_RANK;
   return ALL_STATUSES.filter(
-    (s) => s !== "UNNAMED_NO_MATCH" && (lockOk || !LOCK_STATUSES.includes(s)),
+    (s) => s !== "UNNAMED_NO_MATCH" && (experienced || !RANK_GATED_STATUSES.includes(s)),
   );
 }
 

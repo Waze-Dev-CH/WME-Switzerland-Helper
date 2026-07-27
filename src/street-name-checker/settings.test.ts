@@ -120,6 +120,23 @@ describe("loadSettings", () => {
     expect(loadSettings(LOCK_DEFAULT_MIN_RANK).enabledStatuses).toContain("UNDER_LOCK");
   });
 
+  it("gates WRONG_STREET the same way", () => {
+    // Its verdict comes from geometry alone and it asks you to replace a name that reads
+    // as valid. Reading it right means knowing what a false positive looks like, so it
+    // starts off for newcomers and can be switched on in the status grid.
+    expect(loadSettings(LOCK_DEFAULT_MIN_RANK - 1).enabledStatuses).not.toContain("WRONG_STREET");
+    expect(loadSettings(LOCK_DEFAULT_MIN_RANK).enabledStatuses).toContain("WRONG_STREET");
+  });
+
+  it("leaves the name-similarity categories on for everyone", () => {
+    // Nothing here should hide the safe findings from a beginner: a casing fix is a
+    // casing fix whatever the editor's level.
+    const beginner = loadSettings(LOCK_DEFAULT_MIN_RANK - 1).enabledStatuses;
+    expect(beginner).toContain("COSMETIC");
+    expect(beginner).toContain("VARIANT");
+    expect(beginner).toContain("NOT_FOUND");
+  });
+
   it("respects stored settings and ignores the rank", () => {
     store.set(
       "wme-ch-name-check.settings",

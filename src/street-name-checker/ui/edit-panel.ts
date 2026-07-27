@@ -1,5 +1,6 @@
 import type { WmeSDK } from "wme-sdk-typings";
 import {
+  canGroupFix,
   GROUP_FIX_CAP,
   ignoreIssue,
   ignoreIssues,
@@ -183,8 +184,10 @@ export class EditPanelBox {
       fixBtn.addEventListener("click", () => this.onFixOne(issue, fixBtn));
       buttons.appendChild(fixBtn);
 
+      // Group actions are hidden below editor level 3, the same rule as the sidebar
+      // list. Per-segment Fix above stays available to everyone.
       const group = issuesInSameGroup(snapshot.issues, issue);
-      if (group.length > 1) {
+      if (group.length > 1 && canGroupFix(this.sdk)) {
         const fixAllBtn = document.createElement("button");
         fixAllBtn.className = "chk-fix-all";
         fixAllBtn.textContent = t("fixAll", { n: Math.min(group.length, GROUP_FIX_CAP) });
@@ -201,7 +204,7 @@ export class EditPanelBox {
     buttons.appendChild(ignoreBtn);
 
     const ignoreGroup = issuesInSameGroup(snapshot.issues, issue);
-    if (ignoreGroup.length > 1) {
+    if (ignoreGroup.length > 1 && canGroupFix(this.sdk)) {
       const ignoreAllBtn = document.createElement("button");
       ignoreAllBtn.className = "chk-ignore";
       ignoreAllBtn.textContent = t("ignoreAll", { n: ignoreGroup.length });
@@ -252,7 +255,12 @@ export class EditPanelBox {
     void runFixGroup(
       this.sdk,
       group,
-      { status: issue.status, expectedLock: issue.note?.expectedLock, suggestion: issue.suggestion },
+      {
+        status: issue.status,
+        expectedLock: issue.note?.expectedLock,
+        suggestion: issue.suggestion,
+        currentName: issue.currentName,
+      },
       this.settings.get(),
       {
         button,

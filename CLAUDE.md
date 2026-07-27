@@ -59,6 +59,20 @@ automatically.
 - `prompt.ts`: injectable dialog helpers over `showWmeDialog`, so the fix flows stay
   testable without a DOM.
 
+**Safety rules for anything that writes to the map.** The script is public, so assume a
+first-day editor installed it:
+
+- Rank gates use `rank + 1 = displayed WME level`. `GROUP_FIX_MIN_RANK` (`fix.ts`) and
+  `LOCK_DEFAULT_MIN_RANK` (`settings.ts`) are both level 3.
+- Group actions are **hidden** below that level, not disabled: a greyed button still
+  invites the click. Per-segment fixing stays open to everyone, it is how you learn.
+- Any gate enforced in the UI is enforced again in `fix.ts`. Two UIs build these buttons
+  and a missed check in either would reopen the hole silently.
+- A verdict that comes from geometry rather than name similarity (`WRONG_STREET`)
+  confirms every time, whatever the count, and carries its confidence figures into the
+  prompt. Confirmations state the change, not just how many segments are affected.
+- Nothing is ever saved automatically; corrections go to the WME edit stack.
+
 **Deliberate deviations, do not "fix" them:**
 
 | Deviation | Why |

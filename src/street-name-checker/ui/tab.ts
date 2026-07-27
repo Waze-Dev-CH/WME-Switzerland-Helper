@@ -1,5 +1,6 @@
 import type { WmeSDK } from "wme-sdk-typings";
 import {
+  canGroupFix,
   GROUP_FIX_CAP,
   ignoreIssue,
   ignoreIssues,
@@ -577,8 +578,11 @@ export class TabUI {
     topLine.append(badge, count, zoomBtn);
     header.append(topLine, names);
 
+    // Below editor level 3 the group actions are not shown at all, rather than shown and
+    // refused: a disabled button still invites the click. Per-segment Fix stays available.
+    const groupActionsAllowed = canGroupFix(this.sdk);
     const fixAllBtn =
-      group.fixable && group.issues.length > 1
+      groupActionsAllowed && group.fixable && group.issues.length > 1
         ? el("button", "chk-fix-all", t("fixAll", { n: Math.min(group.issues.length, GROUP_FIX_CAP) }))
         : null;
     if (fixAllBtn) {
@@ -587,9 +591,10 @@ export class TabUI {
         this.onFixGroup(group, fixAllBtn);
       });
     }
-    // Ignore the whole group at once (any status, fixable or not).
+    // Ignore the whole group at once (any status, fixable or not). Same rank gate: hiding
+    // dozens of findings in one click is not destructive, but it is just as blind.
     const ignoreAllBtn =
-      group.issues.length > 1
+      groupActionsAllowed && group.issues.length > 1
         ? el("button", "chk-ignore", t("ignoreAll", { n: group.issues.length }))
         : null;
     if (ignoreAllBtn) {
@@ -771,7 +776,12 @@ export class TabUI {
     void runFixGroup(
       this.sdk,
       group.issues,
-      { status: group.status, expectedLock: group.note?.expectedLock, suggestion: group.suggestion },
+      {
+        status: group.status,
+        expectedLock: group.note?.expectedLock,
+        suggestion: group.suggestion,
+        currentName: group.currentName,
+      },
       this.settings.get(),
       { button, onComplete: () => this.scanner.reevaluate() },
     );

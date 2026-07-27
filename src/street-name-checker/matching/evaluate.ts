@@ -52,6 +52,16 @@ export interface IssueNote {
   existsIn?: string;
   /** Distance to the official axis of the CURRENT name (WRONG_STREET review aid). */
   ownDistanceM?: number;
+  /**
+   * How the geometric match was won (WRONG_STREET). Without these, a match that only
+   * just cleared the 0.8 coverage bar looked exactly like a unanimous one, and the
+   * editor had no way to tell a clear case from a marginal one before renaming.
+   */
+  coverage?: number;
+  /** Distance from the segment to the axis of the street found underneath, in metres. */
+  matchDistanceM?: number;
+  /** Metres between the winning street and the runner-up; absent when uncontested. */
+  runnerUpMarginM?: number;
   /** Current lock LEVEL (1-6 as shown in WME) of the segment (UNDER_LOCK / OVER_LOCK). */
   currentLock?: number;
   /** Expected lock LEVEL (1-6) for the road type; the fix converts it back to lockRank. */
@@ -218,6 +228,13 @@ export function evaluateSegment(
             existsIn: match.entry.street.zipLabel,
             // review aid: how far the current name's own axis really is
             ...(Number.isFinite(ownDistanceM) ? { ownDistanceM: Math.round(ownDistanceM) } : {}),
+            // How solid the geometric match is. This decides a rename, so the numbers
+            // that produced the verdict travel with it instead of being discarded.
+            coverage: nearest.coverage,
+            matchDistanceM: Math.round(nearest.distanceM),
+            ...(nearest.runnerUpMarginM !== null
+              ? { runnerUpMarginM: Math.round(nearest.runnerUpMarginM) }
+              : {}),
           },
           fixable: true,
         },

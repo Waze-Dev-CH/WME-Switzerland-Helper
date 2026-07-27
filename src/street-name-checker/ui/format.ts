@@ -69,6 +69,20 @@ export function formatNote(note: IssueNote | null): string {
   if (note.fullLabel) parts.push(t("noteFullLabel", { label: note.fullLabel }));
   if (note.existsIn) parts.push(t("noteExistsIn", { place: note.existsIn }));
   if (note.ownDistanceM !== undefined) parts.push(t("noteOwnDistance", { m: note.ownDistanceM }));
+  // Confidence of the geometric match, spelled out: a verdict that renames a street
+  // should say how sure it is, and a barely-cleared match should not read like a
+  // unanimous one.
+  if (note.coverage !== undefined) {
+    parts.push(
+      t("noteMatchConfidence", {
+        pct: Math.round(note.coverage * 100),
+        m: note.matchDistanceM ?? 0,
+      }),
+    );
+  }
+  if (note.runnerUpMarginM !== undefined) {
+    parts.push(t("noteRunnerUp", { m: note.runnerUpMarginM }));
+  }
   if (note.currentLock !== undefined && note.expectedLock !== undefined) {
     // currentLock / expectedLock are already 1-6 levels (see guidelines.ts).
     parts.push(t("noteLock", { current: note.currentLock, expected: note.expectedLock }));
