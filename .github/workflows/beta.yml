@@ -33,7 +33,11 @@ jobs:
       # Before the build, so the shipped userscript carries the beta channel and
       # does not update testers back to stable.
       - name: Point the userscript at the beta channel
-        run: sed -i 's|WME-Switzerland-Helper/releases/releases/|WME-Switzerland-Helper/beta-releases/releases/|g' header.js
+        run: |
+          sed -i 's|WME-Switzerland-Helper/releases/releases/|WME-Switzerland-Helper/beta-releases/releases/|g' header.js
+          # A distinct @name, so Tampermonkey lists the beta under its own entry
+          # and a tester can tell which of the two is running.
+          sed -i 's|^// @name .*|// @name        WME Switzerland Helper (Beta)|' header.js
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

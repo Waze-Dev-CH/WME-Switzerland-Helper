@@ -50,8 +50,8 @@ Volete provare quello che sta arrivando e segnalare i problemi prima che lo rice
 
 - Installate invece da questo link:  
   [Installare la versione beta](https://raw.githubusercontent.com/Waze-Dev-CH/WME-Switzerland-Helper/beta-releases/releases/main.user.js)
-- La beta **sostituisce** la versione stabile in Tampermonkey, non si aggiunge accanto. Non installate mai entrambe: due copie attive insieme si rompono a vicenda.
-- Per distinguerle, guardate il numero di versione: una beta ne ha quattro, `1.4.1.57`, mentre la versione stabile ne ha tre, `1.4.1`.
+- La beta si installa con un nome proprio, **WME Switzerland Helper (Beta)**, accanto allo script stabile. Disattivate la versione stabile in Tampermonkey prima di usarla: due copie attive insieme si rompono a vicenda.
+- Anche il numero di versione le distingue: una beta ne ha quattro, `1.4.1.57`, mentre la versione stabile ne ha tre, `1.4.1`.
 - Per tornare indietro, ricliccate sul link di installazione normale qui sopra.
 
 ---

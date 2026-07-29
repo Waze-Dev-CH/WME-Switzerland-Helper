@@ -36,9 +36,11 @@ Invocation : `/deploy beta` (depuis la branche à faire tester).
    curl -sL https://raw.githubusercontent.com/Waze-Dev-CH/WME-Switzerland-Helper/beta-releases/releases/main.user.js | head -8
    ```
 
-   Attendu : `@version` à quatre segments (`1.4.1.57`) et `@updateURL` pointant sur
-   `beta-releases`. Si `@updateURL` pointe encore sur `releases`, le `sed` du workflow a
-   raté et les testeurs repasseront en stable à la prochaine mise à jour.
+   Attendu : `@name` suffixé `(Beta)`, `@version` à quatre segments (`1.4.1.57`) et
+   `@updateURL` pointant sur `beta-releases`. Si `@updateURL` pointe encore sur `releases`,
+   le `sed` du workflow a raté et les testeurs repasseront en stable à la prochaine mise à
+   jour ; si `@name` n'est pas suffixé, la beta écrase l'entrée stable dans Tampermonkey au
+   lieu de s'installer à côté.
 
 ## Mode `release`
 
@@ -89,7 +91,7 @@ Invocation : `/deploy release [X.Y.Z]`.
 | `npm run build` échoue en local                           | `rollup` n'est pas installé localement ; le CI fait `npm install --global rollup`. En local, `npx rollup -c` suffit à compiler.  |
 | Le tag doit être exactement `vX.Y.Z`                      | `release.yml` filtre sur `v*.*.*`. Sans le `v`, ou avec un suffixe, rien ne se déclenche et rien ne le signale.                  |
 | `releases` et `beta-releases` sont générées               | Force-pushées par le CI à chaque run. Toute modification manuelle est écrasée au run suivant.                                    |
-| La beta garde le même `@name`/`@namespace` que la stable  | Elle **remplace** la stable dans Tampermonkey. C'est voulu : les `scriptId` sont codés en dur et deux copies actives se cassent. |
+| La beta porte `@name ... (Beta)`, `@namespace` inchangé   | Tampermonkey en fait une entrée séparée : elle ne remplace plus la stable, les deux peuvent être actives à la fois et se casser (les `scriptId` sont codés en dur). Les READMEs disent de désactiver la stable ; ne supprime pas ce suffixe pour « régler » le doublon. |
 
 ## Ne jamais faire
 
