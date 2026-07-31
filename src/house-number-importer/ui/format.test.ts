@@ -6,7 +6,11 @@ import { IMPORT_CAP } from "../import";
 import type { StatusedPoint } from "../status";
 import { canBulkImport, countByStatus, formatImportButton, formatState } from "./format";
 
-const at = (p: GwrPoint): Assignment => ({ point: p, segmentId: 1, distanceM: 0 });
+const at = (p: GwrPoint): Assignment => ({
+  point: p,
+  segmentId: 1,
+  distanceM: 0,
+});
 
 const point = (number: string): GwrPoint => ({
   id: `p-${number}`,
@@ -30,6 +34,7 @@ const snapshot = (overrides: Partial<Snapshot> = {}): Snapshot => ({
   streetName: "Rue Exemple",
   missing: [],
   truncated: false,
+  incomplete: false,
   progress: null,
   error: null,
   ...overrides,
@@ -61,7 +66,12 @@ describe("countByStatus", () => {
       statused("8", "OTHER_STREET"),
       statused("10", "NEUTRAL"),
     ]);
-    expect(counts).toEqual({ total: 5, missing: 2, present: 1, otherStreet: 1 });
+    expect(counts).toEqual({
+      total: 5,
+      missing: 2,
+      present: 1,
+      otherStreet: 1,
+    });
   });
 });
 

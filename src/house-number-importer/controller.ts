@@ -1,5 +1,6 @@
 import type { WmeSDK } from "wme-sdk-typings";
 import type { Bbox } from "../geoadmin/types";
+import { k1 } from "../street-name-checker/matching/normalize";
 import { intersectsSwitzerland } from "../street-name-checker/scan";
 import {
   assignToSegments,
@@ -14,12 +15,33 @@ import {
 } from "./existing";
 import { GwrTileFetcher, tileKeysForBbox } from "./gwr/tiles";
 import type { GwrPoint } from "./gwr/types";
-import { MAX_SNAP_DISTANCE_M, runImportPoint, runImportPoints } from "./import";
+import { MAX_SNAP_DISTANCE_M, runImportPoint, runImportPoints, type ImportOutcome } from "./import";
 import type { Confirm, Notify } from "./prompt";
 import { log } from "./log";
 import type { AddressPointLayer } from "./map-layer";
 import { strictnessOf, type SettingsStore } from "./settings";
 import { computeStatuses, missingPoints, normalizeNumber, type StatusedPoint } from "./status";
+
+/**
+ * Key of an optimistic creation: the street it was created on, then the number.
+ *
+ * `k1` is the checker's street-name key (case folded, apostrophes and dashes unified), so
+ * "Rue du Lac" and "rue du lac" are one street while the same number on another street
+ * stays a different key. The separator is a NUL, which no street name or house number can
+ * contain: with a plain space, "rue du lac" would be a prefix of "rue du lac nord" and
+ * reading a key back would return "nord 15" as a house number.
+ */
+const KEY_SEPARATOR = "\u0000";
+
+function optimisticKey(streetName: string, normalizedNumber: string): string {
+  return `${k1(streetName)}${KEY_SEPARATOR}${normalizedNumber}`;
+}
+
+/** The number an optimistic key holds, or null when the key belongs to another street. */
+function numberOfKey(key: string, streetName: string): string | null {
+  const prefix = `${k1(streetName)}${KEY_SEPARATOR}`;
+  return key.startsWith(prefix) ? key.slice(prefix.length) : null;
+}
 
 const MOVE_DEBOUNCE_MS = 400;
 const EDIT_DEBOUNCE_MS = 300;
@@ -49,8 +71,27 @@ export interface Snapshot {
   missing: Assignment[];
   /** A tile covering the view was cut at the page cap: counts cannot be trusted. */
   truncated: boolean;
+  /** A tile failed to load: part of the view holds no addresses at all, silently. */
+  incomplete: boolean;
   progress: { done: number; total: number } | null;
   error: string | null;
+}
+
+/**
+ * Whether a bulk import may be offered at all.
+ *
+ * Lives with the data rather than with the buttons: two UIs build them and `importMissing`
+ * checks it again, so a missed check in one surface cannot reopen the door. A truncated or
+ * failed tile makes "N missing" a count the feature cannot vouch for, and a one-click
+ * import of an unknown count is precisely what must not be offered.
+ */
+export function canBulkImport(snapshot: Snapshot): boolean {
+  return (
+    snapshot.segmentId !== null &&
+    !snapshot.truncated &&
+    !snapshot.incomplete &&
+    snapshot.missing.length > 0
+  );
 }
 
 const EMPTY: Snapshot = {
@@ -60,6 +101,7 @@ const EMPTY: Snapshot = {
   streetName: "",
   missing: [],
   truncated: false,
+  incomplete: false,
   progress: null,
   error: null,
 };
@@ -79,14 +121,20 @@ export class Controller {
   private editTimer: ReturnType<typeof setTimeout> | null = null;
   private points: GwrPoint[] = [];
   private existingNumbers: Set<string> | null = null;
+  /** Segment `existingNumbers` was read for; another one means the set says nothing. */
+  private existingForSegmentId: number | null = null;
   /**
-   * Numbers created in this session that the server has not confirmed yet.
+   * Numbers created in this session that the server has not confirmed yet, keyed by street.
    *
    * `fetchHouseNumbers` is a server call and does NOT see pending edits, so a refetch
    * triggered by our own creations would report them as still missing. Without this set the
    * button comes back with the same list and a second click duplicates the whole batch.
+   *
+   * Keyed by street and not by number alone: "15" on Rue du Lac says nothing about "15" on
+   * Rue des Alpes, and the bare number silently marked the second one as already there.
+   * Insertion order is the undo order, which is what `forgetLastCreation` walks back.
    */
-  private optimisticNumbers = new Set<string>();
+  private optimisticKeys = new Set<string>();
   /** Geometry of every segment of the selected street, for assigning each number. */
   private geometries: SegmentGeometries = new Map();
 
@@ -123,18 +171,24 @@ export class Controller {
     // undone numbers looking like they still existed, greyed out instead of green.
     // `wme-save-finished` is here too: once saved, the server knows them and the refetch
     // becomes the source of truth again.
-    for (const eventName of [
-      "wme-after-undo",
-      "wme-no-edits",
-      "wme-house-number-deleted",
-      "wme-save-finished",
-    ] as const) {
+    // Nothing is pending any more, or the server now knows everything: the refetch is the
+    // truth again and the whole optimistic set can go.
+    for (const eventName of ["wme-no-edits", "wme-save-finished"] as const) {
       this.sdk.Events.on({
         eventName,
         eventHandler: () => {
-          // None of these events says WHICH number went away, so forget the whole set
-          // rather than keep claiming a number exists. The refetch right after settles it.
-          this.optimisticNumbers.clear();
+          this.optimisticKeys.clear();
+          this.scheduleReclassify(EDIT_DEBOUNCE_MS);
+        },
+      });
+    }
+    // One edit went away. Ctrl+Z is the everyday case and it does NOT emit
+    // wme-house-number-deleted, so both are listened to.
+    for (const eventName of ["wme-after-undo", "wme-house-number-deleted"] as const) {
+      this.sdk.Events.on({
+        eventName,
+        eventHandler: () => {
+          this.forgetLastCreation();
           this.scheduleReclassify(EDIT_DEBOUNCE_MS);
         },
       });
@@ -216,14 +270,22 @@ export class Controller {
     }
 
     let truncated = false;
+    let incomplete = false;
     try {
-      this.publish({ state: "fetching", error: null, progress: { done: 0, total: 0 } });
+      this.publish({
+        state: "fetching",
+        error: null,
+        progress: { done: 0, total: 0 },
+      });
       const result = await this.fetcher.fetchBbox(bbox, undefined, (done, total) => {
         if (generation === this.generation) this.publish({ progress: { done, total } });
       });
       if (generation !== this.generation) return;
       this.points = result.points;
       truncated = result.truncatedKeys.length > 0;
+      // A failed tile is silent: its addresses simply are not there, so the view looks
+      // complete while a whole block is missing. Same treatment as a truncated one.
+      incomplete = result.failedKeys.length > 0;
     } catch (err) {
       if (generation !== this.generation) return;
       log.error("Could not load address points", err);
@@ -234,19 +296,31 @@ export class Controller {
     const segmentId = this.selectedSegmentId();
     if (segmentId === null) {
       this.existingNumbers = null;
-      this.classify(generation, { segmentId: null, streetName: "", truncated, state: "idle" });
+      this.existingForSegmentId = null;
+      this.classify(generation, {
+        segmentId: null,
+        streetName: "",
+        truncated,
+        incomplete,
+        state: "idle",
+      });
       return;
     }
 
     const names = segmentStreetNames(this.sdk, segmentId);
     const streetName = names[0] ?? "";
     // Show the points at once, but hold their MISSING verdict until the existing numbers
-    // are known: a green point during the round trip invites a duplicate.
-    if (options.refetchExisting || this.existingNumbers === null) this.existingNumbers = null;
+    // are known: a green point during the round trip invites a duplicate. The numbers of
+    // the street we were on before say nothing about this one, so they go too.
+    if (options.refetchExisting || segmentId !== this.existingForSegmentId) {
+      this.existingNumbers = null;
+    }
+    this.existingForSegmentId = segmentId;
     this.classify(generation, {
       segmentId,
       streetName,
       truncated,
+      incomplete,
       state: "checking-existing",
       names,
     });
@@ -258,14 +332,23 @@ export class Controller {
       this.geometries = readSegmentGeometries(this.sdk, segmentIds);
       const existing = await fetchExistingNumbers(this.sdk, segmentIds);
       if (generation !== this.generation) return;
-      // The server answer ignores pending edits, so re-add what we know we created.
-      // A number the server now reports is confirmed and no longer needs remembering.
-      for (const number of this.optimisticNumbers) {
-        if (existing.has(number)) this.optimisticNumbers.delete(number);
+      // The server answer ignores pending edits, so re-add what we know we created ON THIS
+      // STREET. A number the server now reports is confirmed and stops being remembered.
+      for (const key of [...this.optimisticKeys]) {
+        const number = numberOfKey(key, streetName);
+        if (number === null) continue;
+        if (existing.has(number)) this.optimisticKeys.delete(key);
         else existing.add(number);
       }
       this.existingNumbers = existing;
-      this.classify(generation, { segmentId, streetName, truncated, state: "idle", names });
+      this.classify(generation, {
+        segmentId,
+        streetName,
+        truncated,
+        incomplete,
+        state: "idle",
+        names,
+      });
     } catch (err) {
       if (generation !== this.generation) return;
       this.publish({ state: "error", error: String(err), progress: null });
@@ -278,6 +361,7 @@ export class Controller {
       segmentId: number | null;
       streetName: string;
       truncated: boolean;
+      incomplete: boolean;
       state: ControllerState;
       names?: string[];
     },
@@ -308,9 +392,13 @@ export class Controller {
       points: statused,
       segmentId: context.segmentId,
       streetName: context.streetName,
-      // A truncated tile makes the count a lower bound, so no bulk import is offered.
-      missing: context.truncated ? [] : assignments,
+      // Kept even when the data is partial: `canBulkImport` is what withholds the bulk
+      // button, while each point keeps the segment it belongs to. Emptying this list left
+      // the points clickable with no assignment, and the fallback hung them on the
+      // selected segment, which on a corner is regularly the cross street.
+      missing: assignments,
       truncated: context.truncated,
+      incomplete: context.incomplete,
       progress: null,
       error: null,
     });
@@ -334,39 +422,71 @@ export class Controller {
     await runImportPoint(this.sdk, point, target, streetName, {
       ...this.prompts,
       confirmSingle: this.settings.get().confirmSingleImport,
-      onComplete: () => this.markImported([point]),
+      onComplete: (outcomes) => this.markImported(outcomes),
     });
   }
 
   /** Bulk import of what is missing on the selected street. */
   async importMissing(): Promise<void> {
+    // Checked again here, not only where the buttons are built: three surfaces trigger this.
+    if (!canBulkImport(this.snapshot)) return;
     const { segmentId, streetName, missing } = this.snapshot;
-    if (segmentId === null || missing.length === 0) return;
+    if (segmentId === null) return;
     await runImportPoints(this.sdk, missing, segmentId, streetName, {
       ...this.prompts,
       // What we believe exists, pending edits included, so a stale list cannot duplicate.
-      alreadyPresent: this.existingNumbers ?? this.optimisticNumbers,
-      onComplete: () => this.markImported(missing.map((assignment) => assignment.point)),
+      alreadyPresent: this.existingNumbers ?? this.optimisticNumbersFor(streetName),
+      onComplete: (outcomes) => this.markImported(outcomes),
     });
   }
 
   /**
-   * Mark numbers as present without waiting for a refetch. `fetchHouseNumbers` may not see
-   * unsaved edits, so this optimistic mark is what keeps a just-created number from being
-   * offered again a second later.
+   * Mark the numbers that were ACTUALLY created as present, without waiting for a refetch.
+   * `fetchHouseNumbers` may not see unsaved edits, so this optimistic mark is what keeps a
+   * just-created number from being offered again a second later. Failed creations, and
+   * everything past the cap, are absent from the outcomes and stay offered.
    */
-  private markImported(points: GwrPoint[]): void {
-    for (const point of points) {
-      const number = normalizeNumber(point.number);
-      this.optimisticNumbers.add(number);
+  private markImported(outcomes: ImportOutcome[]): void {
+    const streetName = this.snapshot.streetName;
+    for (const outcome of outcomes) {
+      if (!outcome.ok) continue;
+      const number = normalizeNumber(outcome.number);
+      this.optimisticKeys.add(optimisticKey(streetName, number));
       this.existingNumbers?.add(number);
     }
     this.classify(this.generation, {
       segmentId: this.snapshot.segmentId,
-      streetName: this.snapshot.streetName,
+      streetName,
       truncated: this.snapshot.truncated,
+      incomplete: this.snapshot.incomplete,
       state: "idle",
     });
+  }
+
+  /** Numbers we believe we created on this street, pending edits included. */
+  private optimisticNumbersFor(streetName: string): Set<string> {
+    const numbers = new Set<string>();
+    for (const key of this.optimisticKeys) {
+      const number = numberOfKey(key, streetName);
+      if (number !== null) numbers.add(number);
+    }
+    return numbers;
+  }
+
+  /**
+   * Walk back the last remembered creation after an undo.
+   *
+   * ponytail: the events say an edit went away, never WHICH one, and the SDK exposes no way
+   * to read the house numbers currently in the data model (only a server fetch, which
+   * ignores pending edits). Dropping the most recent creation matches Ctrl+Z on our own
+   * batch; when the undone edit was something else, one number goes back to "missing"
+   * instead of the whole set, which is what used to happen. Upgrade path: resolve the
+   * houseNumberId the events carry, the day the SDK lets anything read it back.
+   */
+  private forgetLastCreation(): void {
+    let last: string | undefined;
+    for (const key of this.optimisticKeys) last = key;
+    if (last !== undefined) this.optimisticKeys.delete(last);
   }
 
   /** Drop both cache levels and reload. */
@@ -379,6 +499,7 @@ export class Controller {
     this.generation++;
     this.points = [];
     this.existingNumbers = null;
+    this.existingForSegmentId = null;
     this.layer.clear();
     this.publish({ ...EMPTY, state: "disabled" });
   }

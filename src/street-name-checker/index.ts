@@ -33,7 +33,10 @@ const SCRIPT_NAME = "WME CH Street Name Checker";
 export async function initStreetNameChecker(): Promise<void> {
   await unsafeWindow.SDK_INITIALIZED;
   if (!unsafeWindow.getWmeSdk) throw new Error("getWmeSdk is not available on the page");
-  const sdk: WmeSDK = unsafeWindow.getWmeSdk({ scriptId: SCRIPT_ID, scriptName: SCRIPT_NAME });
+  const sdk: WmeSDK = unsafeWindow.getWmeSdk({
+    scriptId: SCRIPT_ID,
+    scriptName: SCRIPT_NAME,
+  });
 
   await sdk.Events.once({ eventName: "wme-ready" });
 
@@ -48,15 +51,20 @@ export async function initStreetNameChecker(): Promise<void> {
 
   // The layer checkbox and the tab's master toggle are two faces of settings.enabled;
   // both go through setCheckerEnabled so neither can drift from the persisted value.
+  // Set once the tab exists; the sync only ever fires on a user click, long after init.
+  let tabRef: TabUI | null = null;
   const activation: ActivationContext = {
     settings,
     scanner,
     layer,
     syncCheckbox: (checked) => setLayerCheckbox(sdk, checked),
+    syncToggle: (checked) => tabRef?.syncEnabledToggle(checked),
   };
   const enabled = settings.get().enabled;
   layer.setVisible(enabled);
-  registerLayerCheckbox(sdk, enabled, (checked) => setCheckerEnabled(activation, checked, "checkbox"));
+  registerLayerCheckbox(sdk, enabled, (checked) =>
+    setCheckerEnabled(activation, checked, "checkbox"),
+  );
 
   // Resync the OpenLayers layer only when results actually change; progress
   // ticks during a fetch reuse the same issues map and must stay free.
@@ -79,6 +87,7 @@ export async function initStreetNameChecker(): Promise<void> {
     (checked) => setCheckerEnabled(activation, checked, "tab"),
     () => detachHandler(),
   );
+  tabRef = tab;
   await tab.init();
 
   const windowMode = createWindowMode(settings, tab);
@@ -97,7 +106,7 @@ export async function initStreetNameChecker(): Promise<void> {
   // Scanner: they get the answer without being able to touch the scan, and the tricky part
   // (an absent issue only means "conform" once a scan has completed) stays here.
   registerStreetNameProvider(
-    createStreetNameProvider({ sdk, settings, getSnapshot: () => scanner.getSnapshot() }),
+    createStreetNameProvider({ getSnapshot: () => scanner.getSnapshot() }),
   );
 
   log.info(`ready (SDK ${sdk.getSDKVersion()}, WME ${sdk.getWMEVersion()})`);

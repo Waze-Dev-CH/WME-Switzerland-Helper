@@ -46,7 +46,12 @@ export interface Counts {
 }
 
 export function countByStatus(points: StatusedPoint[]): Counts {
-  const counts: Counts = { total: points.length, missing: 0, present: 0, otherStreet: 0 };
+  const counts: Counts = {
+    total: points.length,
+    missing: 0,
+    present: 0,
+    otherStreet: 0,
+  };
   for (const entry of points) {
     if (entry.status === "MISSING") counts.missing++;
     else if (entry.status === "PRESENT") counts.present++;
@@ -95,12 +100,17 @@ export function formatVerdict(verdict: StreetNameVerdict): VerdictDisplay | null
 }
 
 /**
- * Whether the bulk-import button may be shown at all.
+ * Whether the bulk-import button may be shown at all. Hidden rather than disabled when it
+ * does not apply: a greyed-out button still invites the click.
  *
- * Hidden rather than disabled when it does not apply: a greyed-out button still invites
- * the click. A truncated tile hides it too, because "N missing" would then be a number
- * the feature cannot vouch for.
+ * The rule lives with the data (controller.ts) because `importMissing` enforces it again;
+ * this re-export only keeps the UI's import list in one place.
  */
-export function canBulkImport(snapshot: Snapshot): boolean {
-  return snapshot.segmentId !== null && !snapshot.truncated && snapshot.missing.length > 0;
+export { canBulkImport } from "../controller";
+
+/** The warning to show above the counts, or null when the data covers the whole view. */
+export function dataWarning(snapshot: Snapshot): string | null {
+  if (snapshot.truncated) return t("warnTruncated");
+  if (snapshot.incomplete) return t("warnIncomplete");
+  return null;
 }

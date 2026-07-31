@@ -128,6 +128,8 @@ e questo progetto aderisce al [Versionamento Semantico](https://semver.org/spec/
 
 ### [Non pubblicato]
 
+### [1.5.0] - 2026-07-31
+
 #### Aggiunto
 
 - **Le schede dello script dicono finalmente di appartenere allo stesso insieme.** La barra Script mescola le schede di tutti gli userscript installati, e nulla indicava che «Nomi delle vie» e «Numeri civici» venissero da questo. Entrambe si aprono ora con lo stesso breve contrassegno, **CH · Nomi delle vie** e **CH · Numeri civici**, accanto alla scheda principale **WME Svizzera Helper**, e le tre si affiancano nella barra quando l'editor lo consente. Se una futura versione di WME riorganizzasse quella barra, restano semplicemente dove capitano, sempre contrassegnate.

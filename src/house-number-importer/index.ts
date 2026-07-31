@@ -15,7 +15,9 @@
  */
 import type { WmeSDK } from "wme-sdk-typings";
 import { type ActivationContext, setImporterEnabled } from "./activation";
+import { rateLimiter } from "../geoadmin/http";
 import { Controller } from "./controller";
+import { fetchGwrPoints } from "./gwr/client";
 import { createGwrTileStore, GwrTileFetcher } from "./gwr/tiles";
 import { resolveLocale, setLocale } from "./i18n";
 import { log } from "./log";
@@ -39,14 +41,28 @@ const SCRIPT_NAME = "WME CH House Number Importer";
 export async function initHouseNumberImporter(): Promise<void> {
   await unsafeWindow.SDK_INITIALIZED;
   if (!unsafeWindow.getWmeSdk) throw new Error("getWmeSdk is not available on the page");
-  const sdk: WmeSDK = unsafeWindow.getWmeSdk({ scriptId: SCRIPT_ID, scriptName: SCRIPT_NAME });
+  const sdk: WmeSDK = unsafeWindow.getWmeSdk({
+    scriptId: SCRIPT_ID,
+    scriptName: SCRIPT_NAME,
+  });
 
   await sdk.Events.once({ eventName: "wme-ready" });
 
   const settings = new SettingsStore();
   setLocale(resolveLocale(settings.get().language, sdk.Settings.getLocale().localeCode));
 
-  const fetcher = new GwrTileFetcher(undefined, undefined, createGwrTileStore());
+  // The "existing buildings only" filter runs at parse time, so the setting has to reach the
+  // parser through the fetcher; without this the toggle changed nothing at all. Read per
+  // tile rather than captured once: switching it clears both cache levels
+  // (controller.reload) and the very next fetch must already use the new value.
+  const fetcher = new GwrTileFetcher(
+    undefined,
+    (bbox, signal) =>
+      fetchGwrPoints(bbox, signal, rateLimiter, {
+        existingBuildingsOnly: settings.get().existingBuildingsOnly,
+      }),
+    createGwrTileStore(),
+  );
   const layer = new AddressPointLayer(sdk, settings);
   const controller = new Controller(sdk, fetcher, settings, layer);
 
@@ -54,11 +70,14 @@ export async function initHouseNumberImporter(): Promise<void> {
 
   // The layer checkbox and the tab's master toggle are two faces of settings.enabled;
   // both go through setImporterEnabled so neither can drift from the persisted value.
+  // Set once the tab exists; the sync only ever fires on a user action, long after init.
+  let tabRef: TabUI | null = null;
   const activation: ActivationContext = {
     settings,
     controller,
     layer,
     syncCheckbox: (checked) => setLayerCheckbox(sdk, checked),
+    syncToggle: (checked) => tabRef?.syncEnabledToggle(checked),
   };
   const enabled = settings.get().enabled;
   layer.setVisible(enabled);
@@ -69,6 +88,7 @@ export async function initHouseNumberImporter(): Promise<void> {
   const tab = new TabUI(sdk, controller, settings, (checked) =>
     setImporterEnabled(activation, checked, "tab"),
   );
+  tabRef = tab;
   await tab.init();
 
   // The bulk-import button also lives in the segment edit panel: WME switches the sidebar
@@ -76,7 +96,7 @@ export async function initHouseNumberImporter(): Promise<void> {
   // the action is wanted.
   new EditPanelBox(sdk, controller, settings).init();
   registerShortcuts(sdk, controller, settings, {
-    toggleLayer: () => setImporterEnabled(activation, !settings.get().enabled, "tab"),
+    toggleLayer: () => setImporterEnabled(activation, !settings.get().enabled, "shortcut"),
   });
 
   controller.start();

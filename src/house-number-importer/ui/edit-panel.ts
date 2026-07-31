@@ -1,6 +1,5 @@
 import type { WmeSDK } from "wme-sdk-typings";
 import type { Controller, Snapshot } from "../controller";
-import { t } from "../i18n";
 import { isImportInFlight } from "../import";
 import { log } from "../log";
 import type { SettingsStore } from "../settings";
@@ -9,6 +8,7 @@ import { getStreetNameVerdict } from "../../street-check-bridge";
 import {
   canBulkImport,
   countByStatus,
+  dataWarning,
   formatCounts,
   formatImportButton,
   formatVerdict,
@@ -52,7 +52,10 @@ export class EditPanelBox {
       this.snapshot = snapshot;
       this.schedule();
     });
-    this.sdk.Events.on({ eventName: "wme-selection-changed", eventHandler: () => this.schedule() });
+    this.sdk.Events.on({
+      eventName: "wme-selection-changed",
+      eventHandler: () => this.schedule(),
+    });
     this.schedule();
   }
 
@@ -108,8 +111,9 @@ export class EditPanelBox {
       if (verdict) children.push(el("div", `hn-verdict ${verdict.className}`, verdict.text));
     }
 
-    if (snapshot.truncated) {
-      children.push(el("div", "hn-warn", t("warnTruncated")));
+    const warning = dataWarning(snapshot);
+    if (warning) {
+      children.push(el("div", "hn-warn", warning));
     } else if (canBulkImport(snapshot)) {
       children.push(
         button(

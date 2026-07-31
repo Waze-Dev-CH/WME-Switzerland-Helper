@@ -12,24 +12,29 @@ export interface ActivationContext {
   layer: Pick<AddressPointLayer, "setVisible">;
   /** Realigns the layer-switcher checkbox. Injected so this stays SDK-free. */
   syncCheckbox: (checked: boolean) => void;
+  /** Realigns the tab's master toggle. Injected so this stays DOM-free. */
+  syncToggle: (checked: boolean) => void;
 }
 
 /**
- * The feature has two on/off controls: the layer-switcher checkbox and the tab's master
- * toggle. They mean the same thing, so both route through here and `settings.enabled` is
- * the single persisted truth.
+ * The feature has three on/off controls: the layer-switcher checkbox, the tab's master
+ * toggle and the keyboard shortcut. They mean the same thing, so all of them route through
+ * here and `settings.enabled` is the single persisted truth.
  *
- * `source` prevents re-entrancy: rewriting the checkbox from inside its own toggle handler
- * is at best redundant, and a loop if the SDK ever echoed the change back as an event.
+ * Every control except the one that fired is realigned. Rewriting a control from inside its
+ * own change handler is at best redundant, and a loop if the SDK ever echoed the change back
+ * as an event; leaving the other one stale makes it show the wrong state, and its next click
+ * then sets the value already in force, which reads as a dead control.
  */
 export function setImporterEnabled(
   ctx: ActivationContext,
   enabled: boolean,
-  source: "checkbox" | "tab",
+  source: "checkbox" | "tab" | "shortcut",
 ): void {
   ctx.settings.update({ enabled });
   ctx.layer.setVisible(enabled);
-  if (source === "tab") ctx.syncCheckbox(enabled);
+  if (source !== "checkbox") ctx.syncCheckbox(enabled);
+  if (source !== "tab") ctx.syncToggle(enabled);
 
   // Switching off empties the layer rather than merely hiding it: a hidden layer still
   // holds its features, and the counters in the tab would keep claiming numbers are

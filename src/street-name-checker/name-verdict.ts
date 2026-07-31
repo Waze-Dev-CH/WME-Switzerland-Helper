@@ -1,8 +1,6 @@
-import type { WmeSDK } from "wme-sdk-typings";
 import type { StreetNameVerdict } from "../street-check-bridge";
 import type { IssueStatus } from "./matching/evaluate";
 import type { ScanSnapshot } from "./scan";
-import type { SettingsStore } from "./settings";
 
 /**
  * Statuses that say nothing about the name.
@@ -20,35 +18,17 @@ const NOT_ABOUT_THE_NAME: ReadonlySet<IssueStatus> = new Set<IssueStatus>([
 ]);
 
 export interface VerdictContext {
-  sdk: WmeSDK;
-  settings: SettingsStore;
   getSnapshot: () => ScanSnapshot;
-}
-
-/**
- * Is this segment one the checker actually has an opinion about?
- *
- * A segment of an unchecked road type, or one with no name, is never evaluated, so the
- * absence of an issue tells us nothing about it.
- */
-function isCheckedAndNamed(sdk: WmeSDK, settings: SettingsStore, segmentId: number): boolean {
-  try {
-    const segment = sdk.DataModel.Segments.getById({ segmentId });
-    if (!segment || !settings.get().checkedRoadTypes.includes(segment.roadType)) return false;
-    const address = sdk.DataModel.Segments.getAddress({ segmentId });
-    return Boolean(address.street?.name?.trim());
-  } catch {
-    return false;
-  }
 }
 
 /**
  * Turn the checker's state into an answer another feature can trust.
  *
- * The issues map holds only the segments WITH a problem, so an absence has to be read
- * carefully: it means "conform" only once a scan has completed, and only for a segment the
- * checker actually looks at. Anything else is "unknown", and saying so is the whole point:
- * a green "the name is fine" badge on a street nobody checked would be worse than no badge.
+ * "Conform" comes from `nameConformIds`, never from the absence of an issue. A segment can
+ * be missing from the issues map because it sat outside the fetched area, because its road
+ * type is not checked, because the status was switched off, or because the finding was
+ * dismissed as a false positive. In every one of those cases nothing was verified, and a
+ * green "the name is fine" badge would vouch for work that never happened.
  */
 export function createStreetNameProvider(ctx: VerdictContext) {
   return (segmentId: number): StreetNameVerdict => {
@@ -57,12 +37,15 @@ export function createStreetNameProvider(ctx: VerdictContext) {
     if (snapshot.state !== "done") return { kind: "unknown" };
 
     const issue = snapshot.issues.get(segmentId);
-    if (!issue) {
-      return isCheckedAndNamed(ctx.sdk, ctx.settings, segmentId)
-        ? { kind: "conform" }
-        : { kind: "unknown" };
+    // A lock or geometry finding leaves the name question to the name pass, which either
+    // cleared this segment (it is in the set) or never looked at it.
+    if (!issue || NOT_ABOUT_THE_NAME.has(issue.status)) {
+      return snapshot.nameConformIds.has(segmentId) ? { kind: "conform" } : { kind: "unknown" };
     }
-    if (NOT_ABOUT_THE_NAME.has(issue.status)) return { kind: "conform" };
-    return { kind: "mismatch", status: issue.status, suggestion: issue.suggestion };
+    return {
+      kind: "mismatch",
+      status: issue.status,
+      suggestion: issue.suggestion,
+    };
   };
 }
