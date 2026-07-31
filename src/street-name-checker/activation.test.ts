@@ -28,6 +28,7 @@ describe("setCheckerEnabled", () => {
       },
       layer: { setVisible: (visible: boolean) => calls.push(`setVisible(${visible})`) },
       syncCheckbox: (checked: boolean) => calls.push(`syncCheckbox(${checked})`),
+      syncToggle: (checked: boolean) => calls.push(`syncToggle(${checked})`),
     };
   });
 
@@ -46,7 +47,7 @@ describe("setCheckerEnabled", () => {
 
   it("hides the layer and empties the list when switched off", () => {
     setCheckerEnabled(ctx, false, "checkbox");
-    expect(calls).toEqual(["setVisible(false)", "disable()"]);
+    expect(calls).toEqual(["setVisible(false)", "syncToggle(false)", "disable()"]);
   });
 
   it("shows the layer and resumes scanning when switched on", () => {
@@ -54,12 +55,19 @@ describe("setCheckerEnabled", () => {
     calls = [];
     setCheckerEnabled(ctx, true, "checkbox");
     expect(settings.get().enabled).toBe(true);
-    expect(calls).toEqual(["setVisible(true)", "setPaused(false)"]);
+    expect(calls).toEqual(["setVisible(true)", "syncToggle(true)", "setPaused(false)"]);
   });
 
   it("realigns the checkbox when the tab is the source", () => {
     setCheckerEnabled(ctx, false, "tab");
     expect(calls).toContain("syncCheckbox(false)");
+    expect(calls.some((c) => c.startsWith("syncToggle"))).toBe(false);
+  });
+
+  it("realigns the tab toggle when the checkbox is the source", () => {
+    // Otherwise the toggle still reads "on" and its next click sets what is already set.
+    setCheckerEnabled(ctx, false, "checkbox");
+    expect(calls).toContain("syncToggle(false)");
   });
 
   it("does not write the checkbox back when the checkbox is the source", () => {

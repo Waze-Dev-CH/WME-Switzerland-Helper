@@ -82,6 +82,8 @@ export class TabUI {
   private panTimer: ReturnType<typeof setTimeout> | null = null;
   /** Checkboxes of the duplicated viewport-only toggle (master row + Settings). */
   private viewportInputs: HTMLInputElement[] = [];
+  /** Checkbox of the master enabled toggle, realigned when the layer checkbox is used. */
+  private enabledInput: HTMLInputElement | null = null;
   /** Last theme re-measure timestamp (belt-and-braces next to the observer). */
   private lastThemeCheck = 0;
 
@@ -278,16 +280,27 @@ export class TabUI {
     this.optionsPane.append(masterToggles, legend, settingsPanel, footer);
   }
 
+  /**
+   * Realign the master toggle after the layer-switcher checkbox changed the state.
+   * Without it the toggle keeps showing the old value and its next click sets what is
+   * already in force, which reads as a dead control.
+   */
+  syncEnabledToggle(checked: boolean): void {
+    if (this.enabledInput) this.enabledInput.checked = checked;
+  }
+
   private buildMasterToggles(): HTMLElement {
     const row = el("div", "chk-master");
     const settings = this.settings.get();
+    const enabledToggle = toggleSwitch(
+      t("toggleEnabled"),
+      settings.enabled,
+      (checked) => this.onEnabledChange(checked),
+      t("toggleEnabledTitle"),
+    );
+    this.enabledInput = enabledToggle.querySelector("input");
     row.append(
-      toggleSwitch(
-        t("toggleEnabled"),
-        settings.enabled,
-        (checked) => this.onEnabledChange(checked),
-        t("toggleEnabledTitle"),
-      ),
+      enabledToggle,
       toggleSwitch(
         t("toggleAutoScan"),
         settings.autoScan,
