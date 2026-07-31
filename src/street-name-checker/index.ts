@@ -4,7 +4,9 @@
  * Licensed under the repository's GNU AGPL v3.0 or later (see /src note in README).
  */
 import type { WmeSDK } from "wme-sdk-typings";
+import { registerStreetNameProvider } from "../street-check-bridge";
 import { type ActivationContext, setCheckerEnabled } from "./activation";
+import { createStreetNameProvider } from "./name-verdict";
 import { IdbTileStore } from "./geoadmin/idb-store";
 import { TileFetcher } from "./geoadmin/tiles";
 import { resolveLocale, setLocale } from "./i18n";
@@ -31,7 +33,10 @@ const SCRIPT_NAME = "WME CH Street Name Checker";
 export async function initStreetNameChecker(): Promise<void> {
   await unsafeWindow.SDK_INITIALIZED;
   if (!unsafeWindow.getWmeSdk) throw new Error("getWmeSdk is not available on the page");
-  const sdk: WmeSDK = unsafeWindow.getWmeSdk({ scriptId: SCRIPT_ID, scriptName: SCRIPT_NAME });
+  const sdk: WmeSDK = unsafeWindow.getWmeSdk({
+    scriptId: SCRIPT_ID,
+    scriptName: SCRIPT_NAME,
+  });
 
   await sdk.Events.once({ eventName: "wme-ready" });
 
@@ -57,7 +62,9 @@ export async function initStreetNameChecker(): Promise<void> {
   };
   const enabled = settings.get().enabled;
   layer.setVisible(enabled);
-  registerLayerCheckbox(sdk, enabled, (checked) => setCheckerEnabled(activation, checked, "checkbox"));
+  registerLayerCheckbox(sdk, enabled, (checked) =>
+    setCheckerEnabled(activation, checked, "checkbox"),
+  );
 
   // Resync the OpenLayers layer only when results actually change; progress
   // ticks during a fetch reuse the same issues map and must stay free.
@@ -94,5 +101,13 @@ export async function initStreetNameChecker(): Promise<void> {
   });
 
   scanner.start();
+
+  // Publish "is this street's name official?" for the other features. A function, not the
+  // Scanner: they get the answer without being able to touch the scan, and the tricky part
+  // (an absent issue only means "conform" once a scan has completed) stays here.
+  registerStreetNameProvider(
+    createStreetNameProvider({ getSnapshot: () => scanner.getSnapshot() }),
+  );
+
   log.info(`ready (SDK ${sdk.getSDKVersion()}, WME ${sdk.getWMEVersion()})`);
 }

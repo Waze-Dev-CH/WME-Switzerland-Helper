@@ -20,6 +20,8 @@ import {
   Paragraph,
   SidebarItem,
 } from "./src/sidebar";
+import { initHouseNumberImporter } from "./src/house-number-importer";
+import { groupScriptTab } from "./src/ui/tab-group";
 import { initStreetNameChecker } from "./src/street-name-checker";
 
 const englishScriptName = "WME Switzerland helper";
@@ -138,7 +140,11 @@ function initScript() {
 
   async function addScriptTab() {
     const { tabLabel, tabPane } = await wmeSDK.Sidebar.registerScriptTab();
+    // The host tab keeps the full script name: it is the one label that already says which
+    // script this is. The two feature tabs carry the `CH ·` marker instead, to tie them
+    // back to it in a bar shared with every other userscript.
     tabLabel.innerText = scriptName;
+    groupScriptTab(tabLabel, tabPane, "layers");
 
     const sidebarTab = new SidebarTab({ scriptName });
 
@@ -232,6 +238,9 @@ function initScript() {
     // Swiss official street-name checker: own scriptId → own sidebar tab + map layer
     // (registerScriptTab throws if the host's scriptId already owns a tab). Waits for wme-ready.
     void initStreetNameChecker();
+
+    // Swiss house-number importer: same arrangement, own scriptId → own tab + map layer.
+    void initHouseNumberImporter();
   }
 
   init();

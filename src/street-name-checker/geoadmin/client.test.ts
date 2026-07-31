@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { RateLimiter } from "../../geoadmin/http";
 import {
   extractLines,
   fetchOfficialStreets,
   findStreetLinesByName,
   parseAttributes,
-  RateLimiter,
 } from "../geoadmin/client";
 
 /** Shape regression test: geometryFormat=geojson responses carry `properties`,

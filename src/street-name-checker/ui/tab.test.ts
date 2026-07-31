@@ -1,7 +1,8 @@
 import type { LineString } from "geojson";
 import { describe, expect, it } from "vitest";
 import type { Issue, IssueStatus } from "../matching/evaluate";
-import { bboxOfIssues, formatNote, groupIssues, isDarkBackground } from "../ui/format";
+import { isDarkBackground } from "../../ui/theme";
+import { bboxOfIssues, formatNote, groupIssues } from "../ui/format";
 import { setLocale } from "../i18n";
 
 const GEOMETRY: LineString = {
@@ -42,6 +43,16 @@ describe("formatNote", () => {
 
   it("returns an empty string for a null note", () => {
     expect(formatNote(null)).toBe("");
+  });
+
+  it("leaves slashes and apostrophes alone (the note is rendered as text)", () => {
+    // i18next escapes interpolated values by default; these notes go to textContent, so
+    // the escaping showed up as "Kapellweg &#x2F; Chemin de la Chapelle" on the map.
+    setLocale("en");
+    expect(formatNote({ fullLabel: "Kapellweg / Chemin de la Chapelle" })).toBe(
+      "full label: Kapellweg / Chemin de la Chapelle",
+    );
+    expect(formatNote({ existsIn: "L'Abbaye" })).toBe("exists in: L'Abbaye");
   });
 });
 

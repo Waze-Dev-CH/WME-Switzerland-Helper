@@ -62,6 +62,9 @@ Mit diesem Skript erhalten Sie:
 - **Einfache Layer-Steuerung**
   Schalten Sie jede Ebene mit einfachen Kontrollkästchen in der WME-Oberfläche ein oder aus.
 
+- **Prüfung der offiziellen Strassennamen**
+  Vergleicht die Namen der sichtbaren Segmente mit dem offiziellen Schweizer Strassenverzeichnis (swisstopo) und hebt Abweichungen hervor, mit Korrektur per Klick. Ein eigener Reiter **CH · Strassennamen** listet die Befunde auf, gruppiert und farblich unterschieden, und das Segment-Bearbeitungsfenster zeigt das Urteil zum ausgewählten Segment.
+
 Alle Kartendaten stammen aus offiziellen Schweizer Quellen (swisstopo), so dass Sie auf ihre Genauigkeit vertrauen können.
 
 ### Funktionsweise der Haltestellen-Ebene des öffentlichen Nahverkehrs
@@ -76,6 +79,17 @@ Die Ebene **Haltestellen des öffentlichen Nahverkehrs** zeigt offizielle Haltes
   - Orange → ein neues Venue erstellen oder mit einem nahen zusammenführen/aktualisieren; die Stadt der Haltestelle wird automatisch aus ihrer Ortschaft gesetzt
   - Rot → das veraltete Venue löschen
 - **Unterstützte Typen**: Busse, Straßenbahnen, Züge, Boote, Seilbahnen und Standseilbahnen in der ganzen Schweiz
+
+### So funktioniert die Strassennamen-Prüfung
+
+Die **Strassennamen-Prüfung** vergleicht den Namen jedes Segments mit dem offiziellen Schweizer Strassenverzeichnis und zeigt, was Ihre Aufmerksamkeit verdient:
+
+- **Farblich unterschiedene Status**: Jeder Befund wird auf der Karte hervorgehoben und mit seiner Farbe aufgelistet, von kleinen Unterschieden in Typografie und Schreibweise über Abkürzungen und wahrscheinliche Tippfehler bis zu ernsteren Fällen: ein gültiger Name auf der **falschen Strasse** (mit ⚠️ gekennzeichnet) oder ein Name, der im Verzeichnis **nicht gefunden** wird. Jeder Status lässt sich ein- und ausschalten.
+- **Korrektur per Klick**: Ist der offizielle Name bekannt, übernimmt ihn eine Schaltfläche **Korrigieren**, für ein einzelnes Segment oder eine ganze Gruppe. **Nichts wird jemals automatisch gespeichert**: Ihre Änderungen landen im gewohnten WME-Änderungsstapel, zum Prüfen und Speichern durch Sie.
+- **Geometrie wird berücksichtigt**: Die offiziellen Strassenachsen werden den Segmenten zugeordnet, so erhält ein Segment ohne Namen einen Vorschlag und ein auf der falschen Strasse platzierter Name wird erkannt.
+- **Zweisprachige Strassen**: In zweisprachigen Gemeinden trägt der offizielle Name beide Sprachen (etwa «Unterer Quai / Quai du Bas»); die Prüfung behält eine Sprache als Hauptnamen und ergänzt die andere als Alternativnamen.
+- **Fehlalarme ausblenden**: Eine Schaltfläche **Ignorieren** blendet einen Befund aus, von dem Sie wissen, dass er keiner ist; er bleibt ausgeblendet (lokal gespeichert) und kann in den Einstellungen zurückgesetzt werden.
+- **Link zum kantonalen Geoportal**: Eine Schaltfläche öffnet das Segment auf der offiziellen Karte des betreffenden Kantons, sofern verfügbar.
 
 ---
 
@@ -101,6 +115,57 @@ Alle bemerkenswerten Änderungen an diesem Projekt sind hier dokumentiert.
 
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+### [Unveröffentlicht]
+
+#### Hinzugefügt
+
+- **Die Reiter des Skripts zeigen endlich, dass sie zusammengehören.** Die Skript-Leiste mischt die Reiter aller installierten Userscripts, und nichts wies darauf hin, dass «Strassennamen» und «Hausnummern» von diesem hier stammen. Beide beginnen nun mit demselben kurzen Kennzeichen, **CH · Strassennamen** und **CH · Hausnummern**, neben dem Hauptreiter **WME Schweiz Helfer**, und die drei rücken in der Leiste nebeneinander, sofern der Editor es zulässt. Ordnet eine künftige WME-Version diese Leiste um, bleiben sie einfach dort, wo sie landen, weiterhin gekennzeichnet.
+- **Importeur für Schweizer Hausnummern.** Ein neuer Reiter 🏠 und eine Kartenebene zeigen die offiziellen Adresspunkte des eidgenössischen Gebäude- und Wohnungsregisters (GWR) direkt auf der Karte. Wählen Sie eine Strasse, und alle dem Register bekannten Adressen erscheinen: grün die noch fehlenden Nummern, blassgrün die bereits erfassten, grau jene, die zu einer anderen Strasse gehören. Klicken Sie auf einen grünen Punkt, und die Hausnummer wird an den Koordinaten des Registers erstellt, verknüpft mit dem von Ihnen gewählten Segment. Fehlt eine ganze Strasse, importiert eine Schaltfläche alle auf einmal, nach einer Bestätigung, die genau aufführt, welche Nummern entstehen; bis zu 50 pro Vorgang, damit ein Versehen klein bleibt. Nichts wird für Sie gespeichert: Jede Nummer geht in Ihre offenen Änderungen, und <kbd>Strg</kbd>+<kbd>Z</kbd> macht sie rückgängig. Der Importeur kennt auch die Nummern auf den Nachbarsegmenten derselben Strasse und schlägt deshalb keine vor, die WME schlicht auf dem Stück nebenan führt; er liest beide Namen zweisprachiger Gemeinden, so dass ein Zentralstrasse-Segment zu einer Adresse an der Rue Centrale passt; und er lässt Adressen von Gebäuden aus, die erst geplant oder noch im Bau sind. <kbd>Alt</kbd>+<kbd>H</kbd> startet den Massenimport, ohne die Karte zu verlassen (in den WME-Tastatureinstellungen neu belegbar).
+
+  Die Idee stammt nicht von uns: Sie kommt von [WME Quick HN Importer CH](https://greasyfork.org/en/scripts/551495-wme-quick-hn-importer-ch) von **Ari (Reloaded)** und **Gerhard**, das seinerseits auf dem ursprünglichen Konzept von **Tom 'Glodenox' Puttemans** für Belgien beruht. Ihnen gebührt das Verdienst, gezeigt zu haben, dass die Adresspunkte des Registers auf die Karte gehören. Hier handelt es sich um eine neue Umsetzung auf dem WME-SDK und nicht um eine Portierung ihres Codes.
+- **Schutzvorkehrungen bei Massenkorrekturen.** «Alle korrigieren» kann bis zu 50 Segmente mit einem Klick umbenennen und steht nun ab Editor-Stufe 3 zur Verfügung; darunter erscheint die Schaltfläche nicht, und Segmente werden einzeln korrigiert. Der Befund **falsche Strasse** wird überall sorgfältiger behandelt: Er ist die einzige Prüfung, die rein über die Geometrie entschieden wird, weshalb ein Irrtum einen einwandfreien Namen ersetzt. Sie verlangt jetzt jedes Mal eine Bestätigung, auch für ein einzelnes Segment, sie zeigt, wie belastbar die Zuordnung wirklich ist (welchen Anteil des Segments die andere Strasse abdeckt und um welche Abstände es geht), und sie startet unterhalb von Stufe 3 ausgeschaltet, wo sie sich wie jede andere Kategorie in den Einstellungen aktivieren lässt. Bestätigungen nennen nun die künftigen Namen und nicht bloss die Anzahl betroffener Segmente.
+- **Abtrennbares Fenster** für die Strassennamen-Prüfung: WME wechselt die Seitenleiste zum Auswahlfenster, sobald Sie ein Segment anklicken, was die Befundliste genau dann verbarg, wenn Sie sie abarbeiteten. Das Fenster lässt sich nun in ein frei schwebendes Fenster lösen, das sichtbar bleibt und das Sie verschieben und in der Grösse ändern können. Position und Grösse werden über Sitzungen hinweg gemerkt, und das Fenster wird zurück auf den Bildschirm geholt, falls Ihr Browserfenster zwischenzeitlich kleiner wurde. Im gelösten Zustand trägt das Fenster die Arbeitsfläche (Werkzeugleiste, Status und Befundliste), während der Reiter die Optionen behält, so bleiben die Einstellungen dort, wo Sie sie erwarten. Docken Sie es über die Schaltfläche des Fensters oder über den Reiter wieder an, oder schalten Sie mit <kbd>Alt</kbd>+<kbd>W</kbd> um (in den WME-Tastatureinstellungen neu belegbar). Der Reiter bleibt die Voreinstellung: Es ändert sich nichts, bis Sie es verlangen.
+- Schaltfläche **Diesen Bereich prüfen**: Ausschnitte, die für die automatische Prüfung zu gross sind (über 6 km²), lassen sich nun auf Wunsch prüfen, bis 50 km². Der Durchlauf holt das offizielle Verzeichnis stapelweise, gibt Teilergebnisse laufend in die Liste, zeigt den Kachelfortschritt im Statusbanner und kann jederzeit abgebrochen werden (Teilergebnisse bleiben erhalten). Das Verschieben der Karte unterbricht einen laufenden Durchlauf nicht.
+- Hinweise zur Datenqualität unter dem Statusbanner: dichte Gebiete, die von der Register-API abgeschnitten wurden (mögliche Ursache für falsche «nicht gefunden»), Gebiete, die nicht geladen werden konnten, und ein erschöpftes Budget für die landesweite Suche werden nun gemeldet statt still protokolliert.
+
+#### Behoben
+
+- Eine einzelne fehlgeschlagene Registerabfrage bricht nicht mehr die ganze Prüfung ab: Das betroffene Gebiet wird übersprungen (seine Segmente bleiben ungeprüft, statt falsch gemeldet zu werden) und bei der nächsten Prüfung erneut versucht.
+- `npm run makemessages` schreibt keine leeren Schlüssel aus dem Namensraum der Prüfung mehr in jeden Sprachkatalog.
+
+#### Geändert
+
+- Bedienbarkeit per Tastatur und Screenreader: Gruppenköpfe und Befundzeilen sind echte Schaltflächen (Enter und Leertaste funktionieren), reine Symbolschaltflächen tragen eine Beschriftung, Filterchips zeigen ihren gedrückten Zustand, und jedes Bedienelement erhält einen sichtbaren Fokusrahmen.
+- Gruppenabzeichen zeigen den Statuscode neben dem Farbpunkt: Ein Status wird nicht mehr allein über die Farbe vermittelt.
+- Grössere Klickflächen bei den Zeilensymbolen; die beiden Links zu externen Betrachtern (map.geo.admin.ch und kantonale Karte) sind in einem Kasten zusammengefasst.
+- Das Aufklappen einer Gruppe verschiebt die Karte nicht mehr; eine eigene Schaltfläche ⌖ im Gruppenkopf zoomt auf alle ihre Segmente.
+- Die Option «Nur auf der Karte sichtbare Segmente anzeigen» steht nun auch neben den Hauptschaltern zur Verfügung (sie bleibt zusätzlich in den Einstellungen).
+- Die Befundliste passt ihre Höhe an das Fenster an, statt bei festen 48 % zu deckeln, so bleiben Legende und Einstellungen in Reichweite.
+- Die Farben für Warnung, Korrigieren und Ignorieren folgen nun dem dunklen Thema des Editors, und ein Wechsel des WME-Erscheinungsbilds wird zur Laufzeit übernommen, ohne neu zu laden.
+
+### [1.4.0] - 2026-06-16
+
+#### Hinzugefügt
+
+- 🛣️ Prüfung der offiziellen Strassennamen: vergleicht die Namen der Waze-Segmente mit dem Schweizer Strassenverzeichnis (swisstopo / `api3.geo.admin.ch`), mit einem eigenen Reiter **CH · Strassennamen** und einem Urteilskasten im Bearbeitungsfenster. Enthält farblich unterschiedene Status (Typografie, Abkürzung oder Variante, wahrscheinlicher Tippfehler, falsche Strasse ⚠️, falscher Ort, nicht gefunden, ohne Namen, zweisprachig, Prüfungen der Schweizer Regeln und der Sperrstufen), geometrische Zuordnung, Korrektur per Klick (nie automatisch gespeichert), Umgang mit zweisprachigen Alternativnamen, eine Ignorieren-Aktion für Fehlalarme und einen Link zum kantonalen Geoportal. Übernommen aus dem eigenständigen Userscript `WME-CH-Street-Name-Checker`: dessen ausführliche Geschichte von 1.0 bis 1.18 bleibt in [`docs/street-name-checker-changelog.md`](./docs/street-name-checker-changelog.md) erhalten.
+- Schaltfläche **Alle ignorieren** je Gruppe, um eine ganze Gruppe von Fehlalarmen auf einmal auszublenden (mit Bestätigung bei grossen Gruppen)
+- Prüfung der Kreisel-Sperrstufe: Kreisel werden nun mindestens auf **L3** gesperrt erwartet
+
+#### Behoben
+
+- Das Einstellen der Sprache der Prüfung ändert nicht mehr die Sprache des übrigen Skripts (etwa der Dialoge zum öffentlichen Verkehr)
+- Weniger falsche Meldungen **falsche Strasse**: Ein Name, der zu einem Registereintrag ohne erfasste Achse passt (etwa ein benanntes Gebiet), wird nicht mehr gemeldet, und ein Name, der nur ein Teil der offiziellen Bezeichnung ist (etwa «Bach» in «Bachweg»), wird nun richtig behandelt
+- Häufige Namen («Route de Berne») melden nicht mehr fälschlich **nicht gefunden**, wenn die passende Achse zu einer Nachbargemeinde gehört: Die Registerabfrage blättert jetzt durch alle Ergebnisseiten
+- Fortsetzungen bleiben nicht mehr als falsches **nicht gefunden** hängen, nachdem die Prüfung angehalten und danach bearbeitet wurde
+- Ausgeblendete Fehlalarme (Ignorieren) bleiben über Änderungen am Einstellungsformat hinweg erhalten, statt still zurückgesetzt zu werden
+- Für ein Segment ohne Geometrie wird kein Link zur kantonalen Karte mehr angezeigt (er zeigte zuvor ausserhalb der Schweiz)
+
+#### Geändert
+
+- Schnellere Neuprüfung während des Bearbeitens: Namensabfragen und Adressen werden zwischengespeichert, nur geänderte Hervorhebungen werden neu gezeichnet, und das Verschieben der Karte wird verzögert ausgewertet
+- Gestaltung der Schaltflächen: Korrigieren-Schaltflächen sind grün, Ignorieren-Schaltflächen neutral grau, um Fehlklicks zu vermeiden; lange Namen in Gruppenköpfen brechen um, statt Zeichen für Zeichen getrennt zu werden
+- Der Link zur kantonalen Karte der Waadt öffnet nun den neuen Betrachter `geoportail.vd.ch` mit dem Hybrid-Hintergrund und dem Mobilitätsthema (Kreise, kantonale Strassenhierarchie, Bahnlinien, Ortsdurchfahrten); kantonale Links öffnen jetzt mit einem näheren Zoom von 1:2000
 
 ### [1.3.0] - 2026-06-11
 

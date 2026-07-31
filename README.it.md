@@ -62,6 +62,9 @@ Con questo script, otterrete:
 - **Controlli facili per i livelli**
   Attivate o disattivate ogni livello con semplici caselle di controllo nell'interfaccia di WME.
 
+- **Controllo dei nomi delle vie ufficiali**
+  Confronta i nomi dei segmenti visibili con il registro ufficiale svizzero delle vie (swisstopo) ed evidenzia le differenze, con correzione in un clic. Una scheda dedicata **CH · Nomi delle vie** elenca le anomalie, raggruppate e distinte per colore, e il pannello di modifica del segmento mostra il verdetto per il segmento selezionato.
+
 Tutti i dati cartografici provengono da fonti ufficiali svizzere (swisstopo), quindi potete fidarvi della loro accuratezza.
 
 ### Come funziona il livello delle fermate dei trasporti pubblici
@@ -76,6 +79,17 @@ Il livello **Fermate dei trasporti pubblici** mostra le fermate ufficiali del tr
   - Arancione → creare una nuova location, oppure unire con / aggiornare una vicina; la città della fermata viene impostata automaticamente dalla sua località
   - Rosso → eliminare la location obsoleta
 - **Tipi supportati**: autobus, tram, treni, barche, cabinovie e funicolari in tutta la Svizzera
+
+### Come funziona il controllo dei nomi delle vie
+
+Il **controllo dei nomi delle vie** confronta il nome di ogni segmento con il registro ufficiale svizzero delle vie e mostra ciò che merita attenzione:
+
+- **Stati distinti per colore**: ogni anomalia è evidenziata sulla mappa ed elencata con il proprio colore, dalle semplici differenze di tipografia e ortografia ai casi più seri, passando per le abbreviazioni e i probabili errori di battitura: un nome valido posto sulla **via sbagliata** (segnalato con ⚠️) o un nome **non trovato** nel registro. Ogni stato può essere attivato o disattivato.
+- **Correzione in un clic**: quando il nome ufficiale è noto, un pulsante **Correggi** lo applica, per un singolo segmento o per un gruppo intero. **Nulla viene mai salvato automaticamente**: le vostre modifiche finiscono nella normale pila di modifiche di WME, che sta a voi rivedere e salvare.
+- **Attento alla geometria**: gli assi ufficiali delle vie vengono associati ai segmenti, così un segmento senza nome riceve un suggerimento e un nome posto sulla via sbagliata viene rilevato.
+- **Vie bilingui**: nei comuni bilingui il nome ufficiale porta entrambe le lingue (per esempio «Unterer Quai / Quai du Bas»); il controllo mantiene una lingua come nome principale e aggiunge l'altra come nome alternativo.
+- **Ignorare i falsi positivi**: un pulsante **Ignora** nasconde un'anomalia che sapete non esserlo; resta nascosta (l'informazione è conservata localmente) e può essere reimpostata dalle impostazioni.
+- **Collegamento al geoportale cantonale**: un pulsante apre il segmento sulla carta ufficiale del cantone interessato, quando disponibile.
 
 ---
 
@@ -101,6 +115,57 @@ Tutti i cambiamenti notevoli di questo progetto sono documentati qui.
 
 Il formato è basato su [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 e questo progetto aderisce al [Versionamento Semantico](https://semver.org/spec/v2.0.0.html).
+
+### [Non pubblicato]
+
+#### Aggiunto
+
+- **Le schede dello script dicono finalmente di appartenere allo stesso insieme.** La barra Script mescola le schede di tutti gli userscript installati, e nulla indicava che «Nomi delle vie» e «Numeri civici» venissero da questo. Entrambe si aprono ora con lo stesso breve contrassegno, **CH · Nomi delle vie** e **CH · Numeri civici**, accanto alla scheda principale **WME Svizzera Helper**, e le tre si affiancano nella barra quando l'editor lo consente. Se una futura versione di WME riorganizzasse quella barra, restano semplicemente dove capitano, sempre contrassegnate.
+- **Importatore di numeri civici svizzeri.** Una nuova scheda 🏠 e un livello cartografico mostrano direttamente sulla mappa i punti indirizzo ufficiali del registro federale degli edifici e delle abitazioni (RegBL/GWR). Selezionate una via e compaiono tutti gli indirizzi noti al registro: in verde i numeri ancora mancanti, in verde chiaro quelli già mappati, in grigio quelli appartenenti a un'altra via. Cliccate su un punto verde e il numero civico viene creato alle coordinate stesse del registro, collegato al segmento che avete selezionato. Quando manca un'intera via, un pulsante li importa tutti insieme, dopo una conferma che elenca esattamente quali numeri saranno creati; fino a 50 per operazione, così una svista resta contenuta. Nulla viene salvato al posto vostro: ogni numero entra nelle vostre modifiche in corso e <kbd>Ctrl</kbd>+<kbd>Z</kbd> lo annulla. L'importatore conosce anche i numeri già presenti sui segmenti vicini della stessa via, quindi non propone di ricreare quello che WME tiene semplicemente sul tratto accanto; legge entrambi i nomi dei comuni bilingui, così un segmento Zentralstrasse corrisponde a un indirizzo in Rue Centrale; e tralascia gli indirizzi degli edifici solo progettati o ancora in costruzione. <kbd>Alt</kbd>+<kbd>H</kbd> avvia l'importazione in blocco senza lasciare la mappa (rimappabile nelle impostazioni della tastiera di WME).
+
+  L'idea non è nostra: viene da [WME Quick HN Importer CH](https://greasyfork.org/en/scripts/551495-wme-quick-hn-importer-ch) di **Ari (Reloaded)** e **Gerhard**, a sua volta basato sul concetto originale di **Tom 'Glodenox' Puttemans** per il Belgio. Il merito di aver mostrato che i punti indirizzo del registro hanno il loro posto sulla mappa è loro. Questa è una nuova implementazione scritta sull'SDK di WME, non un port del loro codice.
+- **Protezioni sulle correzioni in blocco.** «Correggi tutto» può rinominare fino a 50 segmenti con un clic ed è ora disponibile dal livello 3 dell'editor in su; sotto quel livello il pulsante non compare e i segmenti si correggono uno alla volta. L'anomalia **via sbagliata** riceve ovunque più attenzione: è l'unico controllo deciso puramente dalla geometria, per cui un errore sostituisce un nome del tutto corretto. Ora chiede conferma ogni volta, anche per un solo segmento, mostra quanto sia solida davvero la corrispondenza (quale porzione del segmento l'altra via copre e le distanze in gioco) e parte disattivata sotto il livello 3, dove può essere attivata dalle impostazioni come qualsiasi altra categoria. Le conferme dicono ora quali saranno i nomi, non solo quanti segmenti sono interessati.
+- **Pannello staccabile** per il controllo dei nomi delle vie: WME passa la barra laterale al pannello di selezione appena cliccate un segmento, il che nascondeva l'elenco delle anomalie proprio mentre lo stavate esaminando. Il pannello può ora essere staccato in una finestra mobile che resta visibile e che potete spostare e ridimensionare. Posizione e dimensioni vengono ricordate tra una sessione e l'altra, e la finestra viene riportata sullo schermo se nel frattempo la finestra del browser si è rimpicciolita. Da staccata, la finestra porta la superficie di lavoro (barra degli strumenti, stato ed elenco delle anomalie) mentre la scheda conserva le opzioni, così le impostazioni restano dove ve le aspettate. Riagganciatela dal pulsante della finestra o dalla scheda, oppure commutate con <kbd>Alt</kbd>+<kbd>W</kbd> (rimappabile nelle impostazioni della tastiera di WME). La scheda resta l'impostazione predefinita: nulla cambia finché non lo chiedete.
+- Pulsante **Analizza quest'area**: le viste troppo ampie per l'analisi automatica (oltre 6 km²) possono ora essere analizzate su richiesta, fino a 50 km². La scansione recupera il registro ufficiale a lotti, riversa i risultati parziali nell'elenco man mano, mostra l'avanzamento per tasselli nel banner di stato e può essere interrotta in qualsiasi momento (i risultati parziali vengono conservati). Spostare la mappa non interrompe una scansione in corso.
+- Avvisi sulla qualità dei dati sotto il banner di stato: le aree dense troncate dall'API del registro (possibile causa di falsi «non trovato»), le aree che non hanno potuto essere caricate e un budget di ricerca nazionale esaurito vengono ora segnalati invece di essere registrati in silenzio.
+
+#### Corretto
+
+- Una singola richiesta al registro fallita non interrompe più l'intera analisi: l'area interessata viene saltata (i suoi segmenti restano non controllati anziché segnalati a torto) e ritentata alla scansione successiva.
+- `npm run makemessages` non riversa più chiavi vuote, provenienti dallo spazio dei nomi del controllo, in ogni catalogo di traduzione.
+
+#### Modificato
+
+- Accessibilità da tastiera e con screen reader: le intestazioni di gruppo e le righe delle anomalie sono veri pulsanti (Invio e Spazio funzionano), i comandi con la sola icona hanno un'etichetta, i filtri espongono il proprio stato premuto e ogni comando mostra un contorno di focus visibile.
+- I distintivi di gruppo mostrano ora il codice di stato accanto al punto colorato: uno stato non è più trasmesso dal solo colore.
+- Aree di clic più ampie sulle icone di riga; i due collegamenti a visualizzatori esterni (map.geo.admin.ch e carta cantonale) sono raggruppati in un unico riquadro.
+- Espandere un gruppo non sposta più la mappa; un pulsante ⌖ dedicato nell'intestazione del gruppo inquadra tutti i suoi segmenti.
+- L'opzione «Mostra solo i segmenti visibili sulla mappa» è ora disponibile anche accanto agli interruttori principali (resta comunque nelle impostazioni).
+- L'elenco delle anomalie adatta la propria altezza alla finestra invece di un limite fisso del 48 %, mantenendo legenda e impostazioni a portata.
+- I colori di avviso, correzione e ignora seguono ora il tema scuro dell'editor, e un cambio di aspetto di WME viene recepito durante l'uso senza ricaricare.
+
+### [1.4.0] - 2026-06-16
+
+#### Aggiunto
+
+- 🛣️ Controllo dei nomi delle vie ufficiali: confronta i nomi dei segmenti Waze con il registro svizzero delle vie (swisstopo / `api3.geo.admin.ch`), con una scheda dedicata **CH · Nomi delle vie** e un riquadro di verdetto nel pannello di modifica. Comprende stati distinti per colore (tipografia, abbreviazione o variante, probabile errore di battitura, via sbagliata ⚠️, località sbagliata, non trovato, senza nome, bilingue, controlli delle regole svizzere e dei blocchi), corrispondenza geometrica, correzione in un clic (mai salvata automaticamente), gestione dei nomi alternativi bilingui, un'azione Ignora per i falsi positivi e un collegamento al geoportale cantonale. Integrato dallo userscript autonomo `WME-CH-Street-Name-Checker`: la sua storia dettagliata dalla 1.0 alla 1.18 è conservata in [`docs/street-name-checker-changelog.md`](./docs/street-name-checker-changelog.md).
+- Pulsante **Ignora tutto** per gruppo, per scartare in una volta un intero gruppo di falsi positivi (con una conferma per i gruppi numerosi)
+- Controllo del blocco delle rotatorie: le rotatorie sono ora attese bloccate almeno a **L3**
+
+#### Corretto
+
+- Impostare la lingua del controllo non cambia più la lingua del resto dello script (per esempio le finestre di dialogo dei trasporti pubblici)
+- Meno false segnalazioni **via sbagliata**: un nome che corrisponde a una voce del registro priva di asse mappato (per esempio una località denominata) non viene più segnalato, e un nome che è solo una parte della dicitura ufficiale (per esempio «Bach» dentro «Bachweg») è ora trattato correttamente
+- I nomi frequenti («Route de Berne») non segnalano più erroneamente **non trovato** quando l'asse corrispondente appartiene a un comune vicino: la ricerca nel registro scorre ora tutte le pagine dei risultati
+- Le continuazioni non restano più bloccate come falso **non trovato** dopo aver messo in pausa l'analisi e poi modificato
+- I falsi positivi scartati (Ignora) vengono conservati attraverso i cambiamenti di formato delle impostazioni invece di essere reimpostati in silenzio
+- Per un segmento senza geometria non viene più mostrato alcun collegamento alla carta cantonale (in precedenza puntava fuori dalla Svizzera)
+
+#### Modificato
+
+- Ricontrollo più rapido durante la modifica: le ricerche dei nomi e gli indirizzi vengono memorizzati, solo le evidenziazioni cambiate vengono ridisegnate e lo spostamento della mappa è temporizzato
+- Stile dei pulsanti: i pulsanti Correggi sono verdi e quelli Ignora di un grigio neutro, per evitare clic sbagliati; i nomi lunghi nelle intestazioni di gruppo vanno a capo invece di essere spezzati carattere per carattere
+- Il collegamento alla carta cantonale vodese apre ora il nuovo visualizzatore `geoportail.vd.ch` con lo sfondo ibrido e il tema mobilità (circondari, gerarchia della rete stradale cantonale, linee ferroviarie, attraversamenti di località); i collegamenti cantonali si aprono ora a uno zoom più ravvicinato di 1:2000
 
 ### [1.3.0] - 2026-06-11
 

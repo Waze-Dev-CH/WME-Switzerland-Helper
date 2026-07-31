@@ -23,6 +23,11 @@ void i18n.init({
     it: { common: itCommon },
     de: { common: deCommon },
   },
+  // Every string built here lands in textContent, never in innerHTML. i18next's default
+  // escaping would then be shown rather than applied: a bilingual street reads
+  // "Kapellweg &#x2F; Chemin de la Chapelle", an apostrophe reads "&#39;". The host
+  // instance (locales/i18n.ts) keeps escaping on, its output does go through innerHTML.
+  interpolation: { escapeValue: false },
 });
 
 export type LocaleCode = "en" | "fr" | "de" | "it";

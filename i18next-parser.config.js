@@ -6,6 +6,9 @@ const parserConfig = {
     // under streetCheck.* and are maintained by hand; extracting its bare t()
     // calls would dump empty root-level keys into every catalog.
     "!src/street-name-checker/**/*.{js,ts,jsx,tsx}",
+    // Same arrangement for the house-number importer: its keys live under hnImport.*
+    // and reach t() as bare names.
+    "!src/house-number-importer/**/*.{js,ts,jsx,tsx}",
   ],
   output: "locales/$LOCALE/common.json",
   locales: ["en", "fr", "de", "it"],

@@ -42,18 +42,7 @@ export const STATE_KEYS: Record<ScanSnapshot["state"], StringKey> = {
   error: "stateError",
 };
 
-/** Perceived-luminance verdict for a CSS color; null when transparent or unparseable. */
-export function isDarkBackground(cssColor: string): boolean | null {
-  const match = cssColor.match(/rgba?\(([^)]+)\)/);
-  if (!match || !match[1]) return null;
-  const parts = match[1].split(",").map((p) => parseFloat(p));
-  const r = parts[0] ?? 0;
-  const g = parts[1] ?? 0;
-  const b = parts[2] ?? 0;
-  const a = parts[3] ?? 1;
-  if (a <= 0) return null;
-  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5;
-}
+// isDarkBackground moved to src/ui/theme.ts, shared with the other feature panels.
 
 /** Leading emoji for a status, or "" when none. WRONG_STREET is flagged: a different
  *  official street runs under a validly-named segment, easy to miss in the list. */

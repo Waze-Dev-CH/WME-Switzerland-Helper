@@ -1,3 +1,5 @@
+import { injectStyleOnce } from "../../ui/inject";
+import { tokenRules } from "../../ui/tokens";
 import { STATUS_STYLES } from "../map-layer";
 import type { IssueStatus } from "../matching/evaluate";
 
@@ -8,49 +10,10 @@ const statusChipRules = (Object.keys(STATUS_STYLES) as IssueStatus[])
   )
   .join("\n");
 
-// Design tokens drive both the sidebar pane and the edit-panel helper box. Each
-// token reads a WME design-system variable when present (so it follows the
-// editor's light/dark theme) and otherwise uses a light fallback. When WME
-// exposes no token, the `html.chk-theme-dark` block swaps those fallbacks for
-// dark — that class is toggled at runtime by measuring the WME sidebar's actual
-// background luminance (NOT the OS prefers-color-scheme, which can disagree with
-// WME's own theme). The exact --wz-color-* names are best-effort: a wrong name
-// simply falls back, it never breaks the layout.
-const tokens = `
-.chk-pane, .chk-helper, .chk-window {
-  --chk-bg: var(--wz-color-background, #ffffff);
-  --chk-surface: var(--wz-color-background-variant, #f4f6f8);
-  --chk-text: var(--wz-color-on-background, #1b1d20);
-  --chk-muted: var(--wz-color-on-background-variant, #6b7280);
-  --chk-border: var(--wz-color-hairline, #d9dde2);
-  --chk-primary: var(--wz-color-primary, #2b5fa4);
-  --chk-primary-contrast: var(--wz-color-on-primary, #ffffff);
-  --chk-info-bg: rgba(43, 95, 164, .10);
-  --chk-ok: #3f8a32;
-  --chk-ok-bg: rgba(63, 138, 50, .16);
-  --chk-error: #c0392b;
-  --chk-warn: #b35c00;
-  --chk-warn-bg: rgba(179, 92, 0, .12);
-  --chk-fix: #2e8b57;
-  --chk-ignore: #6b7280;
-  --chk-radius: 8px;
-}
-html.chk-theme-dark .chk-pane, html.chk-theme-dark .chk-helper, html.chk-theme-dark .chk-window {
-  --chk-bg: var(--wz-color-background, #1f2226);
-  --chk-surface: var(--wz-color-background-variant, #2a2e33);
-  --chk-text: var(--wz-color-on-background, #e6e8eb);
-  --chk-muted: var(--wz-color-on-background-variant, #9aa1aa);
-  --chk-border: var(--wz-color-hairline, #3a3f45);
-  --chk-primary: var(--wz-color-primary, #5b9bd5);
-  --chk-info-bg: rgba(91, 155, 213, .16);
-  --chk-ok: #6cc05a;
-  --chk-ok-bg: rgba(108, 192, 90, .18);
-  --chk-error: #e57368;
-  --chk-warn: #e0a35c;
-  --chk-warn-bg: rgba(224, 163, 92, .16);
-  --chk-fix: #37a56a;
-  --chk-ignore: #7b8494;
-}`;
+// Design tokens drive the sidebar pane, the edit-panel helper box and the floating window.
+// Their VALUES now live in src/ui/tokens.ts, shared with the other features so a colour is
+// defined once; the names stay `--chk-*` and every selector below is untouched.
+const tokens = tokenRules("chk", [".chk-pane", ".chk-helper", ".chk-window"]);
 
 export const CSS = `
 ${tokens}
@@ -250,12 +213,6 @@ a.chk-geolink { text-decoration: none; color: var(--chk-primary); flex-shrink: 0
 .chk-helper button { cursor: pointer; }
 `;
 
-let injected = false;
-
 export function injectStyles(): void {
-  if (injected) return;
-  const style = document.createElement("style");
-  style.textContent = CSS;
-  document.head.appendChild(style);
-  injected = true;
+  injectStyleOnce("street-name-checker", CSS);
 }
