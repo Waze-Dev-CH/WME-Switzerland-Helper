@@ -11,6 +11,7 @@ import { getStreetNameVerdict } from "../../street-check-bridge";
 import {
   canBulkImport,
   countByStatus,
+  dataWarning,
   formatImportButton,
   formatState,
   formatVerdict,
@@ -36,6 +37,8 @@ const COUNTED: PointStatus[] = ["MISSING", "PRESENT", "OTHER_STREET"];
 export class TabUI {
   private tabPane: HTMLElement | null = null;
   private tabLabel: HTMLElement | null = null;
+  /** Checkbox of the master toggle, realigned when the layer checkbox changes the state. */
+  private enabledInput: HTMLInputElement | null = null;
 
   private banner = el("div", "hn-banner");
   private bannerText = el("span", "hn-banner-text");
@@ -69,6 +72,15 @@ export class TabUI {
     this.render(this.controller.getSnapshot());
   }
 
+  /**
+   * Realign the master toggle after the layer checkbox or the shortcut changed the state.
+   * Without it the toggle keeps showing the old value, and its next click sets what is
+   * already in force, which reads as a dead control.
+   */
+  syncEnabledToggle(checked: boolean): void {
+    if (this.enabledInput) this.enabledInput.checked = checked;
+  }
+
   /** Rebuilt only when the language changes, which relabels everything at once. */
   private buildSkeleton(): void {
     if (!this.tabPane) return;
@@ -80,9 +92,11 @@ export class TabUI {
 
     this.banner.replaceChildren(this.bannerText);
     const master = el("div", "hn-master");
-    master.appendChild(
-      toggleSwitch(t("enable"), settings.enabled, (checked) => this.onEnabledChange(checked)),
+    const enabledToggle = toggleSwitch(t("enable"), settings.enabled, (checked) =>
+      this.onEnabledChange(checked),
     );
+    this.enabledInput = enabledToggle.querySelector("input");
+    master.appendChild(enabledToggle);
 
     pane.append(
       brand,
@@ -103,15 +117,23 @@ export class TabUI {
     if (!this.tabPane) return;
     const enabled = this.settings.get().enabled;
 
+    const warning = dataWarning(snapshot);
+
     this.bannerText.textContent = formatState(snapshot);
     this.banner.className = "hn-banner";
     if (snapshot.state === "error") this.banner.classList.add("hn-banner-error");
-    else if (enabled && snapshot.segmentId !== null && snapshot.missing.length === 0) {
+    else if (
+      enabled &&
+      snapshot.segmentId !== null &&
+      snapshot.missing.length === 0 &&
+      // "Nothing missing" over data that does not cover the view is a claim we cannot make.
+      warning === null
+    ) {
       this.banner.classList.add("hn-banner-ok");
     }
 
-    this.warning.textContent = snapshot.truncated ? t("warnTruncated") : "";
-    this.warning.hidden = !snapshot.truncated || !enabled;
+    this.warning.textContent = warning ?? "";
+    this.warning.hidden = warning === null || !enabled;
 
     this.renderSelection(snapshot, enabled);
     this.renderAction(snapshot, enabled);
@@ -151,8 +173,10 @@ export class TabUI {
     const verdict = formatVerdict(getStreetNameVerdict(snapshot.segmentId));
     if (verdict) {
       const line = el("div", `hn-verdict ${verdict.className}`);
-      line.append(el("span", "", verdict.className === "hn-verdict-ok" ? "✓" : "⚠️"),
-        el("span", "", verdict.text));
+      line.append(
+        el("span", "", verdict.className === "hn-verdict-ok" ? "✓" : "⚠️"),
+        el("span", "", verdict.text),
+      );
       children.push(line);
     }
 
@@ -241,8 +265,10 @@ export class TabUI {
           void this.controller.reload();
         },
       ),
-      toggleSwitch(t("settingsConfirmSingle"), settings.confirmSingleImport, (confirmSingleImport) =>
-        this.settings.update({ confirmSingleImport }),
+      toggleSwitch(
+        t("settingsConfirmSingle"),
+        settings.confirmSingleImport,
+        (confirmSingleImport) => this.settings.update({ confirmSingleImport }),
       ),
       languageRow,
     ]);
