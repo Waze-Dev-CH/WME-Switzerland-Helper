@@ -199,6 +199,7 @@
     "errUnknown": "Unexpected error.",
     "errNoSelection": "No street segment selected.",
     "warnTruncated": "Too many addresses here to list them all; bulk import is off. Individual clicks still work.",
+    "warnIncomplete": "Part of this view could not be loaded; bulk import is off. Individual clicks still work.",
     "legendMissing": "To import",
     "legendPresent": "Already there",
     "legendOtherStreet": "Other street",

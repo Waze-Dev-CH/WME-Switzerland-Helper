@@ -199,6 +199,7 @@
     "errUnknown": "Errore imprevisto.",
     "errNoSelection": "Nessun segmento stradale selezionato.",
     "warnTruncated": "Troppi indirizzi qui per elencarli tutti; l'importazione in blocco è disattivata. I clic singoli funzionano ancora.",
+    "warnIncomplete": "Una parte di questa vista non ha potuto essere caricata; l'importazione in blocco è disattivata. I clic singoli funzionano ancora.",
     "legendMissing": "Da importare",
     "legendPresent": "Già presente",
     "legendOtherStreet": "Altra via",

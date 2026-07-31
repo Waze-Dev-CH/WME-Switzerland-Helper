@@ -199,6 +199,7 @@
     "errUnknown": "Erreur inattendue.",
     "errNoSelection": "Aucun segment de rue sélectionné.",
     "warnTruncated": "Trop d'adresses ici pour toutes les lister ; l'import en masse est désactivé. Les clics individuels fonctionnent toujours.",
+    "warnIncomplete": "Une partie de cette vue n'a pas pu être chargée ; l'import en masse est désactivé. Les clics individuels fonctionnent toujours.",
     "legendMissing": "À importer",
     "legendPresent": "Déjà posé",
     "legendOtherStreet": "Autre rue",

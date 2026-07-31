@@ -199,6 +199,7 @@
     "errUnknown": "Unerwarteter Fehler.",
     "errNoSelection": "Kein Strassensegment ausgewählt.",
     "warnTruncated": "Zu viele Adressen hier, um sie alle aufzulisten; der Massenimport ist deaktiviert. Einzelne Klicks funktionieren weiterhin.",
+    "warnIncomplete": "Ein Teil dieser Ansicht konnte nicht geladen werden; der Massenimport ist deaktiviert. Einzelne Klicks funktionieren weiterhin.",
     "legendMissing": "Zu importieren",
     "legendPresent": "Bereits vorhanden",
     "legendOtherStreet": "Andere Strasse",
