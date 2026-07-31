@@ -63,6 +63,15 @@ export interface ScanStats {
 export interface ScanSnapshot {
   state: ScanState;
   issues: ReadonlyMap<number, Issue>;
+  /**
+   * Segments whose name was actually compared with the register and came out right.
+   *
+   * Published rather than inferred from `issues`: a segment can be missing from the issues
+   * map for half a dozen reasons that say nothing about its name (outside the fetched area,
+   * road type not checked, status switched off, finding ignored, locked above the editor's
+   * rank). Only membership here means "checked, and conform".
+   */
+  nameConformIds: ReadonlySet<number>;
   stats: ScanStats;
   officialStreetCount: number;
   progress: { done: number; total: number } | null;
@@ -119,6 +128,7 @@ export class Scanner {
   private snapshot: ScanSnapshot = {
     state: "idle",
     issues: new Map(),
+    nameConformIds: new Set(),
     stats: { ok: 0, okAlt: 0, skipped: 0, total: 0 },
     officialStreetCount: 0,
     progress: null,
@@ -205,7 +215,7 @@ export class Scanner {
     this.controller?.abort();
     clearTimeout(this.debounceTimer);
     this.sweepActive = false;
-    this.publish({ state: "disabled", issues: new Map(), progress: null, sweep: null });
+    this.publish({ state: "disabled", issues: new Map(), nameConformIds: new Set(), progress: null, sweep: null });
   }
 
   /**
@@ -244,19 +254,20 @@ export class Scanner {
     try {
       const zoom = this.sdk.Map.getZoomLevel();
       if (zoom < this.settings.get().minZoom) {
-        this.publish({ state: "zoom-gated", issues: new Map(), progress: null });
+        this.publish({ state: "zoom-gated", issues: new Map(), nameConformIds: new Set(), progress: null });
         return;
       }
       const bbox = padBbox(this.sdk.Map.getMapExtent() as Bbox);
       if (!intersectsSwitzerland(bbox)) {
         // abroad: stay silent, no API calls, no noise
-        this.publish({ state: "outside-ch", issues: new Map(), progress: null });
+        this.publish({ state: "outside-ch", issues: new Map(), nameConformIds: new Set(), progress: null });
         return;
       }
       if (bboxAreaKm2(bbox) > MAX_AREA_KM2) {
         this.publish({
           state: "area-gated",
           issues: new Map(),
+          nameConformIds: new Set(),
           progress: null,
           sweepEligible: bboxAreaKm2(bbox) <= MAX_SWEEP_AREA_KM2,
         });
@@ -315,16 +326,16 @@ export class Scanner {
     try {
       if (this.sdk.Map.getZoomLevel() < this.settings.get().minZoom) {
         // below minZoom WME loads no segments: officials would be fetched for nothing
-        this.publish({ state: "zoom-gated", issues: new Map(), sweep: null });
+        this.publish({ state: "zoom-gated", issues: new Map(), nameConformIds: new Set(), sweep: null });
         return;
       }
       const bbox = padBbox(this.sdk.Map.getMapExtent() as Bbox);
       if (!intersectsSwitzerland(bbox)) {
-        this.publish({ state: "outside-ch", issues: new Map(), sweep: null });
+        this.publish({ state: "outside-ch", issues: new Map(), nameConformIds: new Set(), sweep: null });
         return;
       }
       if (bboxAreaKm2(bbox) > MAX_SWEEP_AREA_KM2) {
-        this.publish({ state: "area-gated", issues: new Map(), sweep: null, sweepEligible: false });
+        this.publish({ state: "area-gated", issues: new Map(), nameConformIds: new Set(), sweep: null, sweepEligible: false });
         return;
       }
 
@@ -447,6 +458,9 @@ export class Scanner {
     const signal = this.controller.signal;
     const settings = this.settings.get();
     const issues = new Map<number, Issue>();
+    // Only the segments whose name was really compared and accepted; everything skipped
+    // along the way stays out, so "no issue" is never read as "the name is fine".
+    const nameConformIds = new Set<number>();
     const stats = { ok: 0, okAlt: 0, skipped: 0, total: 0 };
     // getAddress is read once per covered segment here and reused by the guideline
     // pass below, halving data-model reads per reevaluate (debounced at 300ms/edit).
@@ -502,9 +516,11 @@ export class Scanner {
       switch (verdict.kind) {
         case "ok":
           stats.ok++;
+          nameConformIds.add(segment.id);
           break;
         case "okAlt":
           stats.okAlt++;
+          nameConformIds.add(segment.id);
           break;
         case "skipped":
           stats.skipped++;
@@ -526,6 +542,7 @@ export class Scanner {
       gen,
       signal,
       continuationBudget,
+      nameConformIds,
     );
     if (!continuation.completed) return false;
     if (gen !== this.evalGeneration) return false;
@@ -561,6 +578,7 @@ export class Scanner {
     }
     this.publish({
       issues,
+      nameConformIds,
       stats,
       unsavedCount: this.safeUnsavedCount(),
       continuationLookupsExhausted: continuation.exhausted,
@@ -582,6 +600,7 @@ export class Scanner {
     gen: number,
     signal: AbortSignal,
     budget: number,
+    nameConformIds: Set<number>,
   ): Promise<{ completed: boolean; exhausted: boolean }> {
     let lookups = 0;
     let exhausted = false;
@@ -606,6 +625,8 @@ export class Scanner {
       if (lines && distanceToLinesM(issue.geometry, lines) <= CONTINUATION_MAX_M) {
         issues.delete(issue.segmentId);
         stats.ok++;
+        // Cleared by an out-of-locality continuation: the name did check out after all.
+        nameConformIds.add(issue.segmentId);
       }
     }
     return { completed: true, exhausted };

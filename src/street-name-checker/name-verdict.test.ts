@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { WmeSDK } from "wme-sdk-typings";
 import {
   getStreetNameVerdict,
   registerStreetNameProvider,
@@ -8,7 +7,6 @@ import {
 import type { Issue, IssueStatus } from "./matching/evaluate";
 import { createStreetNameProvider } from "./name-verdict";
 import type { ScanSnapshot } from "./scan";
-import type { SettingsStore } from "./settings";
 
 const SEGMENT_ID = 123456;
 
@@ -33,6 +31,7 @@ function snapshot(overrides: Partial<ScanSnapshot> = {}): ScanSnapshot {
   return {
     state: "done",
     issues: new Map(),
+    nameConformIds: new Set(),
     stats: { ok: 0, okAlt: 0, skipped: 0, total: 0 },
     officialStreetCount: 0,
     progress: null,
@@ -47,41 +46,23 @@ function snapshot(overrides: Partial<ScanSnapshot> = {}): ScanSnapshot {
   } as ScanSnapshot;
 }
 
-function makeContext(options: {
-  snapshot: ScanSnapshot;
-  roadType?: number;
-  streetName?: string | null;
-  segmentExists?: boolean;
-}) {
-  const sdk = {
-    DataModel: {
-      Segments: {
-        getById: () =>
-          options.segmentExists === false
-            ? null
-            : { id: SEGMENT_ID, roadType: options.roadType ?? 1 },
-        getAddress: () => ({
-          street:
-            options.streetName === null ? null : { name: options.streetName ?? "Rue Exemple" },
-          altStreets: [],
-        }),
-      },
-    },
-  } as unknown as WmeSDK;
-  const settings = { get: () => ({ checkedRoadTypes: [1, 2, 6, 7] }) } as unknown as SettingsStore;
-  return { sdk, settings, getSnapshot: () => options.snapshot };
+function providerFor(snap: ScanSnapshot) {
+  return createStreetNameProvider({ getSnapshot: () => snap });
 }
 
+/** A segment the name pass actually compared with the register and accepted. */
+const checked = new Set([SEGMENT_ID]);
+
 describe("createStreetNameProvider", () => {
-  it("says conform for a checked, named segment with no issue", () => {
-    const provider = createStreetNameProvider(makeContext({ snapshot: snapshot() }));
-    expect(provider(SEGMENT_ID)).toEqual({ kind: "conform" });
+  it("says conform for a segment the name pass cleared", () => {
+    expect(providerFor(snapshot({ nameConformIds: checked }))(SEGMENT_ID)).toEqual({
+      kind: "conform",
+    });
   });
 
   it("says mismatch and carries the official suggestion", () => {
     const issues = new Map([[SEGMENT_ID, issue("NOT_FOUND", "Route de Berne")]]);
-    const provider = createStreetNameProvider(makeContext({ snapshot: snapshot({ issues }) }));
-    expect(provider(SEGMENT_ID)).toEqual({
+    expect(providerFor(snapshot({ issues }))(SEGMENT_ID)).toEqual({
       kind: "mismatch",
       status: "NOT_FOUND",
       suggestion: "Route de Berne",
@@ -92,10 +73,12 @@ describe("createStreetNameProvider", () => {
     "says conform for %s, which is not about the name",
     (status) => {
       // These come from the guideline checks (lock rank, geometry) and share the issues
-      // map. Reading them as a naming problem would flag perfectly named streets.
+      // map. Reading them as a naming problem would flag perfectly named streets, and the
+      // name pass did clear this one.
       const issues = new Map([[SEGMENT_ID, issue(status)]]);
-      const provider = createStreetNameProvider(makeContext({ snapshot: snapshot({ issues }) }));
-      expect(provider(SEGMENT_ID)).toEqual({ kind: "conform" });
+      expect(providerFor(snapshot({ issues, nameConformIds: checked }))(SEGMENT_ID)).toEqual({
+        kind: "conform",
+      });
     },
   );
 
@@ -104,28 +87,24 @@ describe("createStreetNameProvider", () => {
     (state) => {
       // Outside "done" the issues map may hold the previous run's results, and an absence
       // proves nothing at all.
-      const provider = createStreetNameProvider(makeContext({ snapshot: snapshot({ state }) }));
-      expect(provider(SEGMENT_ID)).toEqual({ kind: "unknown" });
+      expect(providerFor(snapshot({ state, nameConformIds: checked }))(SEGMENT_ID)).toEqual({
+        kind: "unknown",
+      });
     },
   );
 
-  it("says unknown for a road type the checker does not look at", () => {
-    const provider = createStreetNameProvider(makeContext({ snapshot: snapshot(), roadType: 20 }));
-    expect(provider(SEGMENT_ID)).toEqual({ kind: "unknown" });
+  it("says unknown when neither an issue nor a name check covered the segment", () => {
+    // The whole point: outside the fetched area, road type not checked, status switched
+    // off, finding dismissed as a false positive. Nothing was verified, nothing is vouched
+    // for. Reading the absence of an issue as "conform" is what used to happen here.
+    expect(providerFor(snapshot())(SEGMENT_ID)).toEqual({ kind: "unknown" });
   });
 
-  it("says unknown for an unnamed segment", () => {
-    const provider = createStreetNameProvider(
-      makeContext({ snapshot: snapshot(), streetName: null }),
-    );
-    expect(provider(SEGMENT_ID)).toEqual({ kind: "unknown" });
-  });
-
-  it("says unknown for a segment that is no longer loaded", () => {
-    const provider = createStreetNameProvider(
-      makeContext({ snapshot: snapshot(), segmentExists: false }),
-    );
-    expect(provider(SEGMENT_ID)).toEqual({ kind: "unknown" });
+  it("says unknown for a lock finding on a segment the name pass never covered", () => {
+    const issues = new Map([[SEGMENT_ID, issue("OVER_LOCK")]]);
+    expect(providerFor(snapshot({ issues }))(SEGMENT_ID)).toEqual({
+      kind: "unknown",
+    });
   });
 });
 

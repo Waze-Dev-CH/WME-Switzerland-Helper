@@ -33,7 +33,10 @@ const SCRIPT_NAME = "WME CH Street Name Checker";
 export async function initStreetNameChecker(): Promise<void> {
   await unsafeWindow.SDK_INITIALIZED;
   if (!unsafeWindow.getWmeSdk) throw new Error("getWmeSdk is not available on the page");
-  const sdk: WmeSDK = unsafeWindow.getWmeSdk({ scriptId: SCRIPT_ID, scriptName: SCRIPT_NAME });
+  const sdk: WmeSDK = unsafeWindow.getWmeSdk({
+    scriptId: SCRIPT_ID,
+    scriptName: SCRIPT_NAME,
+  });
 
   await sdk.Events.once({ eventName: "wme-ready" });
 
@@ -56,7 +59,9 @@ export async function initStreetNameChecker(): Promise<void> {
   };
   const enabled = settings.get().enabled;
   layer.setVisible(enabled);
-  registerLayerCheckbox(sdk, enabled, (checked) => setCheckerEnabled(activation, checked, "checkbox"));
+  registerLayerCheckbox(sdk, enabled, (checked) =>
+    setCheckerEnabled(activation, checked, "checkbox"),
+  );
 
   // Resync the OpenLayers layer only when results actually change; progress
   // ticks during a fetch reuse the same issues map and must stay free.
@@ -97,7 +102,7 @@ export async function initStreetNameChecker(): Promise<void> {
   // Scanner: they get the answer without being able to touch the scan, and the tricky part
   // (an absent issue only means "conform" once a scan has completed) stays here.
   registerStreetNameProvider(
-    createStreetNameProvider({ sdk, settings, getSnapshot: () => scanner.getSnapshot() }),
+    createStreetNameProvider({ getSnapshot: () => scanner.getSnapshot() }),
   );
 
   log.info(`ready (SDK ${sdk.getSDKVersion()}, WME ${sdk.getWMEVersion()})`);
