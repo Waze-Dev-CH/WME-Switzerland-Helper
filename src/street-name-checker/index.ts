@@ -51,11 +51,14 @@ export async function initStreetNameChecker(): Promise<void> {
 
   // The layer checkbox and the tab's master toggle are two faces of settings.enabled;
   // both go through setCheckerEnabled so neither can drift from the persisted value.
+  // Set once the tab exists; the sync only ever fires on a user click, long after init.
+  let tabRef: TabUI | null = null;
   const activation: ActivationContext = {
     settings,
     scanner,
     layer,
     syncCheckbox: (checked) => setLayerCheckbox(sdk, checked),
+    syncToggle: (checked) => tabRef?.syncEnabledToggle(checked),
   };
   const enabled = settings.get().enabled;
   layer.setVisible(enabled);
@@ -84,6 +87,7 @@ export async function initStreetNameChecker(): Promise<void> {
     (checked) => setCheckerEnabled(activation, checked, "tab"),
     () => detachHandler(),
   );
+  tabRef = tab;
   await tab.init();
 
   const windowMode = createWindowMode(settings, tab);

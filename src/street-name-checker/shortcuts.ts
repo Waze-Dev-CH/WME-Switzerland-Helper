@@ -1,6 +1,5 @@
 import type { WmeSDK } from "wme-sdk-typings";
-import { fixSegment, withFixLock } from "./fix";
-import { confirmDialog } from "./prompt";
+import { runFix } from "./fix";
 import { t } from "./i18n";
 import { log } from "./log";
 import type { Scanner } from "./scan";
@@ -47,18 +46,9 @@ export function registerShortcuts(
     if (selection?.objectType !== "segment" || selection.ids.length !== 1) return;
     const issue = scanner.getSnapshot().issues.get(selection.ids[0] as number);
     if (!issue?.fixable) return;
-    // The confirm is a dialog now, so the whole flow has to await; the shortcut API
-    // itself stays synchronous.
-    void (async () => {
-      // Lowering an over-lock is often unwanted; confirm before applying.
-      if (
-        issue.status === "OVER_LOCK" &&
-        !(await confirmDialog(t("confirmOverLockFix", { n: issue.note?.expectedLock ?? "" })))
-      ) {
-        return;
-      }
-      const result = await withFixLock(async () => fixSegment(sdk, issue, settings.get()));
-      if (result !== null) scanner.reevaluate();
-    })();
+    // Same runner as the tab and the edit-panel box: a third copy of the confirm rules
+    // here is how the geometry-verdict confirmation went missing on this path. The
+    // shortcut API stays synchronous, the flow is awaited inside.
+    void runFix(sdk, issue, settings.get(), { onComplete: () => scanner.reevaluate() });
   });
 }

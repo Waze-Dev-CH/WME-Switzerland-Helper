@@ -12,6 +12,8 @@ export interface ActivationContext {
   layer: Pick<HighlightLayer, "setVisible">;
   /** Realigns the layer-switcher checkbox. Injected so this stays SDK-free. */
   syncCheckbox: (checked: boolean) => void;
+  /** Realigns the tab's master toggle. Injected so this stays DOM-free. */
+  syncToggle: (checked: boolean) => void;
 }
 
 /**
@@ -20,8 +22,10 @@ export interface ActivationContext {
  * the single persisted truth. Before this, the checkbox lived only in memory and came back
  * checked on every WME reload, restarting a scan the editor had switched off.
  *
- * `source` prevents re-entrancy: rewriting the checkbox from inside its own toggle handler
- * is at best redundant, and a loop if the SDK ever echoed the change back as an event.
+ * `source` prevents re-entrancy: rewriting a control from inside its own change handler is
+ * at best redundant, and a loop if the SDK ever echoed the change back as an event. The
+ * other control is always realigned, otherwise it keeps showing the old state and its next
+ * click reads as doing nothing (it would be setting the value already in force).
  */
 export function setCheckerEnabled(
   ctx: ActivationContext,
@@ -31,6 +35,7 @@ export function setCheckerEnabled(
   ctx.settings.update({ enabled });
   ctx.layer.setVisible(enabled);
   if (source === "tab") ctx.syncCheckbox(enabled);
+  else ctx.syncToggle(enabled);
 
   // Enabling clears any stale pause and kicks off a scan; disabling aborts the run and
   // empties the list, so a switched-off feature leaves nothing behind in the tab.
