@@ -54,6 +54,17 @@ interface DialogButton {
 interface DialogOptions {
   message: string;
   buttons: DialogButton[];
+  /**
+   * Render `message` as markup instead of text. Off by default: messages interpolate
+   * street names, venue names and error strings, and none of those may be able to
+   * inject HTML into the editor page. Turn it on only for markup you wrote yourself.
+   */
+  allowHtml?: boolean;
+  /**
+   * Resolved when the user presses Escape or clicks outside the dialog. Omit to make
+   * the buttons the only way out.
+   */
+  cancelValue?: string;
 }
 
 /**
@@ -62,40 +73,74 @@ interface DialogOptions {
  * @returns Promise that resolves with the value of the clicked button
  */
 function showWmeDialog(options: DialogOptions): Promise<string> {
-  const { message, buttons } = options;
+  const { message, buttons, allowHtml = false, cancelValue } = options;
   return new Promise((resolve) => {
+    // Backdrop doubles as the dismiss target and keeps the dialog above WME's own panels.
+    const backdrop = document.createElement("div");
+    backdrop.style.position = "fixed";
+    backdrop.style.inset = "0";
+    backdrop.style.background = "rgba(0,0,0,.35)";
+    backdrop.style.zIndex = "10000";
+    backdrop.style.display = "flex";
+    backdrop.style.alignItems = "center";
+    backdrop.style.justifyContent = "center";
+
     const modal = document.createElement("div");
-    modal.style.position = "fixed";
-    modal.style.top = "50%";
-    modal.style.left = "50%";
-    modal.style.transform = "translate(-50%, -50%)";
-    modal.style.background = "#fff";
+    // WME theme tokens with light fallbacks: a hardcoded white box rendered as
+    // white-on-white text once the editor switched to its dark skin.
+    modal.style.background = "var(--wz-color-background, #ffffff)";
+    modal.style.color = "var(--wz-color-on-background, #1b1d20)";
+    modal.style.border = "1px solid var(--wz-color-hairline, #d9dde2)";
     modal.style.padding = "20px";
     modal.style.boxShadow = "0 2px 10px rgba(0,0,0,0.5)";
-    modal.style.zIndex = "10000";
     modal.style.borderRadius = "6px";
     modal.style.textAlign = "center";
     modal.style.minWidth = "200px";
+    modal.style.maxWidth = "min(90vw, 480px)";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
 
-    // Build HTML
     const msg = document.createElement("p");
-    msg.innerHTML = message;
+    // Messages carry their own line breaks (confirm() used to render them); a plain
+    // paragraph would collapse them into one run-on sentence.
+    msg.style.whiteSpace = "pre-line";
+    if (allowHtml) msg.innerHTML = message;
+    else msg.textContent = message;
     modal.appendChild(msg);
 
+    const close = (value: string) => {
+      document.removeEventListener("keydown", onKeydown, true);
+      backdrop.remove();
+      resolve(value);
+    };
+
+    function onKeydown(event: KeyboardEvent) {
+      if (event.key === "Escape" && cancelValue !== undefined) {
+        event.stopPropagation();
+        close(cancelValue);
+      }
+    }
+
+    const rendered: HTMLButtonElement[] = [];
     buttons.forEach(({ label, value }) => {
       const btn = document.createElement("button");
       btn.textContent = label;
       btn.className = "btn btn-default";
       btn.style.margin = "5px";
-      btn.onclick = () => {
-        modal.remove();
-        resolve(value);
-      };
+      btn.onclick = () => close(value);
       modal.appendChild(btn);
+      rendered.push(btn);
     });
 
-    // Add modal to page
-    document.body.appendChild(modal);
+    backdrop.appendChild(modal);
+    backdrop.onclick = (event) => {
+      if (event.target === backdrop && cancelValue !== undefined) close(cancelValue);
+    };
+    // Capture phase: WME binds its own editor shortcuts on the document.
+    document.addEventListener("keydown", onKeydown, true);
+
+    document.body.appendChild(backdrop);
+    rendered[0]?.focus();
   });
 }
 

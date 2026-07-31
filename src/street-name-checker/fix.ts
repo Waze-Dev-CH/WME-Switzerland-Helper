@@ -2,13 +2,44 @@ import type { UserRank, WmeSDK } from "wme-sdk-typings";
 import { t } from "./i18n";
 import { log } from "./log";
 import { issueKey, type Issue } from "./matching/evaluate";
+import { type Confirm, confirmDialog, type Notify, notifyDialog } from "./prompt";
 import type { Settings, SettingsStore } from "./settings";
 
 export const GROUP_FIX_CAP = 50;
 export const GROUP_FIX_CONFIRM_THRESHOLD = 20;
 
+/**
+ * Minimum rank for fixing a whole group at once. Same scale and same value as
+ * LOCK_DEFAULT_MIN_RANK: WME's displayed level = rank + 1, so this is editor level 3.
+ *
+ * The script is public, so a first-day editor can install it. Renaming up to
+ * GROUP_FIX_CAP segments in one click is the one action here that can do damage at
+ * scale, and unlike the per-segment fix it gives no chance to look at what is changing.
+ * Fixing segments one by one stays open to everyone: that is how you learn to read what
+ * the tool is telling you.
+ */
+export const GROUP_FIX_MIN_RANK = 2;
+
 /** Lock-level issues: fixed by setting the lock rank, not by applying a name. */
 export const LOCK_STATUSES = new Set<Issue["status"]>(["UNDER_LOCK", "OVER_LOCK"]);
+
+/**
+ * Statuses whose verdict rests on geometry rather than on a name similarity, so a wrong
+ * one replaces a perfectly good name instead of tidying it up. They always confirm,
+ * however few segments are involved.
+ */
+const GEOMETRY_STATUSES = new Set<Issue["status"]>(["WRONG_STREET"]);
+
+/**
+ * Whether this editor may fix a whole group. Read from the SDK rather than passed in, the
+ * same way fixLock already reads it. An unknown rank counts as insufficient: it does not
+ * happen on a normal start (index.ts reads the rank after wme-ready), so closing the case
+ * costs nothing.
+ */
+export function canGroupFix(sdk: WmeSDK): boolean {
+  const userRank = sdk.State.getUserInfo()?.rank;
+  return typeof userRank === "number" && userRank >= GROUP_FIX_MIN_RANK;
+}
 
 /** Error codes double as i18n string keys (see src/i18n.ts). */
 export type FixErrorCode =
@@ -16,7 +47,8 @@ export type FixErrorCode =
   | "errEditingNotAllowed"
   | "errSegmentUnloaded"
   | "errNoCity"
-  | "errStreetCreate";
+  | "errStreetCreate"
+  | "errGroupFixRank";
 
 export interface FixOutcome {
   segmentId: number;
@@ -205,6 +237,9 @@ export interface FixUiHooks {
   button?: HTMLButtonElement;
   /** Called after a fix actually ran (not when the re-entrance lock was held). */
   onComplete?: () => void;
+  /** Overridable so the fix flows can be tested without a DOM. */
+  confirm?: Confirm;
+  notify?: Notify;
 }
 
 /**
@@ -216,14 +251,35 @@ export async function runFix(
   sdk: WmeSDK,
   issue: Issue,
   settings: Settings,
-  { button, onComplete }: FixUiHooks = {},
+  { button, onComplete, confirm = confirmDialog, notify = notifyDialog }: FixUiHooks = {},
 ): Promise<void> {
   // Lowering an over-lock is often unwanted; confirm before applying.
   if (
     issue.status === "OVER_LOCK" &&
-    !confirm(t("confirmOverLockFix", { n: issue.note?.expectedLock ?? "" }))
+    !(await confirm(t("confirmOverLockFix", { n: issue.note?.expectedLock ?? "" })))
   ) {
     return;
+  }
+  // A geometric verdict renames a street that reads as perfectly valid, and until now it
+  // was the one destructive fix with no confirmation at all, while lowering a lock (a
+  // click to undo) always asked. The confidence figures travel with the prompt.
+  if (GEOMETRY_STATUSES.has(issue.status)) {
+    // Composed here rather than through ui/format.ts: the domain layer should not reach
+    // into the presentation one for a string.
+    const detail =
+      issue.note?.coverage !== undefined
+        ? `\n${t("noteMatchConfidence", {
+            pct: Math.round(issue.note.coverage * 100),
+            m: issue.note.matchDistanceM ?? 0,
+          })}`
+        : "";
+    const confirmed = await confirm(
+      t("confirmWrongStreetFix", {
+        current: issue.currentName ?? "",
+        suggestion: issue.suggestion ?? "",
+      }) + detail,
+    );
+    if (!confirmed) return;
   }
   const result = await withFixLock(async () => {
     if (button) {
@@ -231,7 +287,7 @@ export async function runFix(
       button.textContent = "…";
     }
     const outcome = fixSegment(sdk, issue, settings);
-    if (!outcome.ok) alert(t("fixFailed", { error: formatFixError(outcome) }));
+    if (!outcome.ok) await notify(t("fixFailed", { error: formatFixError(outcome) }));
     return outcome;
   });
   // null = another fix was already running; its own completion will re-render.
@@ -243,6 +299,8 @@ export interface GroupFixHeader {
   status: Issue["status"];
   expectedLock?: number | string | null;
   suggestion?: string | null;
+  /** Shown in the confirmation so it states the change, not just a count. */
+  currentName?: string | null;
 }
 
 /** Confirm + locked sequential group fix with progress + stop-on-error reporting. */
@@ -251,14 +309,29 @@ export async function runFixGroup(
   issues: Issue[],
   header: GroupFixHeader,
   settings: Settings,
-  { button, onComplete }: FixUiHooks = {},
+  { button, onComplete, confirm = confirmDialog, notify = notifyDialog }: FixUiHooks = {},
 ): Promise<void> {
+  // Defence in depth: two UIs build the group buttons, and a missed check in either one
+  // would silently reopen the door. The refusal lives with the action, not with the
+  // button that triggers it.
+  if (!canGroupFix(sdk)) {
+    await notify(t("errGroupFixRank", { level: GROUP_FIX_MIN_RANK + 1 }));
+    return;
+  }
   const n = Math.min(issues.length, GROUP_FIX_CAP);
   if (header.status === "OVER_LOCK") {
-    if (!confirm(t("confirmOverLockFix", { n: header.expectedLock ?? "" }))) return;
+    if (!(await confirm(t("confirmOverLockFix", { n: header.expectedLock ?? "" })))) return;
   } else if (
-    n > GROUP_FIX_CONFIRM_THRESHOLD &&
-    !confirm(t("confirmGroupFix", { name: header.suggestion ?? "", n }))
+    // Geometry-driven verdicts confirm every time, even for a single segment: a wrong
+    // one renames a correctly named street. Volume alone is the wrong yardstick here.
+    (GEOMETRY_STATUSES.has(header.status) || n > GROUP_FIX_CONFIRM_THRESHOLD) &&
+    !(await confirm(
+      t("confirmGroupFixDetailed", {
+        n,
+        current: header.currentName ?? "",
+        suggestion: header.suggestion ?? "",
+      }),
+    ))
   ) {
     return;
   }
@@ -269,7 +342,7 @@ export async function runFixGroup(
     });
     const failed = outcomes.find((o) => !o.ok);
     if (failed) {
-      alert(
+      await notify(
         t("fixStopped", {
           done: outcomes.filter((o) => o.ok).length,
           total: n,
@@ -292,11 +365,16 @@ export function ignoreIssue(settings: SettingsStore, issue: Issue, onComplete?: 
 }
 
 /** Dismiss a whole group of findings at once; confirms a large mass-hide first. */
-export function ignoreIssues(settings: SettingsStore, issues: Issue[], onComplete?: () => void): void {
+export async function ignoreIssues(
+  settings: SettingsStore,
+  issues: Issue[],
+  onComplete?: () => void,
+  confirm: Confirm = confirmDialog,
+): Promise<void> {
   // Reversible (Settings → Reset), but confirm a large mass-hide to avoid accidents.
   if (
     issues.length > GROUP_FIX_CONFIRM_THRESHOLD &&
-    !confirm(t("confirmIgnoreAll", { n: issues.length }))
+    !(await confirm(t("confirmIgnoreAll", { n: issues.length })))
   ) {
     return;
   }

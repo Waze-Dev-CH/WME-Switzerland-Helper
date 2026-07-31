@@ -65,6 +65,13 @@ export interface NearestResult {
   distanceM: number;
   /** Fraction of the segment's samples where this street was the closest. */
   coverage: number;
+  /**
+   * How far the runner-up sat behind the winner, in metres, or null when no other
+   * street ran along the segment at all. Below CONTEST_MARGIN_M the match is dropped
+   * entirely, so a small value here means the verdict was won narrowly: worth telling
+   * the editor before they rename anything on the strength of it.
+   */
+  runnerUpMarginM: number | null;
 }
 
 interface GridSegment {
@@ -246,13 +253,19 @@ export function nearestOfficial(
   const coverage = winner.wins / samples.length;
   if (coverage < MIN_COVERAGE) return null;
 
-  // Contested: another street present along the segment, nearly as close.
+  // Contested: another street present along the segment, nearly as close. The same pass
+  // keeps the tightest margin, which is the difference between a landslide and a verdict
+  // that only just cleared the bar.
+  let runnerUpMarginM: number | null = null;
   for (const tally of tallies.values()) {
     if (tally === winner) continue;
-    if (tally.presence >= 2 && tally.minD - winner.minD < CONTEST_MARGIN_M) return null;
+    if (tally.presence < 2) continue;
+    const margin = tally.minD - winner.minD;
+    if (margin < CONTEST_MARGIN_M) return null;
+    if (runnerUpMarginM === null || margin < runnerUpMarginM) runnerUpMarginM = margin;
   }
 
-  return { entry: winner.entry, distanceM: winner.minD, coverage };
+  return { entry: winner.entry, distanceM: winner.minD, coverage, runnerUpMarginM };
 }
 
 /** Minimal distance from the sample points to a set of polylines. */

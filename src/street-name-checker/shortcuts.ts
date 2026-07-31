@@ -1,5 +1,5 @@
 import type { WmeSDK } from "wme-sdk-typings";
-import { fixSegment, withFixLock } from "./fix";
+import { runFix } from "./fix";
 import { t } from "./i18n";
 import { log } from "./log";
 import type { Scanner } from "./scan";
@@ -14,7 +14,7 @@ export function registerShortcuts(
   sdk: WmeSDK,
   scanner: Scanner,
   settings: SettingsStore,
-  actions: { nextIssue: () => void },
+  actions: { nextIssue: () => void; toggleWindow: () => void },
 ): void {
   const create = (shortcutId: string, description: string, keys: string, callback: () => void) => {
     try {
@@ -36,21 +36,19 @@ export function registerShortcuts(
     if (settings.get().enabled) actions.nextIssue();
   });
 
+  // Deliberately not gated on `enabled`: this is how you get the window back after
+  // closing it, and a disabled checker still has a panel worth reaching.
+  create("chk-toggle-window", t("shortcutToggleWindow"), "A+w", () => actions.toggleWindow());
+
   create("chk-fix-selected", t("shortcutFixSelected"), "A+f", () => {
     if (!settings.get().enabled) return;
     const selection = sdk.Editing.getSelection();
     if (selection?.objectType !== "segment" || selection.ids.length !== 1) return;
     const issue = scanner.getSnapshot().issues.get(selection.ids[0] as number);
     if (!issue?.fixable) return;
-    // Lowering an over-lock is often unwanted; confirm before applying.
-    if (
-      issue.status === "OVER_LOCK" &&
-      !confirm(t("confirmOverLockFix", { n: issue.note?.expectedLock ?? "" }))
-    ) {
-      return;
-    }
-    void withFixLock(async () => fixSegment(sdk, issue, settings.get())).then((result) => {
-      if (result !== null) scanner.reevaluate();
-    });
+    // Same runner as the tab and the edit-panel box: a third copy of the confirm rules
+    // here is how the geometry-verdict confirmation went missing on this path. The
+    // shortcut API stays synchronous, the flow is awaited inside.
+    void runFix(sdk, issue, settings.get(), { onComplete: () => scanner.reevaluate() });
   });
 }

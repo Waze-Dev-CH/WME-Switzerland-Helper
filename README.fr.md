@@ -34,7 +34,7 @@ Vous n'avez pas besoin d'être un programmeur ou d'avoir des compétences techni
 2. **Ajouter le script d'aide de WME Switzerland**
 
 - Après avoir installé Tampermonkey, cliquez sur ce lien :  
-  [Installer WME Switzerland Helper](https://raw.githubusercontent.com/73VW/WME-Switzerland-Helper/releases/releases/main.user.js)
+  [Installer WME Switzerland Helper](https://raw.githubusercontent.com/Waze-Dev-CH/WME-Switzerland-Helper/releases/releases/main.user.js)
 - Votre navigateur affichera une page vous demandant si vous souhaitez installer le script. Cliquez sur le bouton <kbd>Install</kbd>.
 
 3. **Commencez à éditer!**
@@ -83,7 +83,7 @@ La couche **Arrêts de transports publics** affiche les arrêts de transport en 
 
 Si vous avez des questions, si vous trouvez un bogue ou si vous voulez suggérer une nouvelle fonctionnalité :
 
-1. Rendez-vous sur le [système de suivi des problèmes du projet](https://github.com/73VW/WME-Switzerland-Helper/issues/new).
+1. Rendez-vous sur le [système de suivi des problèmes du projet](https://github.com/Waze-Dev-CH/WME-Switzerland-Helper/issues/new).
 2. Cliquez sur **"New issue "**.
 3. Remplissez le titre et décrivez votre question, problème ou idée.  
    (Ne vous inquiétez pas si vous ne connaissez pas GitHub : vous devrez peut-être créer un compte gratuit)

@@ -1,6 +1,6 @@
-import type { LineString } from "geojson";
 import type { WmeSDK } from "wme-sdk-typings";
 import {
+  canGroupFix,
   GROUP_FIX_CAP,
   ignoreIssue,
   ignoreIssues,
@@ -8,76 +8,33 @@ import {
   runFix,
   runFixGroup,
 } from "../fix";
-import { LANGUAGE_CHOICES, resolveLocale, setLocale, t, type LanguagePreference, type StringKey } from "../i18n";
+import { t } from "../i18n";
 import { STATUS_STYLES } from "../map-layer";
-import { type Issue, type IssueNote, type IssueStatus } from "../matching/evaluate";
+import { type Issue, type IssueStatus } from "../matching/evaluate";
 import type { ScanSnapshot, Scanner } from "../scan";
-import { ALL_STATUSES, ROAD_TYPE_OPTIONS, type CityScoping, type Settings, type SettingsStore } from "../settings";
+import { ROAD_TYPE_OPTIONS, type SettingsStore } from "../settings";
 import { mapGeoAdminUrlForGeometry } from "../geoadmin/links";
 import type { Bbox } from "../geoadmin/types";
 import { getLocale } from "../i18n";
 import { cantonMapLink } from "./canton-link";
+import { el, toggleSwitch } from "./dom";
+import {
+  bboxOfIssues,
+  formatNote,
+  geometryIntersectsBbox,
+  groupIssues,
+  isDarkBackground,
+  LEGEND_KEYS,
+  STATE_KEYS,
+  statusEmoji,
+  type IssueGroup,
+} from "./format";
+import { buildSettingsPanel } from "./settings-panel";
 import { injectStyles } from "./styles";
 
 // Road type names stay in English on purpose: they are the WME community's
 // shared vocabulary and Waze's own localized terms vary by UI version.
 const ROAD_TYPE_LABELS = new Map(ROAD_TYPE_OPTIONS.map((r) => [r.id, r.label]));
-
-export const LEGEND_KEYS: Record<IssueStatus, StringKey> = {
-  COSMETIC: "legendCOSMETIC",
-  VARIANT: "legendVARIANT",
-  NEAR: "legendNEAR",
-  WRONG_TYPE: "legendWRONG_TYPE",
-  BILINGUAL: "legendBILINGUAL",
-  WRONG_STREET: "legendWRONG_STREET",
-  WRONG_CITY: "legendWRONG_CITY",
-  NOT_FOUND: "legendNOT_FOUND",
-  UNNAMED: "legendUNNAMED",
-  UNDER_LOCK: "legendUNDER_LOCK",
-  MICRO_SEGMENT: "legendMICRO_SEGMENT",
-  LOOP: "legendLOOP",
-  NARROW_MISUSE: "legendNARROW_MISUSE",
-  OVER_LOCK: "legendOVER_LOCK",
-  UNNAMED_NO_MATCH: "legendUNNAMED_NO_MATCH",
-};
-
-export const STATE_KEYS: Record<ScanSnapshot["state"], StringKey> = {
-  idle: "stateIdle",
-  disabled: "stateDisabled",
-  "outside-ch": "stateOutsideCh",
-  "zoom-gated": "stateZoomGated",
-  "area-gated": "stateAreaGated",
-  fetching: "stateFetching",
-  evaluating: "stateEvaluating",
-  sweeping: "stateSweeping",
-  done: "stateDone",
-  paused: "statePaused",
-  error: "stateError",
-};
-
-function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  className?: string,
-  text?: string,
-): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text !== undefined) node.textContent = text;
-  return node;
-}
-
-/** Perceived-luminance verdict for a CSS color; null when transparent or unparseable. */
-export function isDarkBackground(cssColor: string): boolean | null {
-  const match = cssColor.match(/rgba?\(([^)]+)\)/);
-  if (!match || !match[1]) return null;
-  const parts = match[1].split(",").map((p) => parseFloat(p));
-  const r = parts[0] ?? 0;
-  const g = parts[1] ?? 0;
-  const b = parts[2] ?? 0;
-  const a = parts[3] ?? 1;
-  if (a <= 0) return null;
-  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5;
-}
 
 /**
  * Detect WME's editor theme by measuring the first opaque background up the
@@ -94,133 +51,16 @@ function wmeThemeIsDark(start: HTMLElement): boolean {
   return false;
 }
 
-/** Leading emoji for a status, or "" when none. WRONG_STREET is flagged: a different
- *  official street runs under a validly-named segment — easy to miss in the list. */
-export function statusEmoji(status: IssueStatus): string {
-  return status === "WRONG_STREET" ? "⚠️" : "";
-}
-
-export function formatNote(note: IssueNote | null): string {
-  if (!note) return "";
-  const parts: string[] = [];
-  if (note.unofficial) parts.push(t("noteUnofficial"));
-  if (note.planned) parts.push(t("notePlanned"));
-  if (note.fullLabel) parts.push(t("noteFullLabel", { label: note.fullLabel }));
-  if (note.existsIn) parts.push(t("noteExistsIn", { place: note.existsIn }));
-  if (note.ownDistanceM !== undefined) parts.push(t("noteOwnDistance", { m: note.ownDistanceM }));
-  if (note.currentLock !== undefined && note.expectedLock !== undefined) {
-    // currentLock / expectedLock are already 1-6 levels (see guidelines.ts).
-    parts.push(t("noteLock", { current: note.currentLock, expected: note.expectedLock }));
-  }
-  return parts.join(", ");
-}
-
-export interface IssueGroup {
-  key: string;
-  status: IssueStatus;
-  currentName: string | null;
-  suggestion: string | null;
-  note: IssueNote | null;
-  fixable: boolean;
-  issues: Issue[];
-}
-
-/** Display order: safe fixes first, then risky ones, unnamed and guideline checks last. */
-const SEVERITY_ORDER: Record<IssueStatus, number> = {
-  COSMETIC: 0,
-  VARIANT: 1,
-  BILINGUAL: 2,
-  NEAR: 3,
-  WRONG_TYPE: 4,
-  WRONG_STREET: 5,
-  WRONG_CITY: 6,
-  NOT_FOUND: 7,
-  UNNAMED: 8,
-  UNDER_LOCK: 9,
-  MICRO_SEGMENT: 10,
-  LOOP: 11,
-  NARROW_MISUSE: 12,
-  OVER_LOCK: 13,
-  UNNAMED_NO_MATCH: 14,
-};
-
-export function groupIssues(issues: Iterable<Issue>): IssueGroup[] {
-  const groups = new Map<string, IssueGroup>();
-  for (const issue of issues) {
-    const key = `${issue.status}|${issue.currentName ?? ""}|${issue.suggestion ?? ""}`;
-    let group = groups.get(key);
-    if (!group) {
-      group = {
-        key,
-        status: issue.status,
-        currentName: issue.currentName,
-        suggestion: issue.suggestion,
-        note: issue.note,
-        fixable: issue.fixable,
-        issues: [],
-      };
-      groups.set(key, group);
-    }
-    group.issues.push(issue);
-  }
-  return [...groups.values()].sort(
-    (a, b) => SEVERITY_ORDER[a.status] - SEVERITY_ORDER[b.status] || b.issues.length - a.issues.length,
-  );
-}
-
-/**
- * True when the segment's bounding box overlaps the viewport bbox. Using a
- * bbox overlap (rather than "a vertex falls inside") also keeps a long segment
- * that crosses the screen without any vertex inside it.
- */
-export function geometryIntersectsBbox(geometry: LineString, bbox: Bbox): boolean {
-  let minLon = Infinity;
-  let minLat = Infinity;
-  let maxLon = -Infinity;
-  let maxLat = -Infinity;
-  for (const point of geometry.coordinates) {
-    const lon = point[0] as number;
-    const lat = point[1] as number;
-    minLon = Math.min(minLon, lon);
-    minLat = Math.min(minLat, lat);
-    maxLon = Math.max(maxLon, lon);
-    maxLat = Math.max(maxLat, lat);
-  }
-  if (!Number.isFinite(minLon)) return false;
-  return minLon <= bbox[2] && maxLon >= bbox[0] && minLat <= bbox[3] && maxLat >= bbox[1];
-}
-
-/**
- * Padded bounding box around every segment of a group, or null when no issue
- * carries coordinates. 30% padding with a floor so a single short segment
- * keeps street-level context.
- */
-export function bboxOfIssues(issues: Issue[]): Bbox | null {
-  let minLon = Infinity;
-  let minLat = Infinity;
-  let maxLon = -Infinity;
-  let maxLat = -Infinity;
-  for (const issue of issues) {
-    for (const point of issue.geometry.coordinates) {
-      const lon = point[0] as number;
-      const lat = point[1] as number;
-      minLon = Math.min(minLon, lon);
-      minLat = Math.min(minLat, lat);
-      maxLon = Math.max(maxLon, lon);
-      maxLat = Math.max(maxLat, lat);
-    }
-  }
-  if (!Number.isFinite(minLon)) return null;
-  const padLon = Math.max((maxLon - minLon) * 0.3, 0.001);
-  const padLat = Math.max((maxLat - minLat) * 0.3, 0.0007);
-  return [minLon - padLon, minLat - padLat, maxLon + padLon, maxLat + padLat];
-}
-
 /** Delay before the "updating" veil appears, to avoid flashing on quick rescans. */
 const BUSY_DELAY_MS = 250;
 
 export class TabUI {
+  /** Working surface: the sidebar pane when docked, the window body when detached. */
   private pane!: HTMLElement;
+  /** Switches, legend and settings. Always the sidebar pane. */
+  private optionsPane!: HTMLElement;
+  /** The sidebar pane, kept for good even while detached: it is the theme probe. */
+  private tabPane!: HTMLElement;
   private statusLine!: HTMLElement;
   private statusText!: HTMLElement;
   private bannerBtn!: HTMLButtonElement;
@@ -242,6 +82,8 @@ export class TabUI {
   private panTimer: ReturnType<typeof setTimeout> | null = null;
   /** Checkboxes of the duplicated viewport-only toggle (master row + Settings). */
   private viewportInputs: HTMLInputElement[] = [];
+  /** Checkbox of the master enabled toggle, realigned when the layer checkbox is used. */
+  private enabledInput: HTMLInputElement | null = null;
   /** Last theme re-measure timestamp (belt-and-braces next to the observer). */
   private lastThemeCheck = 0;
 
@@ -249,13 +91,19 @@ export class TabUI {
     private sdk: WmeSDK,
     private scanner: Scanner,
     private settings: SettingsStore,
+    /** Routed through activation.ts so this toggle and the layer checkbox stay in step. */
+    private onEnabledChange: (enabled: boolean) => void,
+    /** Owned by index.ts, which arbitrates sidebar and floating modes. */
+    private onDetach: () => void,
   ) {}
 
   async init(): Promise<void> {
     injectStyles();
     const { tabLabel, tabPane } = await this.sdk.Sidebar.registerScriptTab();
-    tabLabel.textContent = `🇨🇭 ${t("appName")}`;
+    tabLabel.textContent = `🛣️ ${t("appName")}`;
+    this.tabPane = tabPane;
     this.pane = tabPane;
+    this.optionsPane = tabPane;
     this.applyTheme();
     this.watchWmeTheme();
     this.buildSkeleton();
@@ -283,10 +131,38 @@ export class TabUI {
     this.render(this.scanner.getSnapshot());
   }
 
-  /** Re-measure the WME skin and apply our dark class only when it changed. */
+  /**
+   * Re-measure the WME skin and apply our dark class only when it changed.
+   *
+   * Always measured from the sidebar pane, never from the current container: the probe
+   * walks up the ancestry looking for the first opaque background, and a floating window
+   * parented to document.body would report the body's background instead of the editor's
+   * actual skin. The sidebar pane stays in the DOM even when its tab is not the visible
+   * one, and getComputedStyle still resolves on a hidden element.
+   */
   private applyTheme(): void {
-    const dark = wmeThemeIsDark(this.pane);
+    const dark = wmeThemeIsDark(this.tabPane);
     document.documentElement.classList.toggle("chk-theme-dark", dark);
+  }
+
+  /** The sidebar pane, so the caller can show its own placeholder while detached. */
+  sidebarPane(): HTMLElement {
+    return this.tabPane;
+  }
+
+  /**
+   * Point the UI at its containers. Pass the same element twice to dock everything into
+   * the sidebar; pass the window body plus the sidebar pane to put the working surface
+   * in the window and leave the options behind.
+   */
+  setContainers(work: HTMLElement, options: HTMLElement): void {
+    for (const old of new Set([this.pane, this.optionsPane])) {
+      old.replaceChildren();
+      old.classList.remove("chk-pane");
+    }
+    this.pane = work;
+    this.optionsPane = options;
+    this.rebuild();
   }
 
   /**
@@ -315,9 +191,11 @@ export class TabUI {
     observer.observe(document.body, options);
   }
 
-  /** Rebuild all static DOM (after a language change). */
+  /** Rebuild all static DOM (after a language change, or a dock/detach). */
   private rebuild(): void {
-    this.pane.replaceChildren();
+    // Set, because both are the same element when docked and emptying twice would be
+    // harmless but confusing to read.
+    for (const container of new Set([this.pane, this.optionsPane])) container.replaceChildren();
     this.buildSkeleton();
     this.lastRenderedIssues = null;
     this.render(this.scanner.getSnapshot());
@@ -325,11 +203,12 @@ export class TabUI {
 
   private buildSkeleton(): void {
     this.pane.classList.add("chk-pane");
+    this.optionsPane.classList.add("chk-pane");
     this.viewportInputs = []; // rebuild() re-creates both toggle instances
 
     const brand = el("div", "chk-brand");
     brand.append(
-      el("span", "chk-brand-icon", "🇨🇭"),
+      el("span", "chk-brand-icon", "🛣️"),
       el("span", "chk-brand-title", t("appName")),
     );
 
@@ -363,34 +242,66 @@ export class TabUI {
     busy.append(el("span", "chk-spinner"), el("span", "chk-busy-text", t("updating")));
     this.listBox.append(this.chipsBox, this.groupsBox, busy);
 
-    this.pane.append(
-      brand,
-      toolbar,
-      this.statusLine,
-      this.warnLine,
-      this.buildMasterToggles(),
-      this.listBox,
-      this.buildLegend(),
-      this.buildSettings(),
-      this.buildFooter(),
-    );
+    const masterToggles = this.buildMasterToggles();
+    const legend = this.buildLegend();
+    const settingsPanel = buildSettingsPanel({
+      sdk: this.sdk,
+      settings: this.settings,
+      scanner: this.scanner,
+      rebuild: () => this.rebuild(),
+      viewportOnlyToggle: () => this.viewportOnlyToggle(),
+    });
+    const footer = this.buildFooter();
+
+    if (this.pane === this.optionsPane) {
+      // Docked: one column, and the historical order is kept exactly, toggles above
+      // the list rather than pushed below it by the split.
+      this.pane.append(
+        brand,
+        toolbar,
+        this.statusLine,
+        this.warnLine,
+        masterToggles,
+        this.listBox,
+        legend,
+        settingsPanel,
+        footer,
+      );
+      return;
+    }
+
+    // Detached: the window carries the working surface, the sidebar keeps the options.
+    // Both are still built in this single pass, which is what keeps the two instances
+    // of the viewport-only switch in sync through viewportInputs.
+    //
+    // No brand block here: the window's own title bar already carries the name, and
+    // repeating it right underneath wastes the height the list needs.
+    this.pane.append(toolbar, this.statusLine, this.warnLine, this.listBox);
+    this.optionsPane.append(masterToggles, legend, settingsPanel, footer);
+  }
+
+  /**
+   * Realign the master toggle after the layer-switcher checkbox changed the state.
+   * Without it the toggle keeps showing the old value and its next click sets what is
+   * already in force, which reads as a dead control.
+   */
+  syncEnabledToggle(checked: boolean): void {
+    if (this.enabledInput) this.enabledInput.checked = checked;
   }
 
   private buildMasterToggles(): HTMLElement {
     const row = el("div", "chk-master");
     const settings = this.settings.get();
+    const enabledToggle = toggleSwitch(
+      t("toggleEnabled"),
+      settings.enabled,
+      (checked) => this.onEnabledChange(checked),
+      t("toggleEnabledTitle"),
+    );
+    this.enabledInput = enabledToggle.querySelector("input");
     row.append(
-      this.toggleSwitch(
-        t("toggleEnabled"),
-        settings.enabled,
-        (checked) => {
-          this.settings.update({ enabled: checked });
-          if (checked) this.scanner.requestScan();
-          else this.scanner.disable();
-        },
-        t("toggleEnabledTitle"),
-      ),
-      this.toggleSwitch(
+      enabledToggle,
+      toggleSwitch(
         t("toggleAutoScan"),
         settings.autoScan,
         (checked) => {
@@ -403,6 +314,14 @@ export class TabUI {
       // the Settings entry remains, both stay in sync via viewportInputs
       this.viewportOnlyToggle(),
     );
+    // Only offered while docked: once floating, the window's own bar carries the
+    // controls and this row is not the place to duplicate them.
+    if (this.settings.get().windowMode === "sidebar") {
+      const detachBtn = el("button", "chk-btn", t("detach"));
+      detachBtn.title = t("detachTitle");
+      detachBtn.addEventListener("click", () => this.onDetach());
+      row.appendChild(detachBtn);
+    }
     return row;
   }
 
@@ -412,7 +331,7 @@ export class TabUI {
    * and the shared handler mirrors the state across them.
    */
   private viewportOnlyToggle(): HTMLElement {
-    const label = this.toggleSwitch(
+    const label = toggleSwitch(
       t("viewportOnly"),
       this.settings.get().viewportOnly,
       (checked) => {
@@ -428,41 +347,14 @@ export class TabUI {
     return label;
   }
 
-  /** iOS-style toggle: a visually hidden checkbox plus a CSS track/knob and a label. */
-  private toggleSwitch(
-    text: string,
-    checked: boolean,
-    onChange: (checked: boolean) => void,
-    title?: string,
-  ): HTMLElement {
-    const label = el("label", "chk-switch");
-    if (title) label.title = title;
-    const input = el("input") as HTMLInputElement;
-    input.type = "checkbox";
-    input.checked = checked;
-    input.addEventListener("change", () => onChange(input.checked));
-    const track = el("span", "chk-switch-track");
-    track.appendChild(el("span", "chk-switch-knob"));
-    label.append(input, track, el("span", "chk-switch-label", text));
-    return label;
-  }
-
-  /** A collapsible settings sub-section with an icon header. */
-  private buildSubsection(icon: string, title: string, children: HTMLElement[]): HTMLElement {
-    const details = el("details", "chk-subsection");
-    const summary = el("summary");
-    summary.append(el("span", "chk-section-icon", icon), el("span", "", title));
-    details.appendChild(summary);
-    const body = el("div", "chk-subsection-body");
-    for (const child of children) body.appendChild(child);
-    details.appendChild(body);
-    return details;
-  }
-
   private buildFooter(): HTMLElement {
     const footer = el("div", "chk-footer");
     const link = el("a", "", "Changelog");
-    link.href = "https://github.com/Waze-Dev-CH/WME-CH-Street-Name-Checker/blob/main/CHANGELOG.md";
+    // This repo's README, not the standalone checker's old CHANGELOG.md: since the port,
+    // the changelog lives in the README files (see CLAUDE.md) and the pre-merge history
+    // sits in docs/street-name-checker-changelog.md.
+    link.href =
+      "https://github.com/Waze-Dev-CH/WME-Switzerland-Helper/blob/main/README.md#-changelog";
     link.target = "_blank";
     link.rel = "noopener";
     footer.appendChild(link);
@@ -689,7 +581,7 @@ export class TabUI {
     if (noteText) names.title = noteText;
 
     const count = el("span", "chk-count", `×${group.issues.length}`);
-    const zoomBtn = el("button", "chk-locate chk-group-zoom", "⌖");
+    const zoomBtn = el("button", "chk-locate", "⌖");
     zoomBtn.title = t("zoomToGroupTitle");
     zoomBtn.setAttribute("aria-label", t("zoomToGroupTitle"));
     zoomBtn.addEventListener("click", (ev) => {
@@ -703,8 +595,11 @@ export class TabUI {
     topLine.append(badge, count, zoomBtn);
     header.append(topLine, names);
 
+    // Below editor level 3 the group actions are not shown at all, rather than shown and
+    // refused: a disabled button still invites the click. Per-segment Fix stays available.
+    const groupActionsAllowed = canGroupFix(this.sdk);
     const fixAllBtn =
-      group.fixable && group.issues.length > 1
+      groupActionsAllowed && group.fixable && group.issues.length > 1
         ? el("button", "chk-fix-all", t("fixAll", { n: Math.min(group.issues.length, GROUP_FIX_CAP) }))
         : null;
     if (fixAllBtn) {
@@ -713,9 +608,10 @@ export class TabUI {
         this.onFixGroup(group, fixAllBtn);
       });
     }
-    // Ignore the whole group at once (any status, fixable or not).
+    // Ignore the whole group at once (any status, fixable or not). Same rank gate: hiding
+    // dozens of findings in one click is not destructive, but it is just as blind.
     const ignoreAllBtn =
-      group.issues.length > 1
+      groupActionsAllowed && group.issues.length > 1
         ? el("button", "chk-ignore", t("ignoreAll", { n: group.issues.length }))
         : null;
     if (ignoreAllBtn) {
@@ -820,7 +716,7 @@ export class TabUI {
   }
 
   private onIgnoreGroup(group: IssueGroup): void {
-    ignoreIssues(this.settings, group.issues, () => this.scanner.reevaluate());
+    void ignoreIssues(this.settings, group.issues, () => this.scanner.reevaluate());
   }
 
   /** Fit the map to every segment of the group, with padding for context. */
@@ -897,167 +793,15 @@ export class TabUI {
     void runFixGroup(
       this.sdk,
       group.issues,
-      { status: group.status, expectedLock: group.note?.expectedLock, suggestion: group.suggestion },
+      {
+        status: group.status,
+        expectedLock: group.note?.expectedLock,
+        suggestion: group.suggestion,
+        currentName: group.currentName,
+      },
       this.settings.get(),
       { button, onComplete: () => this.scanner.reevaluate() },
     );
   }
 
-  private buildSettings(): HTMLElement {
-    const details = el("details", "chk-section");
-    const summary = el("summary");
-    summary.append(el("span", "chk-section-icon", "⚙️"), el("span", "", t("settingsTitle")));
-    details.appendChild(summary);
-    const body = el("div", "chk-section-body");
-    const settings = this.settings.get();
-
-    const apply = (partial: Partial<Settings>, rescan = false): void => {
-      this.settings.update(partial);
-      if (rescan) this.scanner.requestScan();
-      else this.scanner.reevaluate();
-    };
-
-    const grid = el("div", "chk-settings-grid");
-    for (const option of ROAD_TYPE_OPTIONS) {
-      const label = el("label");
-      const cb = el("input") as HTMLInputElement;
-      cb.type = "checkbox";
-      cb.checked = settings.checkedRoadTypes.includes(option.id);
-      cb.addEventListener("change", () => {
-        const current = new Set(this.settings.get().checkedRoadTypes);
-        if (cb.checked) current.add(option.id);
-        else current.delete(option.id);
-        apply({ checkedRoadTypes: [...current] });
-      });
-      label.append(cb, option.label);
-      grid.appendChild(label);
-    }
-
-    const statusGrid = el("div", "chk-settings-grid");
-    for (const status of ALL_STATUSES) {
-      const label = el("label");
-      label.title = t(LEGEND_KEYS[status]);
-      const cb = el("input") as HTMLInputElement;
-      cb.type = "checkbox";
-      cb.checked = settings.enabledStatuses.includes(status);
-      cb.addEventListener("change", () => {
-        const current = new Set(this.settings.get().enabledStatuses);
-        if (cb.checked) current.add(status);
-        else current.delete(status);
-        this.settings.update({ enabledStatuses: ALL_STATUSES.filter((s) => current.has(s)) });
-        this.scanner.reevaluate();
-      });
-      const dot = el("span", "chk-dot");
-      dot.style.background = STATUS_STYLES[status].strokeColor;
-      label.append(cb, dot, status);
-      statusGrid.appendChild(label);
-    }
-
-    const optionToggle = (
-      textKey: StringKey,
-      key: keyof Pick<
-        Settings,
-        | "altNameCountsAsOk"
-        | "showMapLabels"
-        | "keepOldNameAsAlt"
-        | "guidelineChecks"
-        | "editPanelHelper"
-        | "geometryMatching"
-        | "editableOnly"
-      >,
-      titleKey?: StringKey,
-    ): HTMLElement =>
-      this.toggleSwitch(
-        t(textKey),
-        settings[key],
-        (checked) => apply({ [key]: checked }),
-        titleKey ? t(titleKey) : undefined,
-      );
-
-    // second instance of the shared viewport-only toggle (see viewportOnlyToggle)
-    const viewportToggle = this.viewportOnlyToggle();
-
-    const options = [
-      optionToggle("altOk", "altNameCountsAsOk", "altOkTitle"),
-      optionToggle("showMapLabels", "showMapLabels"),
-      optionToggle("keepOldName", "keepOldNameAsAlt", "keepOldNameTitle"),
-      optionToggle("guidelineChecks", "guidelineChecks", "guidelineChecksTitle"),
-      optionToggle("helperSetting", "editPanelHelper"),
-      optionToggle("geometryMatching", "geometryMatching", "geometryMatchingTitle"),
-      optionToggle("editableOnly", "editableOnly", "editableOnlyTitle"),
-      viewportToggle,
-    ];
-
-    const scopingRow = el("div", "chk-settings-row");
-    scopingRow.appendChild(el("span", "", t("scopingLabel")));
-    const select = el("select") as HTMLSelectElement;
-    const scopingLabels: Record<CityScoping, string> = {
-      off: t("scopingOff"),
-      warn: t("scopingWarn"),
-      strict: t("scopingStrict"),
-    };
-    for (const value of ["off", "warn", "strict"] as CityScoping[]) {
-      const opt = el("option", "", scopingLabels[value]) as HTMLOptionElement;
-      opt.value = value;
-      select.appendChild(opt);
-    }
-    select.value = settings.cityScoping;
-    select.title = t("scopingTitle");
-    select.addEventListener("change", () => apply({ cityScoping: select.value as CityScoping }));
-    scopingRow.appendChild(select);
-
-    const zoomRow = el("div", "chk-settings-row");
-    zoomRow.appendChild(el("span", "", t("minZoomLabel")));
-    const zoomInput = el("input") as HTMLInputElement;
-    zoomInput.type = "number";
-    zoomInput.min = "12";
-    zoomInput.max = "22";
-    zoomInput.value = String(settings.minZoom);
-    zoomInput.addEventListener("change", () => {
-      const v = Number(zoomInput.value);
-      if (Number.isFinite(v) && v >= 12 && v <= 22) apply({ minZoom: v }, true);
-    });
-    zoomRow.appendChild(zoomInput);
-
-    const langRow = el("div", "chk-settings-row");
-    langRow.appendChild(el("span", "", t("languageLabel")));
-    const langSelect = el("select") as HTMLSelectElement;
-    for (const choice of LANGUAGE_CHOICES) {
-      const opt = el(
-        "option",
-        "",
-        choice.value === "auto" ? t("languageAuto") : choice.label,
-      ) as HTMLOptionElement;
-      opt.value = choice.value;
-      langSelect.appendChild(opt);
-    }
-    langSelect.value = settings.language;
-    langSelect.addEventListener("change", () => {
-      const language = langSelect.value as LanguagePreference;
-      this.settings.update({ language });
-      setLocale(resolveLocale(language, this.sdk.Settings.getLocale().localeCode));
-      this.rebuild();
-    });
-    langRow.appendChild(langSelect);
-
-    const ignoredRow = el("div", "chk-settings-row");
-    ignoredRow.appendChild(el("span", "", t("ignoredCount", { n: settings.ignoredKeys.length })));
-    const resetIgnoredBtn = el("button", "", t("resetIgnored")) as HTMLButtonElement;
-    resetIgnoredBtn.disabled = settings.ignoredKeys.length === 0;
-    resetIgnoredBtn.addEventListener("click", () => {
-      this.settings.update({ ignoredKeys: [] });
-      this.scanner.reevaluate();
-      this.rebuild();
-    });
-    ignoredRow.appendChild(resetIgnoredBtn);
-
-    body.append(
-      this.buildSubsection("🛣️", t("roadTypesLabel"), [grid]),
-      this.buildSubsection("🏷️", t("statusesLabel"), [statusGrid]),
-      this.buildSubsection("🎛️", t("optionsLabel"), options),
-      this.buildSubsection("📍", t("scopeDisplayLabel"), [scopingRow, zoomRow, langRow, ignoredRow]),
-    );
-    details.appendChild(body);
-    return details;
-  }
 }

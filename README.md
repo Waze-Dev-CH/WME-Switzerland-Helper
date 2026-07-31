@@ -34,7 +34,7 @@ You don’t need to be a programmer or have any special technical skills to use 
 2. **Add the WME Switzerland Helper Script**
 
 - After installing Tampermonkey, click this link:  
-  [Install WME Switzerland Helper](https://raw.githubusercontent.com/73VW/WME-Switzerland-Helper/releases/releases/main.user.js)
+  [Install WME Switzerland Helper](https://raw.githubusercontent.com/Waze-Dev-CH/WME-Switzerland-Helper/releases/releases/main.user.js)
 - Your browser will show a page asking if you want to install the script. Click the <kbd>Install</kbd> button.
 
 3. **Start Editing!**
@@ -63,7 +63,7 @@ With this script, you get:
   Turn each layer on or off with simple checkboxes in the WME interface.
 
 - **Official Street-Name Check**  
-  Compares the street names of the segments you see against the official Swiss street register (swisstopo) and highlights mismatches, with one-click fixes. A dedicated **🇨🇭 Street names** sidebar tab lists the issues, grouped and colour-coded, and the segment edit panel shows the verdict for the selected segment.
+  Compares the street names of the segments you see against the official Swiss street register (swisstopo) and highlights mismatches, with one-click fixes. A dedicated **🛣️ Street names** sidebar tab lists the issues, grouped and colour-coded, and the segment edit panel shows the verdict for the selected segment.
 
 All map data comes from official Swiss sources (swisstopo), so you can trust its accuracy.
 
@@ -97,7 +97,7 @@ The **Street Name Check** compares each segment's name with the official Swiss s
 
 If you have questions, find a bug, or want to suggest a new feature:
 
-1. Go to the [project’s issue tracker](https://github.com/73VW/WME-Switzerland-Helper/issues/new).
+1. Go to the [project’s issue tracker](https://github.com/Waze-Dev-CH/WME-Switzerland-Helper/issues/new).
 2. Click on **"New issue"**.
 3. Fill in the title and describe your question, problem, or idea.  
    (Don’t worry if you’re new to GitHub—you may need to create a free account.)
@@ -120,6 +120,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+- **Guard rails on bulk corrections.** "Fix all" can rename up to 50 segments in one click, and it is now available from editor level 3 upwards; below that, the button is not shown and segments are fixed one at a time. The **wrong street** finding gets more care all round: it is the only check decided purely by geometry, so a mistaken one replaces a perfectly good name. It now asks for confirmation every time, even for a single segment, it shows how solid the match actually is (how much of the segment the other street covers, and the distances involved), and it starts switched off below editor level 3, where it can be enabled from the settings like any other category. Confirmations now say what the names become, not just how many segments are affected.
+- **Detachable panel** for the street-name check: WME switches the sidebar to its Selection panel as soon as you click a segment, which hid the findings list exactly when you were working through it. The panel can now be detached into a floating window that stays visible, and that you can move and resize. Its position and size are remembered between sessions, and the window is brought back on screen if your browser window shrank in the meantime. While it is detached the window carries the working surface (toolbar, status and the findings list) and the sidebar tab keeps the options, so the settings stay where you expect them. Dock it back from the window's own button or from the sidebar tab, or toggle it with <kbd>Alt</kbd>+<kbd>W</kbd> (remappable in WME's keyboard settings). The sidebar tab stays the default: nothing changes until you ask for it.
 - **Scan this area** button: viewports too large for the automatic scan (above 6 km²) can now be scanned on demand, up to 50 km². The sweep fetches the official register batch by batch, streams partial results into the list as it goes, shows tile progress in the status banner and can be cancelled at any time (partial results are kept). Panning the map does not interrupt a running sweep.
 - Data-quality warnings under the status banner: dense areas truncated by the register API (a possible cause of false "not found"), areas that failed to load, and an exhausted nationwide-lookup budget are now reported instead of being silently logged.
 
@@ -142,7 +144,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
-- 🇨🇭 Official street-name check: compares Waze segment names against the Swiss street register (swisstopo / `api3.geo.admin.ch`), with a dedicated **🇨🇭 Street names** sidebar tab and an edit-panel verdict box. Includes colour-coded statuses (typography, abbreviation/variant, likely typo, wrong street ⚠️, wrong city, not found, unnamed, bilingual, Swiss guideline & lock checks), geometry matching, one-click fixes (never auto-saved), bilingual alternate-name handling, an Ignore action for false positives, and a cantonal-geoportal link. Merged from the standalone `WME-CH-Street-Name-Checker` userscript — its detailed 1.0–1.18 history is preserved in [`docs/street-name-checker-changelog.md`](./docs/street-name-checker-changelog.md).
+- 🛣️ Official street-name check: compares Waze segment names against the Swiss street register (swisstopo / `api3.geo.admin.ch`), with a dedicated **🛣️ Street names** sidebar tab and an edit-panel verdict box. Includes colour-coded statuses (typography, abbreviation/variant, likely typo, wrong street ⚠️, wrong city, not found, unnamed, bilingual, Swiss guideline & lock checks), geometry matching, one-click fixes (never auto-saved), bilingual alternate-name handling, an Ignore action for false positives, and a cantonal-geoportal link. Merged from the standalone `WME-CH-Street-Name-Checker` userscript — its detailed 1.0–1.18 history is preserved in [`docs/street-name-checker-changelog.md`](./docs/street-name-checker-changelog.md).
 - **Ignore all** button per group, to dismiss a whole group of false positives at once (with a confirmation for large groups)
 - Roundabout lock check: roundabouts are now expected to be locked at least **L3**
 

@@ -15,7 +15,7 @@
     "public_transport_stops": "Arrêts de transports publics"
   },
   "introduction": "Ce script ajoute des couches cartographiques qui peuvent être activées via la barre de navigation de droite tout en bas.",
-  "readmeLink": "Pour plus d'informations, consultez la <a href=\"https://github.com/73VW/WME-Switzerland-Helper/blob/public-transport-stops-layer/README.fr.md\" target=\"_blank\" rel=\"noopener noreferrer\">documentation complète</a>.",
+  "readmeLink": "Pour plus d'informations, consultez la <a href=\"https://github.com/Waze-Dev-CH/WME-Switzerland-Helper/blob/main/README.fr.md\" target=\"_blank\" rel=\"noopener noreferrer\">documentation complète</a>.",
   "note": {
     "layers": {
       "background": {
@@ -27,7 +27,7 @@
   "publicTransportStopsNote": "Les arrêts de transports publics apparaissent sous forme d'<strong>icônes circulaires orange</strong> <img src=\"data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OSIgaGVpZ2h0PSI0OCIgZmlsbD0iYmxhY2siPjxjaXJjbGUgY3g9IjI0LjcyNiIgY3k9IjI0IiByPSIyMyIgZmlsbD0iI2U2N2UyMiIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiLz48cGF0aCBmaWxsPSIjZmZmIiBkPSJNMjkuNzI2IDE0YTMgMyAwIDAgMSAyLjk5NSAyLjgyNGwuMDA1LjE3NnYxaDEuMDE3bC4xNS4wMDVjLjkzOC4wNiAxLjc2LjY4NCAxLjg0MyAxLjU5MWwuMDA3LjE1NFYyMmwtLjAwNy4xMTdhMSAxIDAgMCAxLS44NzYuODc2bC0uMTE3LjAwNy0uMTE3LS4wMDdhMSAxIDAgMCAxLS44NzYtLjg3NkwzMy43NDMgMjJ2LTJoLTEuMDE3djEwYTEgMSAwIDAgMS0uODgzLjk5M2wtLjExNy4wMDdoLTF2MS41YTEuNSAxLjUgMCAwIDEtMyAwVjMxaC02djEuNWExLjUgMS41IDAgMCAxLTMgMFYzMWgtMWExIDEgMCAwIDEtLjk5My0uODgzTDE2LjcyNiAzMFYyMGgtMXYyYTEgMSAwIDAgMS0uODgzLjk5M2wtLjExNy4wMDdhMSAxIDAgMCAxLS45OTMtLjg4M0wxMy43MjYgMjJ2LTIuMjVjMC0uOTkuODYtMS42ODIgMS44NS0xLjc0NWwuMTUtLjAwNWgxdi0xYTMgMyAwIDAgMSAyLjgyNC0yLjk5NWwuMTc2LS4wMDV6bS0xIDEzaC0xYTEgMSAwIDEgMCAwIDJoMWExIDEgMCAxIDAgMC0ybS03IDBoLTFhMSAxIDAgMSAwIDAgMmgxYTEgMSAwIDEgMCAwLTJtLS40MjktMTFoLTEuNTdsLS4xMTcuMDA3YTEgMSAwIDAgMC0uODc3Ljg3NmwtLjAwNy4xMTd2OGgxMnYtOGwtLjAwNy0uMTE3YTEgMSAwIDAgMC0uNzY0LS44NTdsLS4xMTItLjAyLS4xMTctLjAwNmgtMS41NzJsLS44NTQgMS40OTYtLjA2NS4xYTEgMSAwIDAgMS0uODAzLjQwNEgyMy4wMmwtLjExOS0uMDA3YTEgMSAwIDAgMS0uNzUtLjQ5N3oiLz48c2NyaXB0IHhtbG5zPSIiLz48L3N2Zz4=\" style=\"height: 20px; width: 20px; vertical-align: middle;\"> sur la carte. Cliquez dessus pour créer ou mettre à jour des lieux. Les arrêts déjà cartographiés par un lieu de même nom dans un rayon de <strong>75 mètres</strong> sont masqués ; seuls ceux nécessitant une action sont affichés.",
   "streetCheck": {
     "appName": "Nom des rues",
-    "tabNote": "Compare les noms de rues Waze au répertoire officiel suisse et signale les écarts, avec correction en 1 clic. Ouvre l'onglet dédié 🇨🇭 Nom des rues pour voir les écarts.",
+    "tabNote": "Compare les noms de rues Waze au répertoire officiel suisse et signale les écarts, avec correction en 1 clic. Ouvre l'onglet dédié 🛣️ Nom des rues pour voir les écarts.",
     "stateIdle": "En attente",
     "stateDisabled": "Script désactivé",
     "stateOutsideCh": "Hors de Suisse",
@@ -77,7 +77,6 @@
     "ignoredCount": "{{n}} ignorés",
     "resetIgnored": "Réinitialiser",
     "confirmOverLockFix": "Ce segment est verrouillé au-dessus du minimum suisse (souvent volontaire). Abaisser le verrou à L{{n}} ?",
-    "confirmGroupFix": "Appliquer «{{name}}» à {{n}} segments ?\nRien n'est sauvegardé automatiquement; relisez et sauvez dans WME.",
     "fixFailed": "Échec de la correction: {{error}}",
     "fixStopped": "{{done}}/{{total}} corrigés, puis arrêt: {{error}} (segment {{id}})",
     "allMatch": "Tous les noms de rues correspondent ✓",
@@ -134,7 +133,20 @@
     "errStreetCreate": "Impossible de trouver ou de créer la rue",
     "errLockAboveRank": "Verrou L{{expected}} au-dessus de ton niveau d'éditeur (L{{user}})",
     "ignoreAll": "Tout ignorer ({{n}})",
-    "confirmIgnoreAll": "Ignorer les {{n}} signalements de ce groupe ? Masqués localement, récupérables dans les réglages (Réinitialiser)."
+    "confirmIgnoreAll": "Ignorer les {{n}} signalements de ce groupe ? Masqués localement, récupérables dans les réglages (Réinitialiser).",
+    "dialogConfirm": "Confirmer",
+    "dialogCancel": "Annuler",
+    "dialogOk": "OK",
+    "detach": "Détacher",
+    "detachTitle": "Déplacer le panneau dans une fenêtre flottante qui reste visible quand WME bascule sur l onglet Selection",
+    "dock": "Rattacher",
+    "dockTitle": "Remettre le panneau dans l onglet de la barre latérale",
+    "shortcutToggleWindow": "Basculer la fenêtre flottante",
+    "noteMatchConfidence": "correspond à {{pct}} % du segment, à {{m}} m de son axe",
+    "noteRunnerUp": "candidat suivant à {{m}} m derrière",
+    "confirmWrongStreetFix": "Ce segment s appelle « {{current}} » mais une autre rue officielle passe dessous.\nLe renommer en « {{suggestion}} » ?\nCe verdict vient de la géométrie, vérifie-le sur la carte avant.",
+    "confirmGroupFixDetailed": "Renommer {{n}} segments de « {{current}} » en « {{suggestion}} » ?\nRien n est enregistré automatiquement ; relis et enregistre dans WME.",
+    "errGroupFixRank": "La correction de groupe demande le niveau éditeur {{level}} ou plus. Corrige les segments un par un."
   },
   "reloadStops": "Recharger les arrêts de transport public",
   "deleteObsoleteStop": {

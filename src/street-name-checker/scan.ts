@@ -479,15 +479,21 @@ export class Scanner {
         stats.skipped++;
         continue;
       }
+      // Road-type filter first. It is also evaluateSegment's very first guard, but
+      // reaching it there cost a getAddress() call per segment. Only 4 of the 17 types are
+      // checked by default, so alleys, parking aisles, walkways and railways were paying
+      // an SDK round trip just to be discarded, on every scan and on every reevaluation
+      // triggered by an edit. The guideline pass only asks for an address when a segment
+      // actually trips a check, so it does not give the saving back.
+      if (!settings.checkedRoadTypes.includes(segment.roadType)) {
+        stats.skipped++;
+        continue;
+      }
       let verdict;
       try {
         const address = this.sdk.DataModel.Segments.getAddress({ segmentId: segment.id });
         addressCache.set(segment.id, address);
-        // spatial lookup only for road types we actually check
-        const nearest =
-          spatial && settings.checkedRoadTypes.includes(segment.roadType)
-            ? nearestOfficial(segment.geometry, spatial)
-            : null;
+        const nearest = spatial ? nearestOfficial(segment.geometry, spatial) : null;
         verdict = evaluateSegment(segment, address, index, settings, nearest, swissCountryId);
       } catch {
         stats.skipped++;

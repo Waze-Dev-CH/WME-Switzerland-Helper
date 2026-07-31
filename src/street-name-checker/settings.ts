@@ -1,6 +1,10 @@
 import type { LanguagePreference } from "./i18n";
 import type { IssueStatus } from "./matching/evaluate";
 import { log } from "./log";
+import type { WindowRect } from "./ui/window-geometry";
+
+/** Sidebar tab, or a floating window that survives WME's tab switching. */
+export type WindowMode = "sidebar" | "floating";
 
 // Road type ids from the WME SDK ROAD_TYPE constant (values verified against
 // wme-sdk-typings v2.354). The SDK package is types-only, so ids are restated here.
@@ -51,8 +55,13 @@ export const ALL_STATUSES: IssueStatus[] = [
   "UNNAMED_NO_MATCH",
 ];
 
-/** Lock-level checks gated behind a minimum editor rank by default. */
-const LOCK_STATUSES: IssueStatus[] = ["UNDER_LOCK", "OVER_LOCK"];
+/**
+ * Checks gated behind a minimum editor rank by default. Locks because low ranks rarely
+ * manage them, and WRONG_STREET because its verdict comes from geometry alone: it is the
+ * one finding that tells you to replace a name that reads as perfectly valid, and reading
+ * it right means knowing what a false positive looks like.
+ */
+const RANK_GATED_STATUSES: IssueStatus[] = ["UNDER_LOCK", "OVER_LOCK", "WRONG_STREET"];
 
 /**
  * Minimum editor rank (getUserInfo().rank scale) for the lock checks to be ON by
@@ -64,9 +73,9 @@ export const LOCK_DEFAULT_MIN_RANK = 2;
 
 /** First-run default statuses: all but UNNAMED_NO_MATCH, minus locks below the rank gate. */
 export function defaultEnabledStatuses(userRank: number | null): IssueStatus[] {
-  const lockOk = userRank !== null && userRank >= LOCK_DEFAULT_MIN_RANK;
+  const experienced = userRank !== null && userRank >= LOCK_DEFAULT_MIN_RANK;
   return ALL_STATUSES.filter(
-    (s) => s !== "UNNAMED_NO_MATCH" && (lockOk || !LOCK_STATUSES.includes(s)),
+    (s) => s !== "UNNAMED_NO_MATCH" && (experienced || !RANK_GATED_STATUSES.includes(s)),
   );
 }
 
@@ -95,6 +104,14 @@ export interface Settings {
   viewportOnly: boolean;
   /** Evaluate only segments the current editor rank can actually edit. */
   editableOnly: boolean;
+  /**
+   * Where the UI lives. WME switches the sidebar to its Selection panel as soon as a
+   * segment is clicked, which hides the tab exactly when it is being used; "floating"
+   * moves the same DOM into a window that stays put.
+   */
+  windowMode: WindowMode;
+  /** Last window geometry in pixels; null until the window has been used. */
+  windowRect: WindowRect | null;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -116,6 +133,9 @@ export const DEFAULT_SETTINGS: Settings = {
   geometryMatching: true,
   viewportOnly: true,
   editableOnly: false,
+  // Sidebar by default: nobody's editor should change shape without asking for it.
+  windowMode: "sidebar",
+  windowRect: null,
 };
 
 const STORAGE_KEY = "wme-ch-name-check.settings";

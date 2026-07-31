@@ -1,7 +1,7 @@
 import type { LineString } from "geojson";
 import type { WmeSDK } from "wme-sdk-typings";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fixGroup, fixSegment, ignoreIssue, runFix, withFixLock } from "./fix";
+import { fixGroup, fixSegment, ignoreIssue, runFix, runFixGroup, withFixLock } from "./fix";
 import type { Issue } from "./matching/evaluate";
 import { DEFAULT_SETTINGS, type SettingsStore } from "./settings";
 
@@ -285,7 +285,6 @@ describe("runFix (shared UI runner)", () => {
   });
 
   it("aborts an OVER_LOCK fix (no edit, no onComplete) when the confirm is declined", async () => {
-    vi.stubGlobal("confirm", () => false);
     const { sdk, lockUpdates } = makeSdk(4);
     let completed = false;
     const overLock = issue({
@@ -293,9 +292,134 @@ describe("runFix (shared UI runner)", () => {
       suggestion: null,
       note: { currentLock: 5, expectedLock: 2 },
     });
-    await runFix(sdk, overLock, DEFAULT_SETTINGS, { onComplete: () => (completed = true) });
+    await runFix(sdk, overLock, DEFAULT_SETTINGS, {
+      confirm: async () => false,
+      onComplete: () => (completed = true),
+    });
     expect(lockUpdates).toHaveLength(0);
     expect(completed).toBe(false);
+  });
+});
+
+describe("group fix rank guard", () => {
+  const group = () => [issue(), issue(), issue()];
+  const header = { status: "COSMETIC" as const, suggestion: "Avenue de Florimont" };
+
+  it("refuses below editor level 3 and says why", async () => {
+    // rank 1 = displayed level 2. The UI hides the button, but two UIs build it and the
+    // refusal has to live with the action, not with the button.
+    const { sdk, updates } = makeSdk(0, 1);
+    const notices: string[] = [];
+    await runFixGroup(sdk, group(), header, DEFAULT_SETTINGS, {
+      notify: async (m) => void notices.push(m),
+    });
+    expect(updates).toHaveLength(0);
+    expect(notices).toHaveLength(1);
+  });
+
+  it("allows it from editor level 3 up", async () => {
+    const { sdk, updates } = makeSdk(0, 2);
+    await runFixGroup(sdk, group(), header, DEFAULT_SETTINGS, { confirm: async () => true });
+    expect(updates).toHaveLength(3);
+  });
+
+  it("treats an unknown rank as insufficient", async () => {
+    // makeSdk defaults userRank to 5, so passing undefined through it would just restore
+    // the default. This case needs a stub whose getUserInfo genuinely returns nothing.
+    const updates: number[] = [];
+    const sdk = {
+      Editing: { isEditingAllowed: () => true },
+      State: { getUserInfo: () => undefined },
+      DataModel: {
+        Segments: {
+          getById: ({ segmentId }: { segmentId: number }) => ({ id: segmentId }),
+          updateAddress: ({ segmentId }: { segmentId: number }) => void updates.push(segmentId),
+        },
+      },
+    } as unknown as WmeSDK;
+
+    await runFixGroup(sdk, group(), header, DEFAULT_SETTINGS, { notify: async () => undefined });
+    expect(updates).toHaveLength(0);
+  });
+});
+
+describe("geometric verdicts always confirm", () => {
+  const wrongStreet = () =>
+    issue({
+      status: "WRONG_STREET",
+      currentName: "Chemin de la Poste",
+      suggestion: "Route de la Guerite",
+      note: { coverage: 0.8, matchDistanceM: 3, ownDistanceM: 210 },
+    });
+
+  it("asks before renaming a single segment", async () => {
+    // Until now this was the one destructive fix with no confirmation at all, while
+    // lowering a lock, undone with a click, always asked.
+    const { sdk, updates } = makeSdk();
+    let asked = "";
+    await runFix(sdk, wrongStreet(), DEFAULT_SETTINGS, {
+      confirm: async (message) => {
+        asked = message;
+        return false;
+      },
+    });
+    expect(updates).toHaveLength(0);
+    expect(asked).toContain("Chemin de la Poste");
+    expect(asked).toContain("Route de la Guerite");
+  });
+
+  it("carries the match confidence into the prompt", async () => {
+    const { sdk } = makeSdk();
+    let asked = "";
+    await runFix(sdk, wrongStreet(), DEFAULT_SETTINGS, {
+      confirm: async (message) => {
+        asked = message;
+        return false;
+      },
+    });
+    expect(asked).toContain("80");
+  });
+
+  it("asks for a group of two, well under the volume threshold", async () => {
+    const { sdk, updates } = makeSdk(0, 5);
+    let asked = 0;
+    await runFixGroup(
+      sdk,
+      [wrongStreet(), wrongStreet()],
+      {
+        status: "WRONG_STREET",
+        suggestion: "Route de la Guerite",
+        currentName: "Chemin de la Poste",
+      },
+      DEFAULT_SETTINGS,
+      {
+        confirm: async () => {
+          asked += 1;
+          return false;
+        },
+      },
+    );
+    expect(asked).toBe(1);
+    expect(updates).toHaveLength(0);
+  });
+
+  it("stays silent under the threshold for a cosmetic group", async () => {
+    const { sdk, updates } = makeSdk(0, 5);
+    let asked = 0;
+    await runFixGroup(
+      sdk,
+      [issue(), issue()],
+      { status: "COSMETIC", suggestion: "Avenue de Florimont" },
+      DEFAULT_SETTINGS,
+      {
+        confirm: async () => {
+          asked += 1;
+          return true;
+        },
+      },
+    );
+    expect(asked).toBe(0);
+    expect(updates).toHaveLength(2);
   });
 });
 

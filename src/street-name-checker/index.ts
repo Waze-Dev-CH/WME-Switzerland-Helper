@@ -4,16 +4,18 @@
  * Licensed under the repository's GNU AGPL v3.0 or later (see /src note in README).
  */
 import type { WmeSDK } from "wme-sdk-typings";
+import { type ActivationContext, setCheckerEnabled } from "./activation";
 import { IdbTileStore } from "./geoadmin/idb-store";
 import { TileFetcher } from "./geoadmin/tiles";
 import { resolveLocale, setLocale } from "./i18n";
 import { log } from "./log";
-import { HighlightLayer, registerLayerCheckbox } from "./map-layer";
+import { HighlightLayer, registerLayerCheckbox, setLayerCheckbox } from "./map-layer";
 import { Scanner } from "./scan";
 import { registerShortcuts } from "./shortcuts";
 import { SettingsStore } from "./settings";
 import { EditPanelBox } from "./ui/edit-panel";
 import { TabUI } from "./ui/tab";
+import { createWindowMode } from "./ui/window-mode";
 
 // Own scriptId so the checker gets its own Scripts-sidebar tab and layer checkbox:
 // registerScriptTab() throws if the host's scriptId already owns a tab, so the feature
@@ -41,10 +43,21 @@ export async function initStreetNameChecker(): Promise<void> {
   const layer = new HighlightLayer(sdk, settings);
 
   layer.init();
-  registerLayerCheckbox(sdk, (checked) => {
-    layer.setVisible(checked);
-    scanner.setPaused(!checked);
-  });
+
+  // The layer checkbox and the tab's master toggle are two faces of settings.enabled;
+  // both go through setCheckerEnabled so neither can drift from the persisted value.
+  // Set once the tab exists; the sync only ever fires on a user click, long after init.
+  let tabRef: TabUI | null = null;
+  const activation: ActivationContext = {
+    settings,
+    scanner,
+    layer,
+    syncCheckbox: (checked) => setLayerCheckbox(sdk, checked),
+    syncToggle: (checked) => tabRef?.syncEnabledToggle(checked),
+  };
+  const enabled = settings.get().enabled;
+  layer.setVisible(enabled);
+  registerLayerCheckbox(sdk, enabled, (checked) => setCheckerEnabled(activation, checked, "checkbox"));
 
   // Resync the OpenLayers layer only when results actually change; progress
   // ticks during a fetch reuse the same issues map and must stay free.
@@ -56,11 +69,29 @@ export async function initStreetNameChecker(): Promise<void> {
     }
   });
 
-  const tab = new TabUI(sdk, scanner, settings);
+  // The controller needs a built tab, and the tab needs a way to reach the controller.
+  // The indirection resolves it: the handler is only ever called on a user click, long
+  // after both exist.
+  let detachHandler = (): void => undefined;
+  const tab = new TabUI(
+    sdk,
+    scanner,
+    settings,
+    (checked) => setCheckerEnabled(activation, checked, "tab"),
+    () => detachHandler(),
+  );
+  tabRef = tab;
   await tab.init();
 
+  const windowMode = createWindowMode(settings, tab);
+  detachHandler = () => windowMode.detach();
+  windowMode.restore();
+
   new EditPanelBox(sdk, scanner, settings).init();
-  registerShortcuts(sdk, scanner, settings, { nextIssue: () => tab.selectNextIssue() });
+  registerShortcuts(sdk, scanner, settings, {
+    nextIssue: () => tab.selectNextIssue(),
+    toggleWindow: () => windowMode.toggle(),
+  });
 
   scanner.start();
   log.info(`ready (SDK ${sdk.getSDKVersion()}, WME ${sdk.getWMEVersion()})`);

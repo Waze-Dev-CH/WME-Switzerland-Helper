@@ -34,7 +34,7 @@ Non è necessario essere programmatori o avere particolari competenze tecniche p
 2. **Aggiungi il WME Switzerland Helper Script**
 
 - Dopo aver installato Tampermonkey, fare clic su questo link:  
-  [Installare WME Switzerland Helper](https://raw.githubusercontent.com/73VW/WME-Switzerland-Helper/releases/releases/main.user.js)
+  [Installare WME Switzerland Helper](https://raw.githubusercontent.com/Waze-Dev-CH/WME-Switzerland-Helper/releases/releases/main.user.js)
 - Il browser mostrerà una pagina che chiede se si desidera installare lo script. Fare clic sul pulsante <kbd>Installa</kbd>.
 
 3. \*\*Iniziare a modificare!
@@ -83,7 +83,7 @@ Il livello **Fermate dei trasporti pubblici** mostra le fermate ufficiali del tr
 
 Se avete domande, trovate un bug o volete suggerire una nuova funzionalità:
 
-1. Andate al [issue tracker del progetto](https://github.com/73VW/WME-Switzerland-Helper/issues/new).
+1. Andate al [issue tracker del progetto](https://github.com/Waze-Dev-CH/WME-Switzerland-Helper/issues/new).
 2. Cliccare su **"Nuovo problema "**.
 3. Compilare il titolo e descrivere la domanda, il problema o l'idea.  
    (Non preoccupatevi se siete nuovi su GitHub: potrebbe essere necessario creare un account gratuito)
