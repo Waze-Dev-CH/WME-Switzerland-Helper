@@ -66,7 +66,12 @@ export function importPoint(sdk: WmeSDK, point: GwrPoint, segmentId: number): Im
 
   const distance = distanceToSegmentM(coordinates, point);
   if (distance > MAX_SNAP_DISTANCE_M) {
-    return { ...base, ok: false, error: "errTooFar", distance: Math.round(distance) };
+    return {
+      ...base,
+      ok: false,
+      error: "errTooFar",
+      distance: Math.round(distance),
+    };
   }
 
   try {
@@ -149,7 +154,12 @@ export async function withImportLock<T>(fn: () => Promise<T>): Promise<T | null>
 export interface ImportUiHooks {
   confirm?: Confirm;
   notify?: Notify;
-  onComplete?: () => void;
+  /**
+   * Called with what actually happened, never with what was asked for: the caller marks
+   * numbers as created from this list, and a number that failed or fell past the cap would
+   * otherwise be remembered as existing while nothing was ever created for it.
+   */
+  onComplete?: (outcomes: ImportOutcome[]) => void;
 }
 
 function describeFailure(outcome: ImportOutcome): string {
@@ -165,7 +175,9 @@ export async function runImportPoint(
   point: GwrPoint,
   segmentId: number,
   streetName: string,
-  options: { confirmSingle: boolean } & ImportUiHooks = { confirmSingle: false },
+  options: { confirmSingle: boolean } & ImportUiHooks = {
+    confirmSingle: false,
+  },
 ): Promise<void> {
   const confirm = options.confirm ?? confirmDialog;
   const notify = options.notify ?? notifyDialog;
@@ -179,7 +191,7 @@ export async function runImportPoint(
     }
     const outcome = importPoint(sdk, point, segmentId);
     if (!outcome.ok) await notify(describeFailure(outcome));
-    options.onComplete?.();
+    options.onComplete?.([outcome]);
   });
 }
 
@@ -212,7 +224,11 @@ export async function runImportPoints(
           street: streetName,
           numbers,
         })
-      : t("confirmMassImport", { count: batch.length, street: streetName, numbers });
+      : t("confirmMassImport", {
+          count: batch.length,
+          street: streetName,
+          numbers,
+        });
 
     // A street is several WME segments, and each number hangs from its own. Say so, or a
     // batch touching five segments looks like it only touched the selected one.
@@ -251,6 +267,6 @@ export async function runImportPoints(
     } else {
       await notify(t("importedCount", { count: created }));
     }
-    hooks.onComplete?.();
+    hooks.onComplete?.(outcomes);
   });
 }
