@@ -118,6 +118,8 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### [Unveröffentlicht]
 
+### [1.5.0] - 2026-07-31
+
 #### Hinzugefügt
 
 - **Die Reiter des Skripts zeigen endlich, dass sie zusammengehören.** Die Skript-Leiste mischt die Reiter aller installierten Userscripts, und nichts wies darauf hin, dass «Strassennamen» und «Hausnummern» von diesem hier stammen. Beide beginnen nun mit demselben kurzen Kennzeichen, **CH · Strassennamen** und **CH · Hausnummern**, neben dem Hauptreiter **WME Schweiz Helfer**, und die drei rücken in der Leiste nebeneinander, sofern der Editor es zulässt. Ordnet eine künftige WME-Version diese Leiste um, bleiben sie einfach dort, wo sie landen, weiterhin gekennzeichnet.

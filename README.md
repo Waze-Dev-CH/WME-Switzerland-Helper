@@ -118,6 +118,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### [Unreleased]
 
+### [1.5.0] - 2026-07-31
+
 #### Added
 
 - **The script's tabs now say they belong together.** The Scripts bar mixes the tabs of every userscript you have installed, and nothing said that "Street names" and "House numbers" came from this one. Both now open with the same short marker, **CH · Street names** and **CH · House numbers**, next to the main **WME Switzerland Helper** tab, and the three pull themselves side by side in the bar when the editor lets them. If a future version of WME rearranges that bar, they simply stay where they land, still marked.

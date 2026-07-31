@@ -118,6 +118,8 @@ et ce projet adhère au [Versionnage Sémantique](https://semver.org/spec/v2.0.0
 
 ### [Non publié]
 
+### [1.5.0] - 2026-07-31
+
 #### Ajouté
 
 - **Les onglets du script disent enfin qu'ils vont ensemble.** La barre Scripts mélange les onglets de tous les userscripts installés, et rien n'indiquait que «Nom des rues» et «Numéros de maison» venaient de celui-ci. Les deux s'ouvrent désormais par le même marqueur court, **CH · Nom des rues** et **CH · Numéros de maison**, à côté de l'onglet principal **WME Suisse Helper**, et les trois se rapprochent les uns des autres dans la barre lorsque l'éditeur le permet. Si une future version de WME réorganise cette barre, ils restent simplement là où ils tombent, toujours marqués.
