@@ -128,6 +128,8 @@ e questo progetto aderisce al [Versionamento Semantico](https://semver.org/spec/
 
 ### [Non pubblicato]
 
+### [1.5.1] - 2026-08-03
+
 #### Modificato
 
 - **I punti civici si leggono finalmente a colpo d'occhio.** I numeri ancora mancanti e quelli già presenti condividevano lo stesso verde, distinti soltanto dalla loro trasparenza. Un numero mancante è ora un disco verde acceso con un **+**, un numero già presente un disco ardesia con una **spunta**, mentre i due casi su cui non potete intervenire restano piccoli e grigi. Poiché ciascuno porta un pittogramma, la distinzione non dipende più dal solo colore. Nessuna delle quattro tinte è inoltre usata altrove sulla mappa: un punto civico non può più essere scambiato per una fermata del trasporto pubblico o per una segnalazione sui nomi delle vie.
