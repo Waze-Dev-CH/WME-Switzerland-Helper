@@ -1,5 +1,6 @@
 import type { SdkFeature, WmeSDK } from "wme-sdk-typings";
 import type { GwrPoint } from "./gwr/types";
+import { statusIcon, type IconSpec } from "./icons";
 import { t } from "./i18n";
 import { log } from "./log";
 import type { SettingsStore } from "./settings";
@@ -18,19 +19,33 @@ export function getLayerName(): string {
 
 const LABEL_MIN_ZOOM = 18;
 
-interface StatusStyle {
-  fillColor: string;
-  fillOpacity: number;
+interface StatusStyle extends IconSpec {
   pointRadius: number;
   clickable: boolean;
 }
 
+/**
+ * One saturated colour for the only status you can act on, everything else stepping down a
+ * cold desaturated ladder, and a pictogram so the distinction never rests on colour alone.
+ *
+ * None of these four values appears anywhere else on the map. The previous palette gave
+ * MISSING and PRESENT the same green, telling "to import" apart from "already there" by
+ * opacity only, and that green was also the checker's BILINGUAL verdict.
+ */
 export const STATUS_STYLES: Record<PointStatus, StatusStyle> = {
-  MISSING: { fillColor: "#2e7d32", fillOpacity: 0.95, pointRadius: 8, clickable: true },
-  PRESENT: { fillColor: "#2e7d32", fillOpacity: 0.25, pointRadius: 5, clickable: false },
-  OTHER_STREET: { fillColor: "#9e9e9e", fillOpacity: 0.55, pointRadius: 5, clickable: false },
-  NEUTRAL: { fillColor: "#607d8b", fillOpacity: 0.55, pointRadius: 6, clickable: false },
+  MISSING: { color: "#00c853", opacity: 1, pointRadius: 8, clickable: true, glyph: "plus" },
+  PRESENT: { color: "#455a64", opacity: 0.8, pointRadius: 8, clickable: false, glyph: "check" },
+  OTHER_STREET: { color: "#b0bec5", opacity: 0.55, pointRadius: 4, clickable: false },
+  NEUTRAL: { color: "#78909c", opacity: 0.55, pointRadius: 5, clickable: false },
 };
+
+/** Built once. The very same URI is what the tab's legend pills render, via `dot()`. */
+export const STATUS_ICONS = Object.fromEntries(
+  (Object.keys(STATUS_STYLES) as PointStatus[]).map((status) => [
+    status,
+    statusIcon(STATUS_STYLES[status]),
+  ]),
+) as Record<PointStatus, string>;
 
 const FEATURE_PREFIX = "hn-";
 
@@ -68,19 +83,20 @@ export class AddressPointLayer {
         styleRules: (Object.keys(STATUS_STYLES) as PointStatus[]).map((status) => ({
           predicate: (properties) => properties.status === status,
           style: {
-            graphicName: "circle",
-            fillColor: STATUS_STYLES[status].fillColor,
-            fillOpacity: STATUS_STYLES[status].fillOpacity,
+            // Colour, opacity and white outline all live inside the SVG. `fillOpacity` is
+            // still mandatory: OpenLayers renders an external graphic at
+            // `graphicOpacity || fillOpacity`, so leaving both unset lets its 0.4 default
+            // through and washes out every marker. Same line as publicTransportStopsLayer.ts
+            // and as the SDK's own externalGraphic example.
+            externalGraphic: STATUS_ICONS[status],
+            fillOpacity: 1,
             pointRadius: STATUS_STYLES[status].pointRadius,
-            strokeColor: "#ffffff",
-            strokeWidth: STATUS_STYLES[status].clickable ? 2 : 1,
-            strokeOpacity: 0.9,
             // No pointerEvents:"none" here, unlike the checker's highlight layer: clicking
             // a point IS the feature. That one line is what the reference userscript had to
             // work around with its "press R, then click the map" dance.
             cursor: STATUS_STYLES[status].clickable ? "pointer" : "default",
+            // The only hover feedback left, hoverFillOpacity being a fill-only field.
             hoverPointRadius: STATUS_STYLES[status].pointRadius + 2,
-            hoverFillOpacity: Math.min(1, STATUS_STYLES[status].fillOpacity + 0.2),
             label: "${getLabel}",
             fontColor: "#1b1d20",
             fontSize: "11px",

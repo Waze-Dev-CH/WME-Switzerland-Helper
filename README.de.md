@@ -128,6 +128,10 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### [Unveröffentlicht]
 
+#### Geändert
+
+- **Hausnummernpunkte lassen sich jetzt auf einen Blick lesen.** Fehlende und bereits erfasste Nummern teilten sich dasselbe Grün und unterschieden sich allein durch ihre Blässe. Eine fehlende Nummer ist nun eine leuchtend grüne Scheibe mit einem **+**, eine bereits erfasste eine schiefergraue Scheibe mit einem **Haken**, und die beiden Fälle, bei denen Sie nichts tun können, bleiben klein und grau. Da jede ein Piktogramm trägt, beruht die Unterscheidung nicht mehr allein auf der Farbe. Keine der vier Farben wird zudem sonst irgendwo auf der Karte verwendet: Ein Adresspunkt lässt sich damit nicht mehr mit einer Haltestelle des öffentlichen Verkehrs oder einem Strassennamen-Befund verwechseln.
+
 ### [1.5.0] - 2026-07-31
 
 #### Hinzugefügt

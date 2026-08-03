@@ -1,19 +1,6 @@
 import { componentRules } from "../../ui/components";
 import { injectStyleOnce } from "../../ui/inject";
 import { tokenRules } from "../../ui/tokens";
-import { STATUS_STYLES } from "../map-layer";
-import type { PointStatus } from "../status";
-
-/**
- * Status colours are derived from the map styles, so a pill in the tab can never drift
- * from the circle it stands for on the map.
- */
-const statusDotRules = (Object.keys(STATUS_STYLES) as PointStatus[])
-  .map(
-    (status) =>
-      `.hn-dot-${status} { background: ${STATUS_STYLES[status].fillColor}; opacity: ${Math.max(0.55, STATUS_STYLES[status].fillOpacity)}; }`,
-  )
-  .join("\n");
 
 /**
  * Everything generic (tokens, switch, buttons, sections, banner) comes from src/ui, so
@@ -32,7 +19,8 @@ ${componentRules("hn")}
 .hn-legend { display: flex; flex-direction: column; gap: 5px; }
 .hn-legend-row { display: flex; align-items: center; gap: 8px; }
 .hn-note { font-size: 11px; color: var(--hn-muted); }
-${statusDotRules}
+/* Overrides the generic 8px dot: these carry a pictogram, which needs the room. */
+.hn-dot { width: 13px; height: 13px; }
 `;
 
 export function injectStyles(): void {

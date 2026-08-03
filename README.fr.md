@@ -128,6 +128,10 @@ et ce projet adhère au [Versionnage Sémantique](https://semver.org/spec/v2.0.0
 
 ### [Non publié]
 
+#### Modifié
+
+- **Les points d'adresse se lisent enfin d'un coup d'œil.** Les numéros encore manquants et ceux déjà posés partageaient le même vert, distingués par leur seule pâleur. Un numéro manquant est désormais un disque vert vif marqué d'un **+**, un numéro déjà posé un disque ardoise marqué d'une **coche**, et les deux cas sur lesquels vous ne pouvez pas agir restent petits et gris. Chacun portant un pictogramme, la distinction ne repose plus sur la seule couleur. Aucune des quatre teintes n'est par ailleurs utilisée ailleurs sur la carte : un point d'adresse ne peut plus être pris pour un arrêt de transports publics ni pour un signalement de nom de rue.
+
 ### [1.5.0] - 2026-07-31
 
 #### Ajouté

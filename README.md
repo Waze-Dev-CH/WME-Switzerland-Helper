@@ -128,6 +128,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### [Unreleased]
 
+#### Changed
+
+- **House-number points can now be read at a glance.** Numbers still missing and numbers already mapped used to share the same green, told apart only by how faded one was. A missing number is now a bright green disc marked with a **+**, an already-mapped one a slate disc marked with a **✓**, and the two cases you cannot act on stay small and grey. Because each carries a pictogram, the distinction no longer rests on colour alone. None of the four colours is used anywhere else on the map either, so an address point can no longer be taken for a public transport stop or for a street-name finding.
+
 ### [1.5.0] - 2026-07-31
 
 #### Added

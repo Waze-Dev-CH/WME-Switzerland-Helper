@@ -4,6 +4,9 @@
  * real checkbox as the track's previous sibling, which is what the CSS hangs on.
  */
 
+import { STATUS_ICONS } from "../map-layer";
+import type { PointStatus } from "../status";
+
 export function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   className?: string,
@@ -69,9 +72,16 @@ export function numberInput(
   return input;
 }
 
-/** A coloured dot standing next to a label; never the sole carrier of a meaning. */
-export function dot(status: string): HTMLElement {
-  return el("span", `hn-dot hn-dot-${status}`);
+/**
+ * The status marker standing next to a label; never the sole carrier of a meaning, hence
+ * the empty alt. It is the exact image the map draws, so a pill can never drift from the
+ * point it stands for.
+ */
+export function dot(status: PointStatus): HTMLElement {
+  const img = el("img", "hn-dot");
+  img.src = STATUS_ICONS[status];
+  img.alt = "";
+  return img;
 }
 
 /**
