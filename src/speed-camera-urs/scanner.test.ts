@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { noteMessaged, resetMessagedForTests } from "./close";
 import { makeSdk, makeUr } from "./fake-sdk";
 import { Scanner, type ScanSnapshot } from "./scanner";
@@ -92,5 +92,29 @@ describe("Scanner.rescan", () => {
       lon: 6.6,
       lat: 46.5,
     });
+  });
+
+  it("does not cache a read that a change overtook", async () => {
+    const { sdk, calls } = makeSdk([makeUr(1)]);
+    const original = sdk.DataModel.MapUpdateRequests.getUpdateRequestDetails;
+    let resolveRead: (
+      value: Awaited<ReturnType<typeof original>>,
+    ) => void = () => {};
+    sdk.DataModel.MapUpdateRequests.getUpdateRequestDetails = vi.fn(
+      () => new Promise((resolve) => (resolveRead = resolve)),
+    ) as typeof original;
+    const scanner = new Scanner(sdk);
+
+    const scan = scanner.rescan();
+    scanner.forget([1]);
+    resolveRead({ comments: [] } as never);
+    await scan;
+
+    expect(scanner.getSnapshot().entries[0]?.triage).toBe("pending");
+
+    sdk.DataModel.MapUpdateRequests.getUpdateRequestDetails = original;
+    await scanner.rescan();
+    expect(calls).toEqual(["details:1"]);
+    expect(scanner.getSnapshot().entries[0]?.triage).toBe("ready");
   });
 });

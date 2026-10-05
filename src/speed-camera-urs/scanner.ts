@@ -32,6 +32,8 @@ const MODEL = "mapUpdateRequests";
  */
 export class Scanner {
   private triageCache = new Map<number, Triage>();
+  /** Bumped by forget(), so a read that was in flight when the UR changed is not cached. */
+  private versions = new Map<number, number>();
   private snapshot: ScanSnapshot = { entries: [] };
   private listeners: Array<(snapshot: ScanSnapshot) => void> = [];
   /** Bumped by every rescan, so a slow one stops publishing once a newer one started. */
@@ -89,7 +91,11 @@ export class Scanner {
   }
 
   forget(ids: ReadonlyArray<string | number>): void {
-    for (const id of ids) this.triageCache.delete(Number(id));
+    for (const id of ids) {
+      const key = Number(id);
+      this.triageCache.delete(key);
+      this.versions.set(key, (this.versions.get(key) ?? 0) + 1);
+    }
   }
 
   schedule(): void {
@@ -107,13 +113,18 @@ export class Scanner {
 
     for (const ur of found) {
       if (this.triageCache.has(ur.id)) continue;
+      const version = this.versions.get(ur.id) ?? 0;
       try {
         const details =
           await this.sdk.DataModel.MapUpdateRequests.getUpdateRequestDetails({
             mapUpdateRequestId: ur.id,
           });
         // Not cached on failure or absence: the UR stays pending and the next scan retries.
-        if (details)
+        // A stale scan or a UR changed meanwhile read an outdated conversation: do not cache it.
+        const overtaken =
+          generation !== this.generation ||
+          version !== (this.versions.get(ur.id) ?? 0);
+        if (details && !overtaken)
           this.triageCache.set(ur.id, triage(details.comments, false));
       } catch (err) {
         log.warn(`Could not read the conversation of UR ${ur.id}`, err);
