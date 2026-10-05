@@ -21,6 +21,7 @@ import {
   SidebarItem,
 } from "./src/sidebar";
 import { initHouseNumberImporter } from "./src/house-number-importer";
+import { initSpeedCameraUrs } from "./src/speed-camera-urs";
 import { groupScriptTab } from "./src/ui/tab-group";
 import { initStreetNameChecker } from "./src/street-name-checker";
 
@@ -241,6 +242,9 @@ function initScript() {
 
     // Swiss house-number importer: same arrangement, own scriptId → own tab + map layer.
     void initHouseNumberImporter();
+
+    // Speed-camera URs: same arrangement, own scriptId → own tab.
+    void initSpeedCameraUrs();
   }
 
   init();
