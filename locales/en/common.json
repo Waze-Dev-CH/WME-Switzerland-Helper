@@ -279,7 +279,7 @@
     "dialogCloseOnly": "Close",
     "dialogCancel": "Cancel",
     "dialogOk": "OK",
-    "messageIntro": "Thank you for your report. Fixed speed cameras cannot be shown in Waze in Switzerland and Liechtenstein.",
-    "messageBody": "To comply with local regulations, Waze has disabled police reporting for users navigating in Switzerland and Liechtenstein. All other navigation features, including hazard alerts, traffic information and road closures, remain fully functional."
+    "messageIntro": "Thank you for your report.\n\nFixed speed cameras cannot be shown in Waze in Switzerland and Liechtenstein.",
+    "messageBody": "To comply with local regulations, Waze has disabled police reporting for users navigating in Switzerland and Liechtenstein.\n\nAll other navigation features, including hazard alerts, traffic information and road closures, remain fully functional."
   }
 }

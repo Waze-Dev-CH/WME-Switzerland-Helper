@@ -279,7 +279,7 @@
     "dialogCloseOnly": "Schliessen",
     "dialogCancel": "Abbrechen",
     "dialogOk": "OK",
-    "messageIntro": "Danke für Ihre Meldung. Fest installierte Radare können in Waze in der Schweiz und in Liechtenstein nicht angezeigt werden.",
-    "messageBody": "Um den lokalen Vorschriften zu entsprechen, hat Waze die Meldung von Polizeikontrollen für Nutzer deaktiviert, die in der Schweiz und in Liechtenstein navigieren. Alle anderen Navigationsfunktionen, einschliesslich Gefahrenmeldungen, Verkehrsinformationen und Strassensperrungen, bleiben weiterhin uneingeschränkt verfügbar."
+    "messageIntro": "Danke für Ihre Meldung.\n\nFest installierte Radare können in Waze in der Schweiz und in Liechtenstein nicht angezeigt werden.",
+    "messageBody": "Um den lokalen Vorschriften zu entsprechen, hat Waze die Meldung von Polizeikontrollen für Nutzer deaktiviert, die in der Schweiz und in Liechtenstein navigieren.\n\nAlle anderen Navigationsfunktionen, einschliesslich Gefahrenmeldungen, Verkehrsinformationen und Strassensperrungen, bleiben weiterhin uneingeschränkt verfügbar."
   }
 }

@@ -279,7 +279,7 @@
     "dialogCloseOnly": "Chiudere",
     "dialogCancel": "Annullare",
     "dialogOk": "OK",
-    "messageIntro": "Grazie per la segnalazione. Gli autovelox fissi non possono essere visualizzati in Waze in Svizzera e Liechtenstein.",
-    "messageBody": "Per conformarsi alle normative locali, Waze ha disattivato la segnalazione della polizia per gli utenti che navigano in Svizzera e Liechtenstein. Tutte le altre funzioni di navigazione, comprese le segnalazioni di pericoli, le informazioni sul traffico e le chiusure stradali, rimangono pienamente operative."
+    "messageIntro": "Grazie per la segnalazione.\n\nGli autovelox fissi non possono essere visualizzati in Waze in Svizzera e Liechtenstein.",
+    "messageBody": "Per conformarsi alle normative locali, Waze ha disattivato la segnalazione della polizia per gli utenti che navigano in Svizzera e Liechtenstein.\n\nTutte le altre funzioni di navigazione, comprese le segnalazioni di pericoli, le informazioni sul traffico e le chiusure stradali, rimangono pienamente operative."
   }
 }

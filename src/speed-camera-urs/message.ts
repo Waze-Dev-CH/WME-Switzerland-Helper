@@ -20,9 +20,17 @@ export function messageLanguage(raw: string | null | undefined): LocaleCode {
  * The text sent to the reporter: one sentence tying the answer to the speed camera they
  * reported, then the official wording verbatim. The official text speaks of police reports
  * only, and on its own a reporter would not connect it to their speed camera.
+ *
+ * One idea per paragraph: the app shows the comment on a phone, where a single block of
+ * four sentences reads as a wall of text.
  */
 export function buildMessage(lang: LocaleCode): string {
-  return `${tIn(lang, "messageIntro")} ${tIn(lang, "messageBody")}`;
+  return `${tIn(lang, "messageIntro")}\n\n${tIn(lang, "messageBody")}`;
+}
+
+/** Spacing is not ours to trust once the server has stored and returned a comment. */
+function collapseSpaces(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
 }
 
 /**
@@ -34,7 +42,10 @@ export function buildMessage(lang: LocaleCode): string {
  * rather than the intro: it is the verbatim official part, and the intro may be reworded.
  */
 export function isOfficialMessage(text: string): boolean {
-  return ORDER.some((lang) => text.includes(tIn(lang, "messageBody")));
+  const comment = collapseSpaces(text);
+  return ORDER.some((lang) =>
+    comment.includes(collapseSpaces(tIn(lang, "messageBody"))),
+  );
 }
 
 const ORDER: readonly LocaleCode[] = ["fr", "de", "it", "en"];
