@@ -133,7 +133,11 @@ et ce projet adhère au [Versionnage Sémantique](https://semver.org/spec/v2.0.0
 
 #### Ajouté
 
-- **Fermeture des UR radar.** La loi suisse interdit d'afficher les radars fixes dans Waze, mais des utilisateurs continuent d'ouvrir des UR pour les signaler. Un nouvel onglet **CH · URs radars closer** liste ceux qui sont ouverts à l'écran, envoie à chaque utilisateur l'explication officielle dans sa langue et ferme l'UR en *Non identifié*. Tout éditeur peut les fermer un par un ; les traiter tous d'un coup (50 au plus) demande le niveau 3. Les UR qui portent déjà un commentaire sont exclus du lot. Les messages partent immédiatement et ne peuvent pas être retirés ; les fermetures doivent encore être sauvegardées.
+- **Fermeture des UR radar.** La loi suisse interdit d'afficher les radars fixes dans Waze, mais des utilisateurs continuent d'ouvrir des UR pour les signaler. Un nouvel onglet **CH · URs radars closer** liste les UR de type `MISSING_STATIC_SPEED_CAMERA` ouverts à l'écran, envoie à chaque utilisateur l'explication officielle dans sa langue et ferme l'UR en *Non identifié*. Les messages partent immédiatement et ne peuvent pas être retirés ; les fermetures doivent encore être sauvegardées.
+- **Un par un pour tous, tous d'un coup dès le niveau 3.** Tout éditeur peut fermer ces UR un par un. Les traiter tous d'un coup (50 au plus) demande le niveau 3, et le bouton est masqué en dessous. Les UR qui portent déjà un commentaire sont exclus du lot, pour ne couper la conversation de personne.
+- **Un utilisateur ne reçoit jamais le message deux fois.** Ni après un double clic, ni après un Ctrl+Z, ni après une session jamais sauvegardée : un UR dont la conversation contient déjà le message est seulement fermé, avec sa propre confirmation.
+- **Cliquer sur un UR de la liste y mène.** La carte zoome et un cercle clignotant signale l'UR ; un clic de plus sur son marqueur l'ouvre. L'éditeur ne permet pas aux scripts d'ouvrir un UR directement.
+- **La confirmation montre exactement ce qui sera envoyé.** Le message est cité avec ses paragraphes, à côté d'un drapeau pour sa langue. Dans un lot, un drapeau par langue montre le texte que liront ces utilisateurs.
 
 ### [1.5.2] - 2026-08-30
 

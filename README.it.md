@@ -133,7 +133,11 @@ e questo progetto aderisce al [Versionamento Semantico](https://semver.org/spec/
 
 #### Aggiunto
 
-- **Chiusura delle UR autovelox.** La legge svizzera vieta di mostrare gli autovelox fissi in Waze, eppure gli utenti continuano ad aprire UR per segnalarli. Una nuova scheda **CH · UR autovelox closer** elenca quelle aperte sullo schermo, invia a chi ha segnalato la spiegazione ufficiale nella sua lingua e chiude la UR come *Non identificata*. Ogni editor può chiuderle una per una; trattarle tutte in una volta (al massimo 50) richiede il livello 3. Le UR che hanno già un commento sono escluse dal trattamento in blocco. I messaggi partono subito e non possono essere ritirati; le chiusure vanno ancora salvate.
+- **Chiusura delle UR autovelox.** La legge svizzera vieta di mostrare gli autovelox fissi in Waze, eppure gli utenti continuano ad aprire UR per segnalarli. Una nuova scheda **CH · UR autovelox closer** elenca le UR aperte sullo schermo di tipo `MISSING_STATIC_SPEED_CAMERA`, invia a chi ha segnalato la spiegazione ufficiale nella sua lingua e chiude la UR come *Non identificata*. I messaggi partono subito e non possono essere ritirati; le chiusure vanno ancora salvate.
+- **Una per una per tutti, tutte insieme dal livello 3.** Ogni editor può chiudere queste UR una per una. Trattarle tutte in una volta (al massimo 50) richiede il livello 3, e sotto quel livello il pulsante è nascosto. Le UR che hanno già un commento sono escluse dal trattamento in blocco, per non interrompere la conversazione di nessuno.
+- **Chi ha segnalato non riceve mai il messaggio due volte.** Né dopo un doppio clic, né dopo un Ctrl+Z, né dopo una sessione mai salvata: una UR la cui conversazione contiene già il messaggio viene solo chiusa, con una propria conferma.
+- **Un clic su una UR dell'elenco vi porta lì.** La mappa si ingrandisce e un cerchio lampeggiante segnala la UR; un altro clic sul suo indicatore la apre. L'editor non permette agli script di aprire direttamente una UR.
+- **La conferma mostra esattamente cosa verrà inviato.** Il messaggio è citato con i suoi paragrafi, accanto a una bandiera per la sua lingua. In un trattamento in blocco, una bandiera per lingua mostra il testo che leggeranno quelle persone.
 
 ### [1.5.2] - 2026-08-30
 

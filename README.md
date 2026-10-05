@@ -133,7 +133,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
-- **Closing speed-camera URs.** Swiss law forbids showing fixed speed cameras in Waze, yet reporters keep opening URs for them. A new **CH · Speed-camera UR closer** tab lists the open ones on screen, sends each reporter the official explanation in their own language and closes the UR as *Not identified*. Any editor can close them one by one; handling them all at once (up to 50) needs level 3. URs that already carry a comment are left out of the batch. Messages are sent immediately and cannot be withdrawn; the closures still need saving.
+- **Closing speed-camera URs.** Swiss law forbids showing fixed speed cameras in Waze, yet reporters keep opening URs for them. A new **CH · Speed-camera UR closer** tab lists the open URs of type `MISSING_STATIC_SPEED_CAMERA` on screen, sends each reporter the official explanation in their own language and closes the UR as *Not identified*. Messages are sent immediately and cannot be withdrawn; the closures still need saving.
+- **One by one for everyone, all at once from level 3.** Any editor can close these URs one at a time. Handling them all at once (up to 50) needs level 3, and the button is hidden below it. URs that already carry a comment are left out of the batch, so nobody's conversation is cut short.
+- **A reporter never gets the message twice.** Not after a double click, not after a Ctrl+Z, and not after a session that was never saved: a UR whose conversation already holds the message is only closed, behind its own confirmation.
+- **Clicking a UR in the list takes you to it.** The map zooms in and a blinking ring marks the UR; one more click on its marker opens it. The editor offers scripts no way to open a UR directly.
+- **The confirmation shows exactly what will be sent.** The message is quoted with its paragraphs, next to a flag for its language. In a batch, one flag per language shows the text those reporters will read.
 
 ### [1.5.2] - 2026-08-30
 
