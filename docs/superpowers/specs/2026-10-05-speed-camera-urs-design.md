@@ -20,8 +20,7 @@ sa langue et ferme l'UR.
 | --- | --- |
 | État de fermeture | `not-identified` (rien n'est corrigé sur la carte, la demande est refusée) |
 | Qui peut l'utiliser | UR par UR : tout le monde. Lot : niveau 3 minimum, bouton caché en dessous |
-| UR où un éditeur a déjà répondu | Exclus du lot, listés à part, traitables un par un |
-| Commentaire de l'utilisateur seul | Ne bloque rien |
+| UR avec un commentaire, quel qu'il soit | Exclus du lot, listés à part, traitables un par un (voir 4.1) |
 | Message | Phrase sur les radars, puis consigne officielle mot pour mot, figé dans les locales |
 | Langue du message | Celle de l'utilisateur (`userPreferences.language`) : fr, de, it, sinon en |
 | Allemand | `ß` remplacé par `ss` (usage suisse) |
@@ -53,7 +52,7 @@ Nouveau module `src/speed-camera-urs/`, calqué sur l'importeur de numéros.
 | Fichier | Rôle |
 | --- | --- |
 | `index.ts` | `initSpeedCameraUrs()`, appelé depuis `main.user.ts` après l'importeur. SDK et `scriptId` propres (`wme-ch-speed-camera-urs`), même raison que les deux autres modules : `registerScriptTab()` lève une erreur si le `scriptId` a déjà un onglet |
-| `detect.ts` | Pur. `isSpeedCameraUr(ur)` : `isOpen`, `isEditable`, et `description` contient `MISSING_STATIC_SPEED_CAMERA` |
+| `detect.ts` | Pur. `isSpeedCameraUr(ur)` : `isOpen`, `isEditable`, et `description` commence par `MISSING_STATIC_SPEED_CAMERA` |
 | `classify.ts` | Pur. À partir des commentaires : `ready` ou `editorReplied` |
 | `message.ts` | Pur. Choix de la langue et assemblage du texte |
 | `close.ts` | Seul module qui écrit. `closeOne()`, `closeAll()`, `BATCH_MIN_RANK`, `BATCH_CAP` |
@@ -70,15 +69,17 @@ Nouveau module `src/speed-camera-urs/`, calqué sur l'importeur de numéros.
    résultat déjà obtenu est gardé en mémoire tant que l'UR ne change pas.
 4. `classify` répartit les UR entre les deux listes.
 
-Un éditeur a répondu si un commentaire porte un `userName` non nul. Le comportement exact
-de `userName` (nul pour l'auteur anonyme de l'UR, ou pas) est vérifié au test préalable
-(section 7) et peut affiner cette règle.
+Règle retenue après le test préalable : **tout commentaire** envoie l'UR dans la liste
+« Déjà une conversation », à traiter un par un. Aucun des 26 UR observés n'avait de
+commentaire, donc on n'a pas pu voir comment `userName` distingue l'auteur d'un éditeur.
+Plutôt que de deviner, on reste prudent : le cas courant (aucun commentaire) passe par le
+lot, le reste est vu par un humain.
 
 ### 4.2 Fermeture d'un UR
 
 1. `getUpdateRequestDetails` : relit la conversation et garantit la session de commentaires
    dont `addComment` a besoin.
-2. Revérification : toujours ouvert, toujours modifiable, toujours sans réponse d'éditeur.
+2. Revérification : toujours ouvert, toujours modifiable, toujours sans commentaire.
    Sinon, l'UR est sauté.
 3. `addComment` avec le message dans la langue de l'utilisateur.
 4. Seulement si l'envoi a réussi : `updateResolutionState("not-identified")`.
@@ -88,8 +89,12 @@ inverse pourrait fermer un UR sans explication.
 
 ## 5. Message
 
-Langue : préfixe de `userPreferences.language` avant `-` ou `_`, en minuscules. `fr`, `de`
-et `it` donnent leur langue, tout le reste (y compris `null`) donne l'anglais.
+Langue : `userPreferences.language` n'est **pas** un code ISO mais un identifiant de
+langue de l'application Waze. Valeurs observées : `francais`, `eng`, `portuguese_pt`.
+Règle : en minuscules, commence par `fr` donne fr, par `de` donne de (`deutsch`), par `it`
+donne it (`italiano`), tout le reste (y compris `null`) donne en. Les identifiants exacts
+pour l'allemand et l'italien n'ont pas été observés, d'où une règle par préfixe plutôt
+qu'une table fermée.
 
 Texte : phrase sur les radars, espace, consigne officielle.
 
@@ -134,7 +139,7 @@ l'utilisateur (`t(key, { lng })`), quelle que soit la langue de l'interface.
 - Nombre d'UR « radar » à l'écran.
 - Liste « À traiter » : chaque UR avec sa langue, sa date et un bouton « Fermer avec
   message ». Cliquer sur la ligne centre la carte.
-- Liste « Déjà une réponse d'éditeur » : même présentation, traitement un par un.
+- Liste « Déjà une conversation » : même présentation, traitement un par un.
 - Bouton « Tout traiter (N) » : caché sous le niveau 3, jamais grisé.
 - Après un traitement : bilan et état par UR (traité, sauté, erreur avec sa raison).
 
@@ -188,11 +193,12 @@ Résultats :
 
 | Point | Résultat |
 | --- | --- |
-| `description` | à remplir |
-| `updateRequestType` | à remplir |
-| `userName` de l'auteur | à remplir |
-| `userName` d'un éditeur | à remplir |
-| `language` | à remplir |
+| `description` | Toujours le préfixe `MISSING_STATIC_SPEED_CAMERA: ` suivi d'un texte libre, en langues et formulations variables (fr, en, pt) |
+| `updateRequestType` | Toujours `INCORRECT_GENERAL_ERROR` : inutilisable pour filtrer |
+| Volume | 26 UR radar sur 41 chargés dans la zone testée, 21 ouverts |
+| `comments` | Vides sur les 26, y compris les 5 déjà fermés (fermés sans message) |
+| `userName` | Non observé (aucun commentaire) |
+| `language` | Identifiant Waze, pas ISO : `francais`, `eng`, `portuguese_pt` |
 | `addComment` sans panneau | à remplir |
 | `updateResolutionState` | à remplir |
 
@@ -201,8 +207,8 @@ Résultats :
 Vitest, faux SDK comme dans les deux autres modules.
 
 - `detect` : texte présent, absent, UR fermé, non modifiable, `description` nulle.
-- `classify` : sans commentaire, commentaire de l'utilisateur seul, commentaire d'éditeur.
-- `message` : `fr`, `de-CH`, `it_IT`, `pt`, `null`, texte complet.
+- `classify` : sans commentaire, avec commentaire.
+- `message` : `francais`, `eng`, `portuguese_pt`, `deutsch`, `italiano`, `null`, texte complet.
 - `close` : message avant fermeture, pas de fermeture si l'envoi échoue, refus sous le
   niveau 3 dans `closeAll`, limite à 50, UR traité entre-temps sauté, lot qui continue
   après un échec.
