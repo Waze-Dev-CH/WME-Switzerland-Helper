@@ -9,6 +9,8 @@ const parserConfig = {
     // Same arrangement for the house-number importer: its keys live under hnImport.*
     // and reach t() as bare names.
     "!src/house-number-importer/**/*.{js,ts,jsx,tsx}",
+    // Same arrangement for the speed-camera URs: keys under speedCameraUrs.*, bare t() names.
+    "!src/speed-camera-urs/**/*.{js,ts,jsx,tsx}",
   ],
   output: "locales/$LOCALE/common.json",
   locales: ["en", "fr", "de", "it"],
