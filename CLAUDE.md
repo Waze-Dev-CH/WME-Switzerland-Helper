@@ -154,8 +154,14 @@ triage) → `TabUI`. `close.ts` is the only module that writes.
   `closeMany`, not only in the tab. The batch button is hidden below the level.
 - Any comment on a UR keeps it out of the batch. `wasMessaged` covers Ctrl+Z: the closure
   is undone but the message is not, and WME's cached conversation may not show it yet.
-- A UR this session already messaged is never messaged again. Closing it one by one (after a Ctrl+Z) closes it without re-sending, behind its own confirmation (`confirmCloseOnly`).
-- Every UR is re-read right before writing; one closed in the meantime is skipped.
+- A UR already messaged is never messaged again: `alreadyMessaged` is true when
+  `wasMessaged(id)` (this session) or a comment contains the official text (`isOfficialMessage`,
+  any of the four languages), which is what survives a reload when the closure was not saved.
+  Closing it one by one closes it without re-sending, behind its own confirmation
+  (`confirmCloseOnly`, button "Close").
+- Every UR is re-read right before writing; one closed in the meantime is skipped. The UR's
+  state is live, but `getUpdateRequestDetails` may return the conversation already in WME's
+  data model (the SDK offers no forced refresh), so a very recent comment can be missing.
 - Nothing is ever saved automatically.
 
 Tests: `npx vitest run src/speed-camera-urs`.
