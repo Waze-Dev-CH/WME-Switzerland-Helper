@@ -133,7 +133,7 @@ e questo progetto aderisce al [Versionamento Semantico](https://semver.org/spec/
 
 #### Aggiunto
 
-- **Chiusura delle UR autovelox.** La legge svizzera vieta di mostrare gli autovelox fissi in Waze, eppure gli utenti continuano ad aprire UR per segnalarli. Una nuova scheda **CH · Autovelox** elenca quelle aperte sullo schermo, invia a chi ha segnalato la spiegazione ufficiale nella sua lingua e chiude la UR come *Non identificata*. Ogni editor può chiuderle una per una; trattarle tutte in una volta (al massimo 50) richiede il livello 3. X I messaggi partono subito e non possono essere ritirati; le chiusure vanno ancora salvate.
+- **Chiusura delle UR autovelox.** La legge svizzera vieta di mostrare gli autovelox fissi in Waze, eppure gli utenti continuano ad aprire UR per segnalarli. Una nuova scheda **CH · Autovelox** elenca quelle aperte sullo schermo, invia a chi ha segnalato la spiegazione ufficiale nella sua lingua e chiude la UR come *Non identificata*. Ogni editor può chiuderle una per una; trattarle tutte in una volta (al massimo 50) richiede il livello 3. Le UR che hanno già un commento sono escluse dal trattamento in blocco. I messaggi partono subito e non possono essere ritirati; le chiusure vanno ancora salvate.
 
 ### [1.5.2] - 2026-08-30
 
