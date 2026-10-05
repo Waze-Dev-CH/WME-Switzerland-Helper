@@ -76,7 +76,7 @@ Con questo script, otterrete:
   Confronta i nomi dei segmenti visibili con il registro ufficiale svizzero delle vie (swisstopo) ed evidenzia le differenze, con correzione in un clic. Una scheda dedicata **CH · Nomi delle vie** elenca le anomalie, raggruppate e distinte per colore, e il pannello di modifica del segmento mostra il verdetto per il segmento selezionato.
 
 - **UR autovelox**  
-  Elenca le UR aperte sullo schermo che segnalano un autovelox fisso, che la legge svizzera non permette a Waze di mostrare, e le chiude con la spiegazione ufficiale nella lingua di chi ha segnalato. Una scheda dedicata **CH · Autovelox** contiene l'elenco.
+  Elenca le UR aperte sullo schermo che segnalano un autovelox fisso, che la legge svizzera non permette a Waze di mostrare, e le chiude con la spiegazione ufficiale nella lingua di chi ha segnalato. Una scheda dedicata **CH · UR autovelox closer** contiene l'elenco.
 
 Tutti i dati cartografici provengono da fonti ufficiali svizzere (swisstopo), quindi potete fidarvi della loro accuratezza.
 
@@ -133,7 +133,7 @@ e questo progetto aderisce al [Versionamento Semantico](https://semver.org/spec/
 
 #### Aggiunto
 
-- **Chiusura delle UR autovelox.** La legge svizzera vieta di mostrare gli autovelox fissi in Waze, eppure gli utenti continuano ad aprire UR per segnalarli. Una nuova scheda **CH · Autovelox** elenca quelle aperte sullo schermo, invia a chi ha segnalato la spiegazione ufficiale nella sua lingua e chiude la UR come *Non identificata*. Ogni editor può chiuderle una per una; trattarle tutte in una volta (al massimo 50) richiede il livello 3. Le UR che hanno già un commento sono escluse dal trattamento in blocco. I messaggi partono subito e non possono essere ritirati; le chiusure vanno ancora salvate.
+- **Chiusura delle UR autovelox.** La legge svizzera vieta di mostrare gli autovelox fissi in Waze, eppure gli utenti continuano ad aprire UR per segnalarli. Una nuova scheda **CH · UR autovelox closer** elenca quelle aperte sullo schermo, invia a chi ha segnalato la spiegazione ufficiale nella sua lingua e chiude la UR come *Non identificata*. Ogni editor può chiuderle una per una; trattarle tutte in una volta (al massimo 50) richiede il livello 3. Le UR che hanno già un commento sono escluse dal trattamento in blocco. I messaggi partono subito e non possono essere ritirati; le chiusure vanno ancora salvate.
 
 ### [1.5.2] - 2026-08-30
 

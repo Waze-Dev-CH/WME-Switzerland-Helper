@@ -246,7 +246,7 @@
     "tabTitle": "Numéros de maison"
   },
   "speedCameraUrs": {
-    "appName": "Radars",
+    "appName": "URs radars closer",
     "tabNote": "Liste les UR ouverts à l'écran qui signalent un radar fixe. La loi suisse interdit de les afficher dans Waze : chacun reçoit l'explication officielle dans la langue de l'utilisateur et est fermé en Non identifié.",
     "stateNone": "Aucun UR radar à l'écran. Les UR doivent être affichés sur la carte pour être trouvés.",
     "stateFound": "{{count}} UR radar à l'écran",
@@ -254,7 +254,7 @@
     "sectionReady": "À traiter ({{count}})",
     "sectionConversation": "Déjà une conversation ({{count}})",
     "conversationNote": "Ces UR portent déjà un commentaire. Ils sont exclus de « Tout traiter » : vérifiez chacun avant de le fermer.",
-    "rowTitle": "Centrer la carte sur cet UR",
+    "rowTitle": "Zoomer sur cet UR, puis cliquer sur son marqueur pour l'ouvrir",
     "rowPending": "en vérification",
     "btnCloseOne": "Fermer avec message",
     "btnCloseAll": "Tout traiter ({{count}})",

@@ -76,7 +76,7 @@ Avec ce script, vous obtenez :
   Compare le nom des segments que vous voyez avec le répertoire officiel suisse des rues (swisstopo) et met en évidence les écarts, avec correction en un clic. Un onglet dédié **CH · Nom des rues** liste les anomalies, groupées et distinguées par couleur, et le panneau d'édition du segment affiche le verdict pour le segment sélectionné.
 
 - **UR radar**  
-  Liste les UR ouverts à l'écran qui signalent un radar fixe, que la loi suisse interdit d'afficher dans Waze, et les ferme avec l'explication officielle dans la langue de l'utilisateur. Un onglet dédié **CH · Radars** contient la liste.
+  Liste les UR ouverts à l'écran qui signalent un radar fixe, que la loi suisse interdit d'afficher dans Waze, et les ferme avec l'explication officielle dans la langue de l'utilisateur. Un onglet dédié **CH · URs radars closer** contient la liste.
 
 Toutes les données cartographiques proviennent de sources officielles suisses (swisstopo), vous pouvez donc vous fier à leur exactitude.
 
@@ -133,7 +133,7 @@ et ce projet adhère au [Versionnage Sémantique](https://semver.org/spec/v2.0.0
 
 #### Ajouté
 
-- **Fermeture des UR radar.** La loi suisse interdit d'afficher les radars fixes dans Waze, mais des utilisateurs continuent d'ouvrir des UR pour les signaler. Un nouvel onglet **CH · Radars** liste ceux qui sont ouverts à l'écran, envoie à chaque utilisateur l'explication officielle dans sa langue et ferme l'UR en *Non identifié*. Tout éditeur peut les fermer un par un ; les traiter tous d'un coup (50 au plus) demande le niveau 3. Les UR qui portent déjà un commentaire sont exclus du lot. Les messages partent immédiatement et ne peuvent pas être retirés ; les fermetures doivent encore être sauvegardées.
+- **Fermeture des UR radar.** La loi suisse interdit d'afficher les radars fixes dans Waze, mais des utilisateurs continuent d'ouvrir des UR pour les signaler. Un nouvel onglet **CH · URs radars closer** liste ceux qui sont ouverts à l'écran, envoie à chaque utilisateur l'explication officielle dans sa langue et ferme l'UR en *Non identifié*. Tout éditeur peut les fermer un par un ; les traiter tous d'un coup (50 au plus) demande le niveau 3. Les UR qui portent déjà un commentaire sont exclus du lot. Les messages partent immédiatement et ne peuvent pas être retirés ; les fermetures doivent encore être sauvegardées.
 
 ### [1.5.2] - 2026-08-30
 

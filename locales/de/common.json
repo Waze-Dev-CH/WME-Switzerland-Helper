@@ -246,7 +246,7 @@
     "tabTitle": "Hausnummern"
   },
   "speedCameraUrs": {
-    "appName": "Radare",
+    "appName": "Radar-UR-Closer",
     "tabNote": "Listet die offenen URs im Bildausschnitt, die ein fest installiertes Radar melden. Das Schweizer Recht verbietet, sie in Waze anzuzeigen: Jede erhält die offizielle Erklärung in der Sprache der meldenden Person und wird als «Nicht identifiziert» geschlossen.",
     "stateNone": "Keine Radar-UR im Bildausschnitt. URs müssen auf der Karte angezeigt werden, damit sie gefunden werden.",
     "stateFound": "{{count}} Radar-UR(s) im Bildausschnitt",
@@ -254,7 +254,7 @@
     "sectionReady": "Zu bearbeiten ({{count}})",
     "sectionConversation": "Bereits eine Unterhaltung ({{count}})",
     "conversationNote": "Diese URs haben bereits einen Kommentar. Sie sind von «Alle bearbeiten» ausgenommen: Prüfen Sie jede einzeln, bevor Sie sie schliessen.",
-    "rowTitle": "Karte auf diese UR zentrieren",
+    "rowTitle": "Auf diese UR zoomen, dann auf ihre Markierung klicken, um sie zu öffnen",
     "rowPending": "in Prüfung",
     "btnCloseOne": "Mit Nachricht schliessen",
     "btnCloseAll": "Alle bearbeiten ({{count}})",

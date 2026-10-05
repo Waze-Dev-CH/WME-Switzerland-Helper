@@ -246,7 +246,7 @@
     "tabTitle": "House numbers"
   },
   "speedCameraUrs": {
-    "appName": "Speed cameras",
+    "appName": "Speed-camera UR closer",
     "tabNote": "Lists the open URs on screen that report a fixed speed camera. Swiss law forbids showing them in Waze: each one gets the official explanation in the reporter's language and is closed as Not identified.",
     "stateNone": "No speed-camera UR on screen. URs must be shown on the map to be found.",
     "stateFound": "{{count}} speed-camera UR(s) on screen",
@@ -254,7 +254,7 @@
     "sectionReady": "To handle ({{count}})",
     "sectionConversation": "Already a conversation ({{count}})",
     "conversationNote": "These URs already carry a comment. They are left out of Handle all: check each one before closing it.",
-    "rowTitle": "Centre the map on this UR",
+    "rowTitle": "Zoom to this UR, then click its marker to open it",
     "rowPending": "checking",
     "btnCloseOne": "Close with message",
     "btnCloseAll": "Handle all ({{count}})",
