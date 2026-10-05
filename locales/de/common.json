@@ -261,6 +261,7 @@
     "btnCloseAllCapped": "{{cap}} von {{count}} bearbeiten",
     "confirmOne": "Diese Nachricht an die meldende Person senden (Sprache: {{lang}}) und die UR als «Nicht identifiziert» schliessen?\n\nDie Nachricht wird sofort gesendet und kann nicht zurückgezogen werden.\n\n{{message}}",
     "confirmOneConversation": "Diese UR hat bereits eine Unterhaltung. Diese Nachricht trotzdem senden (Sprache: {{lang}}) und die UR als «Nicht identifiziert» schliessen?\n\nDie Nachricht wird sofort gesendet und kann nicht zurückgezogen werden.\n\n{{message}}",
+    "confirmCloseOnly": "Die Nachricht wurde in dieser Sitzung bereits an die meldende Person gesendet. Die UR als «Nicht identifiziert» schliessen, ohne sie erneut zu senden?",
     "confirmAll": "{{count}} Nachrichten werden jetzt gesendet ({{languages}}) und {{count}} URs als «Nicht identifiziert» geschlossen.\n\nDie Nachrichten können nicht zurückgezogen werden. Nachricht in Ihrer Sprache:\n\n{{message}}",
     "summary": "{{closed}} geschlossen, {{skipped}} übersprungen, {{failed}} fehlgeschlagen.",
     "summaryLine": "UR Nr. {{id}}: {{reason}}",

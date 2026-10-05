@@ -261,6 +261,7 @@
     "btnCloseAllCapped": "Handle {{cap}} of {{count}}",
     "confirmOne": "Send this message to the reporter (language: {{lang}}) and close the UR as Not identified?\n\nThe message is sent immediately and cannot be withdrawn.\n\n{{message}}",
     "confirmOneConversation": "This UR already has a conversation. Send this message anyway (language: {{lang}}) and close the UR as Not identified?\n\nThe message is sent immediately and cannot be withdrawn.\n\n{{message}}",
+    "confirmCloseOnly": "The message was already sent to this reporter during this session. Close the UR as Not identified without sending it again?",
     "confirmAll": "{{count}} messages will be sent now ({{languages}}) and {{count}} URs closed as Not identified.\n\nThe messages cannot be withdrawn. Message in your language:\n\n{{message}}",
     "summary": "{{closed}} closed, {{skipped}} skipped, {{failed}} failed.",
     "summaryLine": "UR #{{id}}: {{reason}}",

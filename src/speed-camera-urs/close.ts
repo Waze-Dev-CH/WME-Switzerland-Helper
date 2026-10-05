@@ -1,8 +1,14 @@
 import type { ConversationElement, WmeSDK } from "wme-sdk-typings";
 import { isSpeedCameraUr, triage } from "./detect";
-import { t } from "./i18n";
+import { getLocale, t } from "./i18n";
 import { log } from "./log";
-import { buildMessage, messageLanguage } from "./message";
+import { buildMessage, describeLanguages, messageLanguage } from "./message";
+import {
+  confirmDialog,
+  notifyDialog,
+  type Confirm,
+  type Notify,
+} from "./prompt";
 
 /**
  * Lowest rank allowed to handle every UR at once. WME's displayed level is rank + 1, so
@@ -200,4 +206,118 @@ function closeWithoutMessage(
     return { id, result: "failed", reason: "errClose" };
   }
   return { id, result: "closed" };
+}
+
+export interface Prompts {
+  confirm?: Confirm;
+  notify?: Notify;
+}
+
+let flowRunning = false;
+
+export function isCloseInFlight(): boolean {
+  return flowRunning;
+}
+
+/**
+ * Runs `work` unless another flow is already running, in which case null. The lock is held
+ * from the confirmation on, so a double click or a batch started while a single UR's dialog
+ * is open cannot send anything twice.
+ */
+async function withCloseLock<T>(work: () => Promise<T>): Promise<T | null> {
+  if (flowRunning) return null;
+  flowRunning = true;
+  try {
+    return await work();
+  } finally {
+    flowRunning = false;
+  }
+}
+
+/**
+ * One UR, from the tab. Open to every level: closing one by one is how an editor learns.
+ * The confirmation shows the exact text and its language, and says when a conversation is
+ * already there or when the message already left this session.
+ */
+export function runCloseOne(
+  sdk: WmeSDK,
+  id: number,
+  prompts: Prompts = {},
+): Promise<CloseOutcome | null> {
+  const confirm = prompts.confirm ?? confirmDialog;
+  const notify = prompts.notify ?? notifyDialog;
+  return withCloseLock(async () => {
+    const urs = sdk.DataModel.MapUpdateRequests;
+    const ur = urs.getById({ mapUpdateRequestId: id });
+    if (!ur) return null;
+
+    // The reporter already has the message and it cannot be withdrawn: offer to close only.
+    if (wasMessaged(id)) {
+      if (!(await confirm(t("confirmCloseOnly")))) return null;
+      const outcome = await closeOne(sdk, id, { allowConversation: true });
+      if (outcome.result !== "closed") await notify(summarize([outcome]));
+      return outcome;
+    }
+
+    const lang = messageLanguage(ur.userPreferences?.language);
+    let comments: ConversationElement[] = [];
+    try {
+      comments =
+        (await urs.getUpdateRequestDetails({ mapUpdateRequestId: id }))
+          ?.comments ?? [];
+    } catch {
+      // closeOne reads it again and reports the failure properly.
+    }
+    const hasConversation = triage(comments, false) === "conversation";
+    const key = hasConversation ? "confirmOneConversation" : "confirmOne";
+    const accepted = await confirm(
+      t(key, { lang: lang.toUpperCase(), message: buildMessage(lang) }),
+    );
+    if (!accepted) return null;
+
+    // Allowed only when the editor was actually warned: a comment arriving while the dialog
+    // was open still stops the send.
+    const outcome = await closeOne(sdk, id, {
+      allowConversation: hasConversation,
+    });
+    if (outcome.result !== "closed") await notify(summarize([outcome]));
+    return outcome;
+  });
+}
+
+/** Every ready UR at once, level 3 and up. The rank is checked before anything is asked. */
+export async function runCloseAll(
+  sdk: WmeSDK,
+  ids: readonly number[],
+  prompts: Prompts = {},
+): Promise<CloseOutcome[] | null> {
+  const confirm = prompts.confirm ?? confirmDialog;
+  const notify = prompts.notify ?? notifyDialog;
+  if (!canBatch(sdk)) {
+    await notify(t("errBatchRank", { level: BATCH_MIN_RANK + 1 }));
+    return null;
+  }
+  const batch = ids.slice(0, BATCH_CAP);
+  if (batch.length === 0) return [];
+
+  return withCloseLock(async () => {
+    const langs = batch.map((id) =>
+      messageLanguage(
+        sdk.DataModel.MapUpdateRequests.getById({ mapUpdateRequestId: id })
+          ?.userPreferences?.language,
+      ),
+    );
+    const accepted = await confirm(
+      t("confirmAll", {
+        count: batch.length,
+        languages: describeLanguages(langs),
+        message: buildMessage(getLocale()),
+      }),
+    );
+    if (!accepted) return null;
+
+    const outcomes = await closeMany(sdk, batch);
+    if (outcomes) await notify(summarize(outcomes));
+    return outcomes;
+  });
 }

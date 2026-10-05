@@ -261,6 +261,7 @@
     "btnCloseAllCapped": "Traiter {{cap}} sur {{count}}",
     "confirmOne": "Envoyer ce message à l'utilisateur (langue : {{lang}}) et fermer l'UR en Non identifié ?\n\nLe message part immédiatement et ne peut pas être retiré.\n\n{{message}}",
     "confirmOneConversation": "Cet UR a déjà une conversation. Envoyer quand même ce message (langue : {{lang}}) et fermer l'UR en Non identifié ?\n\nLe message part immédiatement et ne peut pas être retiré.\n\n{{message}}",
+    "confirmCloseOnly": "Le message a déjà été envoyé à cet utilisateur pendant cette session. Fermer l'UR en Non identifié sans le renvoyer ?",
     "confirmAll": "{{count}} messages vont être envoyés maintenant ({{languages}}) et {{count}} UR fermés en Non identifié.\n\nLes messages ne peuvent pas être retirés. Message dans votre langue :\n\n{{message}}",
     "summary": "{{closed}} fermé(s), {{skipped}} sauté(s), {{failed}} échec(s).",
     "summaryLine": "UR n° {{id}} : {{reason}}",

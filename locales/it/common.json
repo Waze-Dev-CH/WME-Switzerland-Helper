@@ -261,6 +261,7 @@
     "btnCloseAllCapped": "Tratta {{cap}} su {{count}}",
     "confirmOne": "Inviare questo messaggio a chi ha segnalato (lingua: {{lang}}) e chiudere la UR come Non identificata?\n\nIl messaggio parte subito e non può essere ritirato.\n\n{{message}}",
     "confirmOneConversation": "Questa UR ha già una conversazione. Inviare comunque questo messaggio (lingua: {{lang}}) e chiudere la UR come Non identificata?\n\nIl messaggio parte subito e non può essere ritirato.\n\n{{message}}",
+    "confirmCloseOnly": "Il messaggio è già stato inviato a chi ha segnalato durante questa sessione. Chiudere la UR come Non identificata senza inviarlo di nuovo?",
     "confirmAll": "{{count}} messaggi stanno per essere inviati ({{languages}}) e {{count}} UR chiuse come Non identificate.\n\nI messaggi non possono essere ritirati. Messaggio nella vostra lingua:\n\n{{message}}",
     "summary": "{{closed}} chiuse, {{skipped}} saltate, {{failed}} fallite.",
     "summaryLine": "UR n. {{id}}: {{reason}}",
