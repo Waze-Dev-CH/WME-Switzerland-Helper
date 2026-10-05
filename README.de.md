@@ -75,6 +75,9 @@ Mit diesem Skript erhalten Sie:
 - **Prüfung der offiziellen Strassennamen**
   Vergleicht die Namen der sichtbaren Segmente mit dem offiziellen Schweizer Strassenverzeichnis (swisstopo) und hebt Abweichungen hervor, mit Korrektur per Klick. Ein eigener Reiter **CH · Strassennamen** listet die Befunde auf, gruppiert und farblich unterschieden, und das Segment-Bearbeitungsfenster zeigt das Urteil zum ausgewählten Segment.
 
+- **Radar-URs**  
+  Listet die offenen URs im Bildausschnitt, die ein fest installiertes Radar melden, das Waze nach Schweizer Recht nicht anzeigen darf, und schliesst sie mit der offiziellen Erklärung in der Sprache der meldenden Person. Ein eigener Tab **CH · Radare** enthält die Liste.
+
 Alle Kartendaten stammen aus offiziellen Schweizer Quellen (swisstopo), so dass Sie auf ihre Genauigkeit vertrauen können.
 
 ### Funktionsweise der Haltestellen-Ebene des öffentlichen Nahverkehrs
@@ -125,6 +128,12 @@ Alle bemerkenswerten Änderungen an diesem Projekt sind hier dokumentiert.
 
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+### [Unreleased]
+
+#### Hinzugefügt
+
+- **Schliessen von Radar-URs.** Das Schweizer Recht verbietet, fest installierte Radare in Waze anzuzeigen, trotzdem eröffnen Nutzer immer wieder URs dafür. Ein neuer Tab **CH · Radare** listet die offenen im Bildausschnitt, sendet jeder meldenden Person die offizielle Erklärung in ihrer Sprache und schliesst die UR als *Nicht identifiziert*. Jeder Editor kann sie einzeln schliessen; alle auf einmal zu bearbeiten (höchstens 50) erfordert Level 3. URs mit einem Kommentar sind davon ausgenommen. Die Nachrichten werden sofort gesendet und können nicht zurückgezogen werden; die Schliessungen müssen noch gespeichert werden.
 
 ### [1.5.2] - 2026-08-30
 

@@ -131,6 +131,35 @@ Tests: `npx vitest run src/house-number-importer` and
 `npx vitest run src/street-name-checker`. The geo.admin.ch integration block is
 excluded by default and runs with `WME_CH_INTEGRATION=1`.
 
+### Speed-camera URs (`src/speed-camera-urs/`)
+
+Closes the URs that report a fixed speed camera, which Swiss law forbids showing in Waze.
+They are recognised by the `MISSING_STATIC_SPEED_CAMERA` prefix of their description; their
+type is always `INCORRECT_GENERAL_ERROR`, so the type cannot filter them. Entry point:
+`initSpeedCameraUrs()` (`index.ts`), called from `main.user.ts` after the importer, with its
+own scriptId for the same reason.
+
+Pipeline: `Scanner` (scanner.ts: data-model events and map extent) → `detect.ts` (prefix,
+triage) → `TabUI`. `close.ts` is the only module that writes.
+
+- `message.ts`: `userPreferences.language` is the Waze app's language id, not ISO
+  (`francais`, `eng`, `portuguese_pt` observed), hence a prefix rule with English fallback.
+- `addComment` sends **immediately** and cannot be withdrawn, while the closure goes to the
+  edit stack. That is why the comment goes first and the closure only follows a successful
+  send.
+
+**Safety rules:**
+
+- `BATCH_MIN_RANK` (level 3) and `BATCH_CAP` (50) live in `close.ts` and are enforced in
+  `closeMany`, not only in the tab. The batch button is hidden below the level.
+- Any comment on a UR keeps it out of the batch. `wasMessaged` covers Ctrl+Z: the closure
+  is undone but the message is not, and WME's cached conversation may not show it yet.
+- A UR this session already messaged is never messaged again. Closing it one by one (after a Ctrl+Z) closes it without re-sending, behind its own confirmation (`confirmCloseOnly`).
+- Every UR is re-read right before writing; one closed in the meantime is skipped.
+- Nothing is ever saved automatically.
+
+Tests: `npx vitest run src/speed-camera-urs`.
+
 ## WME SDK Rules
 
 - All WME API interactions use `wme-sdk-typings`. Consult `node_modules/wme-sdk-typings/index.d.ts` and https://www.waze.com/editor/sdk/index.html before implementing features.

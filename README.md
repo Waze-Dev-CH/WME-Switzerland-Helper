@@ -75,6 +75,9 @@ With this script, you get:
 - **Official Street-Name Check**  
   Compares the street names of the segments you see against the official Swiss street register (swisstopo) and highlights mismatches, with one-click fixes. A dedicated **CH · Street names** sidebar tab lists the issues, grouped and colour-coded, and the segment edit panel shows the verdict for the selected segment.
 
+- **Speed-Camera URs**  
+  Lists the open URs on screen that report a fixed speed camera, which Swiss law does not allow Waze to show, and closes them with the official explanation in the reporter's language. A dedicated **CH · Speed cameras** sidebar tab holds the list.
+
 All map data comes from official Swiss sources (swisstopo), so you can trust its accuracy.
 
 ### How the Public Transport Stops Layer Works
@@ -127,6 +130,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### [Unreleased]
+
+#### Added
+
+- **Closing speed-camera URs.** Swiss law forbids showing fixed speed cameras in Waze, yet reporters keep opening URs for them. A new **CH · Speed cameras** tab lists the open ones on screen, sends each reporter the official explanation in their own language and closes the UR as *Not identified*. Any editor can close them one by one; handling them all at once (up to 50) needs level 3. URs that already carry a comment are left out of the batch. Messages are sent immediately and cannot be withdrawn; the closures still need saving.
 
 ### [1.5.2] - 2026-08-30
 
