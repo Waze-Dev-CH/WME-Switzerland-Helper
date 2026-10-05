@@ -121,6 +121,38 @@ describe("closeOne", () => {
   });
 });
 
+describe("closeOne, repeated or overlapping", () => {
+  it("sends once when two calls overlap on the same UR", async () => {
+    const { sdk, sent } = makeSdk([makeUr(1)]);
+
+    const outcomes = await Promise.all([
+      closeOne(sdk, 1, { allowConversation: false }),
+      closeOne(sdk, 1, { allowConversation: false }),
+    ]);
+
+    expect(sent).toHaveLength(1);
+    expect(outcomes.map((o) => o.result).sort()).toEqual(["closed", "skipped"]);
+    expect(outcomes).toContainEqual({
+      id: 1,
+      result: "skipped",
+      reason: "skipConversation",
+    });
+  });
+
+  it("closes without re-sending when an undone UR is forced through", async () => {
+    const ur = makeUr(1);
+    const { sdk, sent, calls } = makeSdk([ur]);
+    await closeOne(sdk, 1, { allowConversation: false });
+    ur.isOpen = true;
+
+    const again = await closeOne(sdk, 1, { allowConversation: true });
+
+    expect(again).toEqual({ id: 1, result: "closed" });
+    expect(sent).toHaveLength(1);
+    expect(calls.filter((c) => c === "close:1:not-identified")).toHaveLength(2);
+  });
+});
+
 describe("canBatch", () => {
   it("needs rank 2 (displayed level 3)", () => {
     expect(canBatch(makeSdk([], { rank: 2 }).sdk)).toBe(true);

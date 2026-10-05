@@ -38,6 +38,13 @@ export type CloseOutcome =
  */
 const messaged = new Set<number>();
 
+/**
+ * URs closeOne is working on right now. The message cannot be withdrawn and `messaged` is
+ * only filled after the send resolves, so a double click, or a batch overlapping a single
+ * click, would otherwise let two calls both read an empty conversation and both send.
+ */
+const inFlight = new Set<number>();
+
 export function wasMessaged(id: number): boolean {
   return messaged.has(id);
 }
@@ -49,6 +56,7 @@ export function noteMessaged(id: number): void {
 /** Tests only: module state would otherwise leak from one test into the next. */
 export function resetMessagedForTests(): void {
   messaged.clear();
+  inFlight.clear();
 }
 
 /** An unknown rank counts as insufficient. */
@@ -78,6 +86,27 @@ export async function closeOne(
   if (!ur || !isSpeedCameraUr(ur))
     return { id, result: "skipped", reason: "skipGone" };
 
+  if (inFlight.has(id))
+    return { id, result: "skipped", reason: "skipConversation" };
+  inFlight.add(id);
+  try {
+    return await sendAndClose(sdk, id, ur, options);
+  } finally {
+    inFlight.delete(id);
+  }
+}
+
+type SpeedCameraUr = NonNullable<
+  ReturnType<WmeSDK["DataModel"]["MapUpdateRequests"]["getById"]>
+>;
+
+async function sendAndClose(
+  sdk: WmeSDK,
+  id: number,
+  ur: SpeedCameraUr,
+  options: { allowConversation: boolean },
+): Promise<CloseOutcome> {
+  const urs = sdk.DataModel.MapUpdateRequests;
   let comments: ConversationElement[];
   try {
     const details = await urs.getUpdateRequestDetails({
@@ -90,10 +119,15 @@ export async function closeOne(
     return { id, result: "failed", reason: "errDetails" };
   }
 
-  const hasConversation = triage(comments, wasMessaged(id)) === "conversation";
+  const alreadyMessaged = wasMessaged(id);
+  const hasConversation = triage(comments, alreadyMessaged) === "conversation";
   if (hasConversation && !options.allowConversation) {
     return { id, result: "skipped", reason: "skipConversation" };
   }
+
+  // The editor chose to handle a UR that came back after an undo. The reporter already has
+  // our message and it cannot be withdrawn, so close it without sending a second one.
+  if (alreadyMessaged) return closeWithoutMessage(urs, id);
 
   const text = buildMessage(messageLanguage(ur.userPreferences?.language));
   try {
@@ -150,4 +184,20 @@ export function summarize(outcomes: readonly CloseOutcome[]): string {
   }
   if (count("closed") > 0) lines.push("", t("saveReminder"));
   return lines.join("\n");
+}
+
+function closeWithoutMessage(
+  urs: WmeSDK["DataModel"]["MapUpdateRequests"],
+  id: number,
+): CloseOutcome {
+  try {
+    urs.updateResolutionState({
+      mapUpdateRequestId: id,
+      resolutionState: "not-identified",
+    });
+  } catch (err) {
+    log.warn(`UR ${id} could not be closed`, err);
+    return { id, result: "failed", reason: "errClose" };
+  }
+  return { id, result: "closed" };
 }
