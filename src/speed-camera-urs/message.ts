@@ -25,6 +25,18 @@ export function buildMessage(lang: LocaleCode): string {
   return `${tIn(lang, "messageIntro")} ${tIn(lang, "messageBody")}`;
 }
 
+/**
+ * Whether a comment contains our official wording, in any of the four languages.
+ *
+ * `messaged` in close.ts lives in memory only. When an editor closes URs and then does not
+ * save (discard, reload, failed save), the UR is open again next session with our comment
+ * already in its conversation; the text is the only trace left of it. The body is matched
+ * rather than the intro: it is the verbatim official part, and the intro may be reworded.
+ */
+export function isOfficialMessage(text: string): boolean {
+  return ORDER.some((lang) => text.includes(tIn(lang, "messageBody")));
+}
+
 const ORDER: readonly LocaleCode[] = ["fr", "de", "it", "en"];
 
 /** "3 FR, 2 DE, 1 IT": what a batch is about to send, for its confirmation. */

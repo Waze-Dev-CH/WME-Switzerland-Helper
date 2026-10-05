@@ -10,9 +10,16 @@ import {
 import { makeSdk, makeUr } from "./fake-sdk";
 import { buildMessage } from "./message";
 
+const official = {
+  createdOn: 0,
+  text: buildMessage("de"),
+  userName: "editor",
+};
 const comment = { createdOn: 0, text: "still there", userName: null };
 const accept = () =>
-  vi.fn<(message: string) => Promise<boolean>>(async () => true);
+  vi.fn<(message: string, label?: string) => Promise<boolean>>(
+    async () => true,
+  );
 const decline = () =>
   vi.fn<(message: string) => Promise<boolean>>(async () => false);
 const silent = () => vi.fn<(message: string) => Promise<void>>(async () => {});
@@ -87,6 +94,56 @@ describe("runCloseOne", () => {
       "the message could not be sent",
     );
   });
+  it("shows the last comment when a conversation exists, trimmed to 200 characters", async () => {
+    const long = { ...comment, text: `${"x".repeat(250)}` };
+    const { sdk } = makeSdk([makeUr(1)], {
+      comments: { 1: [comment, long] },
+    });
+    const confirm = accept();
+
+    await runCloseOne(sdk, 1, { confirm, notify: silent() });
+
+    const shown = confirm.mock.calls[0]?.[0] ?? "";
+    expect(shown).toContain(`Last comment: “${"x".repeat(200)}…”`);
+    expect(shown).not.toContain("x".repeat(201));
+  });
+
+  it("shows the last comment in full when it is short", async () => {
+    const { sdk } = makeSdk([makeUr(1)], { comments: { 1: [comment] } });
+    const confirm = accept();
+
+    await runCloseOne(sdk, 1, { confirm, notify: silent() });
+
+    expect(confirm.mock.calls[0]?.[0]).toContain("Last comment: “still there”");
+  });
+
+  it("closes only, never re-sending, a UR whose conversation holds our message from an earlier session", async () => {
+    const { sdk, sent, calls } = makeSdk([makeUr(1)], {
+      comments: { 1: [official] },
+    });
+    const confirm = accept();
+
+    const outcome = await runCloseOne(sdk, 1, { confirm, notify: silent() });
+
+    expect(confirm.mock.calls[0]?.[0]).toContain("without sending it again");
+    expect(confirm.mock.calls[0]?.[1]).toBe("Close");
+    expect(outcome).toEqual({ id: 1, result: "closed" });
+    expect(sent).toEqual([]);
+    expect(calls).toContain("close:1:not-identified");
+  });
+
+  it('labels the close-only button "Close" for a UR messaged this session', async () => {
+    const ur = makeUr(1);
+    const { sdk } = makeSdk([ur]);
+    await closeOne(sdk, 1, { allowConversation: false });
+    ur.isOpen = true;
+    const confirm = accept();
+
+    await runCloseOne(sdk, 1, { confirm, notify: silent() });
+
+    expect(confirm.mock.calls[0]?.[1]).toBe("Close");
+  });
+
   it("offers to close without re-sending a UR this session already messaged", async () => {
     const ur = makeUr(1);
     const { sdk, sent } = makeSdk([ur]);
@@ -128,7 +185,7 @@ describe("runCloseAll", () => {
     const outcomes = await runCloseAll(sdk, [1, 2, 3], { confirm, notify });
 
     const shown = confirm.mock.calls[0]?.[0] ?? "";
-    expect(shown).toContain("3 messages will be sent now (2 FR, 1 DE)");
+    expect(shown).toContain("Messages to send now: 3 (2 FR, 1 DE)");
     expect(shown).toContain("cannot be withdrawn");
     expect(outcomes).toHaveLength(3);
     expect(sent).toHaveLength(3);
@@ -136,6 +193,17 @@ describe("runCloseAll", () => {
       "3 closed, 0 skipped, 0 failed.",
     );
     expect(notify.mock.calls[0]?.[0]).toContain("Save to record the closures.");
+  });
+
+  it("refuses before asking anything when editing is not allowed", async () => {
+    const { sdk, sent } = makeSdk([makeUr(1)], { editingAllowed: false });
+    const confirm = accept();
+    const notify = silent();
+
+    expect(await runCloseAll(sdk, [1], { confirm, notify })).toBeNull();
+    expect(confirm).not.toHaveBeenCalled();
+    expect(notify.mock.calls[0]?.[0]).toContain("nothing was sent");
+    expect(sent).toEqual([]);
   });
 
   it("sends nothing when the editor declines", async () => {

@@ -176,15 +176,20 @@ export class TabUI {
   ): Promise<void> {
     const running = start();
     this.render();
-    const outcome = await running;
-    if (outcome) {
-      this.result.textContent = summarize(
-        Array.isArray(outcome) ? outcome : [outcome],
-      );
-      this.result.hidden = false;
+    try {
+      const outcome = await running;
+      if (outcome) {
+        this.result.textContent = summarize(
+          Array.isArray(outcome) ? outcome : [outcome],
+        );
+        this.result.hidden = false;
+      }
+    } catch (err) {
+      log.error("A close flow failed", err);
+    } finally {
+      this.scanner.schedule();
+      this.render();
     }
-    this.scanner.schedule();
-    this.render();
   }
 
   private centerOn(entry: UrEntry): void {

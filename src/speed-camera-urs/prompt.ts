@@ -1,8 +1,14 @@
 import { showWmeDialog } from "../utils";
 import { t } from "./i18n";
 
-/** Ask for a yes/no decision. Resolves false when declined or dismissed. */
-export type Confirm = (message: string) => Promise<boolean>;
+/**
+ * Ask for a yes/no decision. `confirmLabel` replaces the default "Send and close" on the
+ * button when nothing is sent. Resolves false when declined or dismissed.
+ */
+export type Confirm = (
+  message: string,
+  confirmLabel?: string,
+) => Promise<boolean>;
 /** Report something the editor must acknowledge. */
 export type Notify = (message: string) => Promise<void>;
 
@@ -14,11 +20,11 @@ export type Notify = (message: string) => Promise<void>;
  * Not reused from the other features: their copies are bound to their own i18next
  * instances, so the buttons would be labelled in whatever language those are set to.
  */
-export const confirmDialog: Confirm = async (message) => {
+export const confirmDialog: Confirm = async (message, confirmLabel) => {
   const result = await showWmeDialog({
     message,
     buttons: [
-      { label: t("dialogConfirm"), value: "confirm" },
+      { label: confirmLabel ?? t("dialogConfirm"), value: "confirm" },
       { label: t("dialogCancel"), value: "cancel" },
     ],
     cancelValue: "cancel",

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildMessage, describeLanguages, messageLanguage } from "./message";
+import {
+  buildMessage,
+  describeLanguages,
+  isOfficialMessage,
+  messageLanguage,
+} from "./message";
 
 describe("messageLanguage", () => {
   it("reads the Waze app ids observed in WME", () => {
@@ -34,10 +39,32 @@ describe("buildMessage", () => {
     );
   });
 
-  it("speaks each of the four languages", () => {
-    expect(buildMessage("de")).toMatch(/^Danke für Ihre Meldung\./);
-    expect(buildMessage("it")).toMatch(/^Grazie per la segnalazione\./);
-    expect(buildMessage("en")).toMatch(/^Thank you for your report\./);
+  it("speaks each of the four languages, in full", () => {
+    expect(buildMessage("de")).toBe(
+      "Danke für Ihre Meldung. Fest installierte Radare können in Waze in der Schweiz und in Liechtenstein nicht angezeigt werden. Um den lokalen Vorschriften zu entsprechen, hat Waze die Meldung von Polizeikontrollen für Nutzer deaktiviert, die in der Schweiz und in Liechtenstein navigieren. Alle anderen Navigationsfunktionen, einschliesslich Gefahrenmeldungen, Verkehrsinformationen und Strassensperrungen, bleiben weiterhin uneingeschränkt verfügbar.",
+    );
+    expect(buildMessage("it")).toBe(
+      "Grazie per la segnalazione. Gli autovelox fissi non possono essere visualizzati in Waze in Svizzera e Liechtenstein. Per conformarsi alle normative locali, Waze ha disattivato la segnalazione della polizia per gli utenti che navigano in Svizzera e Liechtenstein. Tutte le altre funzioni di navigazione, comprese le segnalazioni di pericoli, le informazioni sul traffico e le chiusure stradali, rimangono pienamente operative.",
+    );
+    expect(buildMessage("en")).toBe(
+      "Thank you for your report. Fixed speed cameras cannot be shown in Waze in Switzerland and Liechtenstein. To comply with local regulations, Waze has disabled police reporting for users navigating in Switzerland and Liechtenstein. All other navigation features, including hazard alerts, traffic information and road closures, remain fully functional.",
+    );
+  });
+});
+
+describe("isOfficialMessage", () => {
+  it("recognises the full message in each language", () => {
+    for (const lang of ["fr", "de", "it", "en"] as const)
+      expect(isOfficialMessage(buildMessage(lang))).toBe(true);
+  });
+
+  it("rejects any other comment", () => {
+    expect(isOfficialMessage("still there")).toBe(false);
+    expect(isOfficialMessage("")).toBe(false);
+  });
+
+  it("recognises the body embedded in a longer text", () => {
+    expect(isOfficialMessage(`Hello. ${buildMessage("de")} Bye.`)).toBe(true);
   });
 });
 

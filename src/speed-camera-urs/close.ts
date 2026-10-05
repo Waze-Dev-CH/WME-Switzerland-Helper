@@ -2,7 +2,12 @@ import type { ConversationElement, WmeSDK } from "wme-sdk-typings";
 import { isSpeedCameraUr, triage } from "./detect";
 import { getLocale, t } from "./i18n";
 import { log } from "./log";
-import { buildMessage, describeLanguages, messageLanguage } from "./message";
+import {
+  buildMessage,
+  describeLanguages,
+  isOfficialMessage,
+  messageLanguage,
+} from "./message";
 import {
   confirmDialog,
   notifyDialog,
@@ -65,6 +70,20 @@ export function resetMessagedForTests(): void {
   inFlight.clear();
 }
 
+/**
+ * Whether the reporter already has our message: sent this session, or found in the
+ * conversation itself, which is what survives a reload when the closure was never saved.
+ */
+export function alreadyMessaged(
+  id: number,
+  comments: readonly ConversationElement[],
+): boolean {
+  return (
+    wasMessaged(id) ||
+    comments.some((comment) => isOfficialMessage(comment.text))
+  );
+}
+
 /** An unknown rank counts as insufficient. */
 export function canBatch(sdk: WmeSDK): boolean {
   const rank = sdk.State.getUserInfo()?.rank;
@@ -75,7 +94,9 @@ export function canBatch(sdk: WmeSDK): boolean {
  * Send the official message to one UR's reporter, then close the UR as not-identified.
  *
  * Everything is re-read here, right before writing: the list the editor clicked may be
- * minutes old. The message goes FIRST because it cannot be withdrawn, while the closure
+ * minutes old. The UR's own state is live, but getUpdateRequestDetails may hand back the
+ * conversation already held in WME's data model (the SDK offers no forced refresh), so a
+ * comment added seconds ago elsewhere can still be missing. The message goes FIRST because it cannot be withdrawn, while the closure
  * lands on the undo stack; a failed send must leave the UR open and untouched, never
  * closed without an explanation. Nothing is saved.
  */
@@ -125,15 +146,16 @@ async function sendAndClose(
     return { id, result: "failed", reason: "errDetails" };
   }
 
-  const alreadyMessaged = wasMessaged(id);
-  const hasConversation = triage(comments, alreadyMessaged) === "conversation";
+  const messagedBefore = alreadyMessaged(id, comments);
+  const hasConversation = triage(comments, messagedBefore) === "conversation";
   if (hasConversation && !options.allowConversation) {
     return { id, result: "skipped", reason: "skipConversation" };
   }
 
-  // The editor chose to handle a UR that came back after an undo. The reporter already has
-  // our message and it cannot be withdrawn, so close it without sending a second one.
-  if (alreadyMessaged) return closeWithoutMessage(urs, id);
+  // The editor chose to handle a UR that came back after an undo or an unsaved session. The
+  // reporter already has our message and it cannot be withdrawn, so close it without
+  // sending a second one.
+  if (messagedBefore) return closeWithoutMessage(urs, id);
 
   const text = buildMessage(messageLanguage(ur.userPreferences?.language));
   try {
@@ -208,6 +230,14 @@ function closeWithoutMessage(
   return { id, result: "closed" };
 }
 
+const EXCERPT_MAX = 200;
+
+function excerpt(text: string): string {
+  const trimmed = text.trim();
+  if (trimmed.length <= EXCERPT_MAX) return trimmed;
+  return `${trimmed.slice(0, EXCERPT_MAX)}…`;
+}
+
 export interface Prompts {
   confirm?: Confirm;
   notify?: Notify;
@@ -251,15 +281,6 @@ export function runCloseOne(
     const ur = urs.getById({ mapUpdateRequestId: id });
     if (!ur) return null;
 
-    // The reporter already has the message and it cannot be withdrawn: offer to close only.
-    if (wasMessaged(id)) {
-      if (!(await confirm(t("confirmCloseOnly")))) return null;
-      const outcome = await closeOne(sdk, id, { allowConversation: true });
-      if (outcome.result !== "closed") await notify(summarize([outcome]));
-      return outcome;
-    }
-
-    const lang = messageLanguage(ur.userPreferences?.language);
     let comments: ConversationElement[] = [];
     try {
       comments =
@@ -268,10 +289,32 @@ export function runCloseOne(
     } catch {
       // closeOne reads it again and reports the failure properly.
     }
+
+    // The reporter already has the message and it cannot be withdrawn: offer to close only.
+    if (alreadyMessaged(id, comments)) {
+      const accepted = await confirm(
+        t("confirmCloseOnly"),
+        t("dialogCloseOnly"),
+      );
+      if (!accepted) return null;
+      const outcome = await closeOne(sdk, id, { allowConversation: true });
+      if (outcome.result !== "closed") await notify(summarize([outcome]));
+      return outcome;
+    }
+
+    const lang = messageLanguage(ur.userPreferences?.language);
     const hasConversation = triage(comments, false) === "conversation";
-    const key = hasConversation ? "confirmOneConversation" : "confirmOne";
+    // When the conversation could not be read there is no last comment to show, and the
+    // plain confirmation stands, as before.
+    const last = comments[comments.length - 1];
+    const key =
+      hasConversation && last ? "confirmOneConversation" : "confirmOne";
     const accepted = await confirm(
-      t(key, { lang: lang.toUpperCase(), message: buildMessage(lang) }),
+      t(key, {
+        lang: lang.toUpperCase(),
+        message: buildMessage(lang),
+        comment: last ? excerpt(last.text) : "",
+      }),
     );
     if (!accepted) return null;
 
@@ -299,6 +342,12 @@ export async function runCloseAll(
   }
   const batch = ids.slice(0, BATCH_CAP);
   if (batch.length === 0) return [];
+  // closeOne checks again per UR, but asking the editor to confirm a batch that can only
+  // fail is a worse experience than saying so up front.
+  if (!sdk.Editing.isEditingAllowed()) {
+    await notify(t("errNotAllowedBatch"));
+    return null;
+  }
 
   return withCloseLock(async () => {
     const langs = batch.map((id) =>

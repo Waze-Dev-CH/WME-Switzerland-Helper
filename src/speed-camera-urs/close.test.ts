@@ -3,6 +3,7 @@ import {
   BATCH_CAP,
   canBatch,
   closeMany,
+  alreadyMessaged,
   closeOne,
   resetMessagedForTests,
   summarize,
@@ -150,6 +151,51 @@ describe("closeOne, repeated or overlapping", () => {
     expect(again).toEqual({ id: 1, result: "closed" });
     expect(sent).toHaveLength(1);
     expect(calls.filter((c) => c === "close:1:not-identified")).toHaveLength(2);
+  });
+});
+
+describe("a conversation that already holds our message", () => {
+  const official = {
+    createdOn: 0,
+    text: buildMessage("de"),
+    userName: "editor",
+  };
+
+  it("closes without sending when the editor forces it through", async () => {
+    const { sdk, sent, calls } = makeSdk([makeUr(1)], {
+      comments: { 1: [official] },
+    });
+
+    const outcome = await closeOne(sdk, 1, { allowConversation: true });
+
+    expect(outcome).toEqual({ id: 1, result: "closed" });
+    expect(sent).toEqual([]);
+    expect(calls).toContain("close:1:not-identified");
+  });
+
+  it("is skipped by the batch", async () => {
+    const { sdk, sent } = makeSdk([makeUr(1)], { comments: { 1: [official] } });
+
+    const outcomes = await closeMany(sdk, [1]);
+
+    expect(outcomes).toEqual([
+      { id: 1, result: "skipped", reason: "skipConversation" },
+    ]);
+    expect(sent).toEqual([]);
+  });
+});
+
+describe("alreadyMessaged", () => {
+  it("is true for our text in any comment, false for others", () => {
+    expect(alreadyMessaged(77, [])).toBe(false);
+    expect(
+      alreadyMessaged(77, [{ createdOn: 0, text: "hi", userName: null }]),
+    ).toBe(false);
+    expect(
+      alreadyMessaged(77, [
+        { createdOn: 0, text: buildMessage("it"), userName: null },
+      ]),
+    ).toBe(true);
   });
 });
 

@@ -1,5 +1,5 @@
 import type { MapUpdateRequest, WmeSDK } from "wme-sdk-typings";
-import { wasMessaged } from "./close";
+import { alreadyMessaged, wasMessaged } from "./close";
 import { isInExtent, isSpeedCameraUr, triage, type Triage } from "./detect";
 import type { LocaleCode } from "./i18n";
 import { log } from "./log";
@@ -125,7 +125,10 @@ export class Scanner {
           generation !== this.generation ||
           version !== (this.versions.get(ur.id) ?? 0);
         if (details && !overtaken)
-          this.triageCache.set(ur.id, triage(details.comments, false));
+          this.triageCache.set(
+            ur.id,
+            triage(details.comments, alreadyMessaged(ur.id, details.comments)),
+          );
       } catch (err) {
         log.warn(`Could not read the conversation of UR ${ur.id}`, err);
       }
