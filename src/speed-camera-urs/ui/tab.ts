@@ -12,6 +12,7 @@ import {
 } from "../close";
 import { getLocale, t } from "../i18n";
 import { log } from "../log";
+import type { UrHighlight } from "../map-highlight";
 import type { Scanner, UrEntry } from "../scanner";
 import {
   formatCloseAllButton,
@@ -48,6 +49,7 @@ export class TabUI {
   constructor(
     private sdk: WmeSDK,
     private scanner: Scanner,
+    private highlight: UrHighlight,
   ) {}
 
   async init(): Promise<void> {
@@ -147,7 +149,7 @@ export class TabUI {
     const row = el("div", "scu-row");
     const label = button(
       formatRowLabel(entry, getLocale()),
-      () => this.centerOn(entry),
+      () => this.highlight.focus(entry),
       "scu-plain scu-row-label",
     );
     label.title = t("rowTitle");
@@ -189,14 +191,6 @@ export class TabUI {
     } finally {
       this.scanner.schedule();
       this.render();
-    }
-  }
-
-  private centerOn(entry: UrEntry): void {
-    try {
-      this.sdk.Map.setMapCenter({ lonLat: { lon: entry.lon, lat: entry.lat } });
-    } catch (err) {
-      log.warn("Could not centre the map", err);
     }
   }
 }

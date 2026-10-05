@@ -8,6 +8,7 @@
 import type { WmeSDK } from "wme-sdk-typings";
 import { normalizeLocale, setLocale } from "./i18n";
 import { log } from "./log";
+import { UrHighlight } from "./map-highlight";
 import { Scanner } from "./scanner";
 import { TabUI } from "./ui/tab";
 
@@ -29,7 +30,9 @@ export async function initSpeedCameraUrs(): Promise<void> {
   setLocale(normalizeLocale(sdk.Settings.getLocale().localeCode));
 
   const scanner = new Scanner(sdk);
-  await new TabUI(sdk, scanner).init();
+  const highlight = new UrHighlight(sdk);
+  highlight.init();
+  await new TabUI(sdk, scanner, highlight).init();
   scanner.start();
   log.info(`ready (SDK ${sdk.getSDKVersion()}, WME ${sdk.getWMEVersion()})`);
 }
