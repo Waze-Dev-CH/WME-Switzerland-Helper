@@ -246,8 +246,9 @@
     "tabTitle": "Numeri civici"
   },
   "speedCameraUrs": {
-    "appName": "UR autovelox closer",
-    "tabNote": "Elenca le UR aperte sullo schermo che segnalano un autovelox fisso. La legge svizzera vieta di mostrarli in Waze: ognuna riceve la spiegazione ufficiale nella lingua di chi l'ha segnalata e viene chiusa come Non identificata.",
+    "appName": "Chiusura delle UR autovelox",
+    "tabName": "UR autovelox closer",
+    "tabNote": "Commenta e chiude come Non identificate le UR aperte sullo schermo di tipo MISSING_STATIC_SPEED_CAMERA. La legge svizzera vieta di mostrare gli autovelox fissi in Waze: chi ha segnalato riceve la spiegazione ufficiale nella sua lingua.",
     "stateNone": "Nessuna UR autovelox sullo schermo. Le UR devono essere visibili sulla mappa per essere trovate.",
     "stateFound": "{{count}} UR autovelox sullo schermo",
     "statePending": "{{count}} in verifica",

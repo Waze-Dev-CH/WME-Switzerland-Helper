@@ -57,7 +57,7 @@ export class TabUI {
     try {
       const { tabLabel, tabPane } = await this.sdk.Sidebar.registerScriptTab();
       this.tabPane = tabPane;
-      tabLabel.textContent = tabLabelText(t("appName"));
+      tabLabel.textContent = tabLabelText(t("tabName"));
       groupScriptTab(tabLabel, tabPane, "speed-camera-urs");
     } catch (err) {
       log.error("Could not register the sidebar tab", err);
