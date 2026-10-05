@@ -77,8 +77,8 @@ lot, le reste est vu par un humain.
 
 ### 4.2 Fermeture d'un UR
 
-1. `getUpdateRequestDetails` : relit la conversation et garantit la session de commentaires
-   dont `addComment` a besoin.
+1. `getUpdateRequestDetails` : relit la conversation. Le test préalable montre qu'`addComment`
+   n'en a pas besoin, l'appel sert uniquement à la revérification de l'étape 2.
 2. Revérification : toujours ouvert, toujours modifiable, toujours sans commentaire.
    Sinon, l'UR est sauté.
 3. `addComment` avec le message dans la langue de l'utilisateur.
@@ -86,6 +86,11 @@ lot, le reste est vu par un humain.
 
 Le message part avant la fermeture : un échec d'envoi laisse l'UR ouvert et intact. L'ordre
 inverse pourrait fermer un UR sans explication.
+
+La fermeture va dans la pile d'édition, le message non. Si l'éditeur annule (undo), l'UR
+redevient ouvert alors que le message est parti. Il réapparaît alors dans la liste « Déjà
+une conversation », puisqu'il porte notre commentaire : la règle « tout commentaire bloque
+le lot » empêche ainsi d'envoyer deux fois le message.
 
 ## 5. Message
 
@@ -169,7 +174,7 @@ Elles énoncent le changement, pas seulement le nombre.
 - Échec de `getUpdateRequestDetails` ou de `addComment` : UR sauté, pas de fermeture,
   marqué en erreur. Le lot continue.
 - Bilan : « 11 traités, 1 échec (UR #123 : raison) ».
-- Si la fermeture passe par la pile d'édition (section 7), le bilan rappelle :
+- La fermeture passe par la pile d'édition (section 7), le bilan rappelle donc toujours :
   « Sauvegardez pour enregistrer les fermetures. Les messages sont déjà envoyés. »
 
 ## 7. Test préalable dans WME
@@ -199,8 +204,8 @@ Résultats :
 | `comments` | Vides sur les 26, y compris les 5 déjà fermés (fermés sans message) |
 | `userName` | Non observé (aucun commentaire) |
 | `language` | Identifiant Waze, pas ISO : `francais`, `eng`, `portuguese_pt` |
-| `addComment` sans panneau | à remplir |
-| `updateResolutionState` | à remplir |
+| `addComment` sans panneau | Passe directement, même sans `getUpdateRequestDetails` préalable ni panneau ouvert |
+| `updateResolutionState` | Va dans la pile d'édition : `getUnsavedChangesCount()` passe de 0 à 1. Localement, `isOpen` devient `false` et `resolutionState` `not-identified` tout de suite |
 
 ## 8. Tests
 
@@ -209,7 +214,7 @@ Vitest, faux SDK comme dans les deux autres modules.
 - `detect` : texte présent, absent, UR fermé, non modifiable, `description` nulle.
 - `classify` : sans commentaire, avec commentaire.
 - `message` : `francais`, `eng`, `portuguese_pt`, `deutsch`, `italiano`, `null`, texte complet.
-- `close` : message avant fermeture, pas de fermeture si l'envoi échoue, refus sous le
+- `close` : message avant fermeture, UR rouvert par undo (porte notre commentaire) exclu du lot, pas de fermeture si l'envoi échoue, refus sous le
   niveau 3 dans `closeAll`, limite à 50, UR traité entre-temps sauté, lot qui continue
   après un échec.
 
