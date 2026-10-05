@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { WmeSDK } from "wme-sdk-typings";
 import {
+  BLINK_MS,
   FOCUS_ZOOM,
   focusZoom,
   HIGHLIGHT_MS,
@@ -51,27 +52,47 @@ describe("UrHighlight", () => {
     });
   });
 
-  it("lets clicks through to the UR marker underneath", () => {
+  it("lets clicks through to the UR marker underneath, in both blink phases", () => {
     const { sdk, Map } = makeMapSdk();
     new UrHighlight(sdk).init();
 
-    const style = Map.addLayer.mock.calls[0]?.[0]?.styleRules?.[0]?.style;
-    expect(style?.pointerEvents).toBe("none");
+    const rules = Map.addLayer.mock.calls[0]?.[0]?.styleRules ?? [];
+    expect(rules).toHaveLength(2);
+    for (const rule of rules) expect(rule.style.pointerEvents).toBe("none");
   });
 
-  it("removes the ring after a few seconds", () => {
+  it("blinks by alternating its two looks", () => {
+    const { sdk, Map } = makeMapSdk();
+    const highlight = new UrHighlight(sdk);
+    highlight.init();
+    const phases = () =>
+      Map.addFeaturesToLayer.mock.calls.map(
+        (call) => call[0].features[0].properties.phase,
+      );
+
+    highlight.focus({ lon: 6.6, lat: 46.5 });
+    vi.advanceTimersByTime(BLINK_MS);
+    vi.advanceTimersByTime(BLINK_MS);
+
+    expect(phases()).toEqual(["a", "b", "a"]);
+  });
+
+  it("stops blinking and removes the ring after a few seconds", () => {
     const { sdk, Map } = makeMapSdk();
     const highlight = new UrHighlight(sdk);
     highlight.init();
     highlight.focus({ lon: 6.6, lat: 46.5 });
-    Map.removeAllFeaturesFromLayer.mockClear();
 
     vi.advanceTimersByTime(HIGHLIGHT_MS);
+    const drawn = Map.addFeaturesToLayer.mock.calls.length;
+    const cleared = Map.removeAllFeaturesFromLayer.mock.calls.length;
+    vi.advanceTimersByTime(HIGHLIGHT_MS);
 
-    expect(Map.removeAllFeaturesFromLayer).toHaveBeenCalledOnce();
+    expect(Map.addFeaturesToLayer.mock.calls.length).toBe(drawn);
+    expect(Map.removeAllFeaturesFromLayer.mock.calls.length).toBe(cleared);
   });
 
-  it("keeps a single ring when another UR is clicked before the first one fades", () => {
+  it("moves the blink to the new UR when another one is clicked meanwhile", () => {
     const { sdk, Map } = makeMapSdk();
     const highlight = new UrHighlight(sdk);
     highlight.init();
@@ -79,11 +100,15 @@ describe("UrHighlight", () => {
     highlight.focus({ lon: 6.6, lat: 46.5 });
     vi.advanceTimersByTime(HIGHLIGHT_MS - 100);
     highlight.focus({ lon: 6.7, lat: 46.6 });
-    vi.advanceTimersByTime(200);
+    const afterSecond = Map.addFeaturesToLayer.mock.calls.length;
+    vi.advanceTimersByTime(BLINK_MS * 3);
 
-    // Cleared before the second ring is drawn, and the first timer no longer erases it.
-    expect(Map.removeAllFeaturesFromLayer).toHaveBeenCalledTimes(2);
-    expect(Map.addFeaturesToLayer).toHaveBeenCalledTimes(2);
+    const later = Map.addFeaturesToLayer.mock.calls.slice(afterSecond - 1);
+    for (const call of later) {
+      expect(call[0].features[0].geometry.coordinates).toEqual([6.7, 46.6]);
+    }
+    // The first ring's end timer must not cut the second one short.
+    expect(later.length).toBeGreaterThan(3);
   });
 
   it("still centres the map when the layer could not be created", () => {

@@ -143,8 +143,8 @@ Pipeline: `Scanner` (scanner.ts: data-model events and map extent) → `detect.t
 triage) → `TabUI`. `close.ts` is the only module that writes.
 
 - `map-highlight.ts`: the SDK cannot open a UR's panel (`setSelection` does not accept
-  update requests), so a click in the list centres, zooms to `FOCUS_ZOOM` and rings the UR
-  on a layer with `pointerEvents: "none"`; the editor's next click lands on WME's marker.
+  update requests), so a click in the list centres, zooms to `FOCUS_ZOOM` and blinks a ring
+  around the UR on a layer with `pointerEvents: "none"`; the next click lands on WME's marker.
 
 - `message.ts`: `userPreferences.language` is the Waze app's language id, not ISO
   (`francais`, `eng`, `portuguese_pt` observed), hence a prefix rule with English fallback.
