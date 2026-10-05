@@ -75,6 +75,9 @@ Con questo script, otterrete:
 - **Controllo dei nomi delle vie ufficiali**
   Confronta i nomi dei segmenti visibili con il registro ufficiale svizzero delle vie (swisstopo) ed evidenzia le differenze, con correzione in un clic. Una scheda dedicata **CH · Nomi delle vie** elenca le anomalie, raggruppate e distinte per colore, e il pannello di modifica del segmento mostra il verdetto per il segmento selezionato.
 
+- **UR autovelox**  
+  Elenca le UR aperte sullo schermo che segnalano un autovelox fisso, che la legge svizzera non permette a Waze di mostrare, e le chiude con la spiegazione ufficiale nella lingua di chi ha segnalato. Una scheda dedicata **CH · UR autovelox closer** contiene l'elenco.
+
 Tutti i dati cartografici provengono da fonti ufficiali svizzere (swisstopo), quindi potete fidarvi della loro accuratezza.
 
 ### Come funziona il livello delle fermate dei trasporti pubblici
@@ -125,6 +128,16 @@ Tutti i cambiamenti notevoli di questo progetto sono documentati qui.
 
 Il formato è basato su [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 e questo progetto aderisce al [Versionamento Semantico](https://semver.org/spec/v2.0.0.html).
+
+### [Unreleased]
+
+#### Aggiunto
+
+- **Chiusura delle UR autovelox.** La legge svizzera vieta di mostrare gli autovelox fissi in Waze, eppure gli utenti continuano ad aprire UR per segnalarli. Una nuova scheda **CH · UR autovelox closer** elenca le UR aperte sullo schermo di tipo `MISSING_STATIC_SPEED_CAMERA`, invia a chi ha segnalato la spiegazione ufficiale nella sua lingua e chiude la UR come *Non identificata*. I messaggi partono subito e non possono essere ritirati; le chiusure vanno ancora salvate.
+- **Una per una per tutti, tutte insieme dal livello 3.** Ogni editor può chiudere queste UR una per una. Trattarle tutte in una volta (al massimo 50) richiede il livello 3, e sotto quel livello il pulsante è nascosto. Le UR che hanno già un commento sono escluse dal trattamento in blocco, per non interrompere la conversazione di nessuno.
+- **Chi ha segnalato non riceve mai il messaggio due volte.** Né dopo un doppio clic, né dopo un Ctrl+Z, né dopo una sessione mai salvata: una UR la cui conversazione contiene già il messaggio viene solo chiusa, con una propria conferma.
+- **Un clic su una UR dell'elenco vi porta lì.** La mappa si ingrandisce e un cerchio lampeggiante segnala la UR; un altro clic sul suo indicatore la apre. L'editor non permette agli script di aprire direttamente una UR.
+- **La conferma mostra esattamente cosa verrà inviato.** Il messaggio è citato con i suoi paragrafi, accanto a una bandiera per la sua lingua. In un trattamento in blocco, una bandiera per lingua mostra il testo che leggeranno quelle persone.
 
 ### [1.5.2] - 2026-08-30
 

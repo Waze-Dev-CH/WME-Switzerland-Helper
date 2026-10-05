@@ -75,6 +75,9 @@ Mit diesem Skript erhalten Sie:
 - **Prüfung der offiziellen Strassennamen**
   Vergleicht die Namen der sichtbaren Segmente mit dem offiziellen Schweizer Strassenverzeichnis (swisstopo) und hebt Abweichungen hervor, mit Korrektur per Klick. Ein eigener Reiter **CH · Strassennamen** listet die Befunde auf, gruppiert und farblich unterschieden, und das Segment-Bearbeitungsfenster zeigt das Urteil zum ausgewählten Segment.
 
+- **Radar-URs**  
+  Listet die offenen URs im Bildausschnitt, die ein fest installiertes Radar melden, das Waze nach Schweizer Recht nicht anzeigen darf, und schliesst sie mit der offiziellen Erklärung in der Sprache der meldenden Person. Ein eigener Reiter **CH · Radar-UR-Closer** enthält die Liste.
+
 Alle Kartendaten stammen aus offiziellen Schweizer Quellen (swisstopo), so dass Sie auf ihre Genauigkeit vertrauen können.
 
 ### Funktionsweise der Haltestellen-Ebene des öffentlichen Nahverkehrs
@@ -125,6 +128,16 @@ Alle bemerkenswerten Änderungen an diesem Projekt sind hier dokumentiert.
 
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+### [Unreleased]
+
+#### Hinzugefügt
+
+- **Schliessen von Radar-URs.** Das Schweizer Recht verbietet, fest installierte Radare in Waze anzuzeigen, trotzdem eröffnen Nutzer immer wieder URs dafür. Ein neuer Reiter **CH · Radar-UR-Closer** listet die offenen URs vom Typ `MISSING_STATIC_SPEED_CAMERA` im Bildausschnitt, sendet jeder meldenden Person die offizielle Erklärung in ihrer Sprache und schliesst die UR als *Nicht identifiziert*. Die Nachrichten werden sofort gesendet und können nicht zurückgezogen werden; die Schliessungen müssen noch gespeichert werden.
+- **Einzeln für alle, alle auf einmal ab Level 3.** Jeder Editor kann diese URs einzeln schliessen. Alle auf einmal zu bearbeiten (höchstens 50) erfordert Level 3, darunter ist die Schaltfläche ausgeblendet. URs mit einem Kommentar sind vom gemeinsamen Bearbeiten ausgenommen, damit keine Unterhaltung abgeschnitten wird.
+- **Eine meldende Person erhält die Nachricht nie zweimal.** Weder nach einem Doppelklick noch nach Ctrl+Z noch nach einer nie gespeicherten Sitzung: Eine UR, deren Unterhaltung die Nachricht bereits enthält, wird nur geschlossen, mit eigener Bestätigung.
+- **Ein Klick auf eine UR in der Liste führt dorthin.** Die Karte zoomt hinein und ein blinkender Ring markiert die UR; ein weiterer Klick auf ihre Markierung öffnet sie. Der Editor bietet Skripten keine Möglichkeit, eine UR direkt zu öffnen.
+- **Die Bestätigung zeigt genau, was gesendet wird.** Die Nachricht wird mit ihren Absätzen zitiert, neben einer Flagge für ihre Sprache. Beim gemeinsamen Bearbeiten zeigt eine Flagge pro Sprache den Text, den diese Personen lesen werden.
 
 ### [1.5.2] - 2026-08-30
 

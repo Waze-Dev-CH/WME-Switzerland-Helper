@@ -131,6 +131,51 @@ Tests: `npx vitest run src/house-number-importer` and
 `npx vitest run src/street-name-checker`. The geo.admin.ch integration block is
 excluded by default and runs with `WME_CH_INTEGRATION=1`.
 
+### Speed-camera URs (`src/speed-camera-urs/`)
+
+Closes the URs that report a fixed speed camera, which Swiss law forbids showing in Waze.
+They are recognised by the `MISSING_STATIC_SPEED_CAMERA` prefix of their description; their
+type is always `INCORRECT_GENERAL_ERROR`, so the type cannot filter them. Entry point:
+`initSpeedCameraUrs()` (`index.ts`), called from `main.user.ts` after the importer, with its
+own scriptId for the same reason.
+
+Pipeline: `Scanner` (scanner.ts: data-model events and map extent) → `detect.ts` (prefix,
+triage) → `TabUI`. `close.ts` is the only module that writes.
+
+- `map-highlight.ts`: the SDK cannot open a UR's panel (`setSelection` does not accept
+  update requests), so a click in the list centres, zooms to `FOCUS_ZOOM` and blinks a ring
+  around the UR on a layer with `pointerEvents: "none"`; the next click lands on WME's marker.
+- `confirm-spec.ts` + `ui/dialog.ts`: confirmations are described as data (`ConfirmSpec`),
+  so the flows are tested on what they ask, and rendered by the feature's own modal rather
+  than `showWmeDialog`, which centres a plain string. The message is quoted left-aligned
+  with its line breaks; in a batch, one flag per language switches the quote to the exact
+  text those reporters get. Same containment as `showWmeDialog`: appended to the page,
+  removed once answered. Flags are inline SVG (`ui/flags.ts`), not emoji.
+
+- `message.ts`: `userPreferences.language` is the Waze app's language id, not ISO
+  (`francais`, `eng`, `portuguese_pt` observed), hence a prefix rule with English fallback.
+- `addComment` sends **immediately** and cannot be withdrawn, while the closure goes to the
+  edit stack. That is why the comment goes first and the closure only follows a successful
+  send.
+
+**Safety rules:**
+
+- `BATCH_MIN_RANK` (level 3) and `BATCH_CAP` (50) live in `close.ts` and are enforced in
+  `closeMany`, not only in the tab. The batch button is hidden below the level.
+- Any comment on a UR keeps it out of the batch. `wasMessaged` covers Ctrl+Z: the closure
+  is undone but the message is not, and WME's cached conversation may not show it yet.
+- A UR already messaged is never messaged again: `alreadyMessaged` is true when
+  `wasMessaged(id)` (this session) or a comment contains the official text (`isOfficialMessage`,
+  any of the four languages), which is what survives a reload when the closure was not saved.
+  Closing it one by one closes it without re-sending, behind its own confirmation
+  (`confirmCloseOnly`, button "Close").
+- Every UR is re-read right before writing; one closed in the meantime is skipped. The UR's
+  state is live, but `getUpdateRequestDetails` may return the conversation already in WME's
+  data model (the SDK offers no forced refresh), so a very recent comment can be missing.
+- Nothing is ever saved automatically.
+
+Tests: `npx vitest run src/speed-camera-urs`.
+
 ## WME SDK Rules
 
 - All WME API interactions use `wme-sdk-typings`. Consult `node_modules/wme-sdk-typings/index.d.ts` and https://www.waze.com/editor/sdk/index.html before implementing features.

@@ -75,6 +75,9 @@ With this script, you get:
 - **Official Street-Name Check**  
   Compares the street names of the segments you see against the official Swiss street register (swisstopo) and highlights mismatches, with one-click fixes. A dedicated **CH · Street names** sidebar tab lists the issues, grouped and colour-coded, and the segment edit panel shows the verdict for the selected segment.
 
+- **Speed-Camera URs**  
+  Lists the open URs on screen that report a fixed speed camera, which Swiss law does not allow Waze to show, and closes them with the official explanation in the reporter's language. A dedicated **CH · Speed-camera UR closer** sidebar tab holds the list.
+
 All map data comes from official Swiss sources (swisstopo), so you can trust its accuracy.
 
 ### How the Public Transport Stops Layer Works
@@ -127,6 +130,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### [Unreleased]
+
+#### Added
+
+- **Closing speed-camera URs.** Swiss law forbids showing fixed speed cameras in Waze, yet reporters keep opening URs for them. A new **CH · Speed-camera UR closer** tab lists the open URs of type `MISSING_STATIC_SPEED_CAMERA` on screen, sends each reporter the official explanation in their own language and closes the UR as *Not identified*. Messages are sent immediately and cannot be withdrawn; the closures still need saving.
+- **One by one for everyone, all at once from level 3.** Any editor can close these URs one at a time. Handling them all at once (up to 50) needs level 3, and the button is hidden below it. URs that already carry a comment are left out of the batch, so nobody's conversation is cut short.
+- **A reporter never gets the message twice.** Not after a double click, not after a Ctrl+Z, and not after a session that was never saved: a UR whose conversation already holds the message is only closed, behind its own confirmation.
+- **Clicking a UR in the list takes you to it.** The map zooms in and a blinking ring marks the UR; one more click on its marker opens it. The editor offers scripts no way to open a UR directly.
+- **The confirmation shows exactly what will be sent.** The message is quoted with its paragraphs, next to a flag for its language. In a batch, one flag per language shows the text those reporters will read.
 
 ### [1.5.2] - 2026-08-30
 
