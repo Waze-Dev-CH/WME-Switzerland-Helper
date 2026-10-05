@@ -131,6 +131,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### [Unreleased]
 
+### [1.6.0] - 2026-10-05
+
 #### Added
 
 - **Closing speed-camera URs.** Swiss law forbids showing fixed speed cameras in Waze, yet reporters keep opening URs for them. A new **CH · Speed-camera UR closer** tab lists the open URs of type `MISSING_STATIC_SPEED_CAMERA` on screen, sends each reporter the official explanation in their own language and closes the UR as *Not identified*. Messages are sent immediately and cannot be withdrawn; the closures still need saving.
