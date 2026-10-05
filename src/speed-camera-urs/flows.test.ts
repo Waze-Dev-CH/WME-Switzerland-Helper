@@ -7,6 +7,7 @@ import {
   runCloseAll,
   runCloseOne,
 } from "./close";
+import type { ConfirmSpec } from "./confirm-spec";
 import { makeSdk, makeUr } from "./fake-sdk";
 import { buildMessage } from "./message";
 
@@ -17,11 +18,15 @@ const official = {
 };
 const comment = { createdOn: 0, text: "still there", userName: null };
 const accept = () =>
-  vi.fn<(message: string, label?: string) => Promise<boolean>>(
-    async () => true,
-  );
+  vi.fn<(spec: ConfirmSpec) => Promise<boolean>>(async () => true);
 const decline = () =>
-  vi.fn<(message: string) => Promise<boolean>>(async () => false);
+  vi.fn<(spec: ConfirmSpec) => Promise<boolean>>(async () => false);
+/** The confirmation the flow asked for. */
+const specOf = (confirm: ReturnType<typeof accept>): ConfirmSpec => {
+  const spec = confirm.mock.calls[0]?.[0];
+  if (!spec) throw new Error("confirm was not called");
+  return spec;
+};
 const silent = () => vi.fn<(message: string) => Promise<void>>(async () => {});
 
 beforeEach(() => resetMessagedForTests());
@@ -37,10 +42,11 @@ describe("runCloseOne", () => {
     const outcome = await runCloseOne(sdk, 1, { confirm, notify: silent() });
 
     expect(outcome).toEqual({ id: 1, result: "closed" });
-    const shown = confirm.mock.calls[0]?.[0] ?? "";
-    expect(shown).toContain("language: IT");
-    expect(shown).toContain(buildMessage("it"));
-    expect(shown).toContain("cannot be withdrawn");
+    const spec = specOf(confirm);
+    expect(spec.quotes?.options).toEqual([
+      { lang: "it", text: buildMessage("it") },
+    ]);
+    expect(spec.warning).toContain("cannot be withdrawn");
     expect(sent).toHaveLength(1);
   });
 
@@ -50,7 +56,9 @@ describe("runCloseOne", () => {
 
     const outcome = await runCloseOne(sdk, 1, { confirm, notify: silent() });
 
-    expect(confirm.mock.calls[0]?.[0]).toContain("already has a conversation");
+    expect(specOf(confirm).previousComment?.label).toContain(
+      "already has a conversation",
+    );
     expect(outcome).toEqual({ id: 1, result: "closed" });
     expect(sent).toHaveLength(1);
   });
@@ -103,9 +111,7 @@ describe("runCloseOne", () => {
 
     await runCloseOne(sdk, 1, { confirm, notify: silent() });
 
-    const shown = confirm.mock.calls[0]?.[0] ?? "";
-    expect(shown).toContain(`Last comment: “${"x".repeat(200)}…”`);
-    expect(shown).not.toContain("x".repeat(201));
+    expect(specOf(confirm).previousComment?.text).toBe(`${"x".repeat(200)}…`);
   });
 
   it("shows the last comment in full when it is short", async () => {
@@ -114,7 +120,7 @@ describe("runCloseOne", () => {
 
     await runCloseOne(sdk, 1, { confirm, notify: silent() });
 
-    expect(confirm.mock.calls[0]?.[0]).toContain("Last comment: “still there”");
+    expect(specOf(confirm).previousComment?.text).toBe("still there");
   });
 
   it("closes only, never re-sending, a UR whose conversation holds our message from an earlier session", async () => {
@@ -125,8 +131,11 @@ describe("runCloseOne", () => {
 
     const outcome = await runCloseOne(sdk, 1, { confirm, notify: silent() });
 
-    expect(confirm.mock.calls[0]?.[0]).toContain("without sending it again");
-    expect(confirm.mock.calls[0]?.[1]).toBe("Close");
+    expect(specOf(confirm).facts.join(" ")).toContain(
+      "without sending it again",
+    );
+    expect(specOf(confirm).quotes).toBeUndefined();
+    expect(specOf(confirm).confirmLabel).toBe("Close");
     expect(outcome).toEqual({ id: 1, result: "closed" });
     expect(sent).toEqual([]);
     expect(calls).toContain("close:1:not-identified");
@@ -141,7 +150,7 @@ describe("runCloseOne", () => {
 
     await runCloseOne(sdk, 1, { confirm, notify: silent() });
 
-    expect(confirm.mock.calls[0]?.[1]).toBe("Close");
+    expect(specOf(confirm).confirmLabel).toBe("Close");
   });
 
   it("offers to close without re-sending a UR this session already messaged", async () => {
@@ -154,7 +163,9 @@ describe("runCloseOne", () => {
 
     const outcome = await runCloseOne(sdk, 1, { confirm, notify: silent() });
 
-    expect(confirm.mock.calls[0]?.[0]).toContain("without sending it again");
+    expect(specOf(confirm).facts.join(" ")).toContain(
+      "without sending it again",
+    );
     expect(outcome).toEqual({ id: 1, result: "closed" });
     expect(sent).toHaveLength(1);
   });
@@ -184,9 +195,15 @@ describe("runCloseAll", () => {
 
     const outcomes = await runCloseAll(sdk, [1, 2, 3], { confirm, notify });
 
-    const shown = confirm.mock.calls[0]?.[0] ?? "";
-    expect(shown).toContain("Messages to send now: 3 (2 FR, 1 DE)");
-    expect(shown).toContain("cannot be withdrawn");
+    const spec = specOf(confirm);
+    expect(spec.facts).toContain("Messages sent now: 3");
+    expect(
+      spec.quotes?.options.map(({ lang, count }) => ({ lang, count })),
+    ).toEqual([
+      { lang: "fr", count: 2 },
+      { lang: "de", count: 1 },
+    ]);
+    expect(spec.warning).toContain("cannot be withdrawn");
     expect(outcomes).toHaveLength(3);
     expect(sent).toHaveLength(3);
     expect(notify.mock.calls[0]?.[0]).toContain(

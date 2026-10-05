@@ -145,6 +145,12 @@ triage) → `TabUI`. `close.ts` is the only module that writes.
 - `map-highlight.ts`: the SDK cannot open a UR's panel (`setSelection` does not accept
   update requests), so a click in the list centres, zooms to `FOCUS_ZOOM` and blinks a ring
   around the UR on a layer with `pointerEvents: "none"`; the next click lands on WME's marker.
+- `confirm-spec.ts` + `ui/dialog.ts`: confirmations are described as data (`ConfirmSpec`),
+  so the flows are tested on what they ask, and rendered by the feature's own modal rather
+  than `showWmeDialog`, which centres a plain string. The message is quoted left-aligned
+  with its line breaks; in a batch, one flag per language switches the quote to the exact
+  text those reporters get. Same containment as `showWmeDialog`: appended to the page,
+  removed once answered. Flags are inline SVG (`ui/flags.ts`), not emoji.
 
 - `message.ts`: `userPreferences.language` is the Waze app's language id, not ISO
   (`francais`, `eng`, `portuguese_pt` observed), hence a prefix rule with English fallback.

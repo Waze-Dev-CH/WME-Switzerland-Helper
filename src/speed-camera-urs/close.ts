@@ -2,12 +2,8 @@ import type { ConversationElement, WmeSDK } from "wme-sdk-typings";
 import { isSpeedCameraUr, triage } from "./detect";
 import { getLocale, t } from "./i18n";
 import { log } from "./log";
-import {
-  buildMessage,
-  describeLanguages,
-  isOfficialMessage,
-  messageLanguage,
-} from "./message";
+import { closeAllSpec, closeOneSpec, closeOnlySpec } from "./confirm-spec";
+import { buildMessage, isOfficialMessage, messageLanguage } from "./message";
 import {
   confirmDialog,
   notifyDialog,
@@ -230,14 +226,6 @@ function closeWithoutMessage(
   return { id, result: "closed" };
 }
 
-const EXCERPT_MAX = 200;
-
-function excerpt(text: string): string {
-  const trimmed = text.trim();
-  if (trimmed.length <= EXCERPT_MAX) return trimmed;
-  return `${trimmed.slice(0, EXCERPT_MAX)}…`;
-}
-
 export interface Prompts {
   confirm?: Confirm;
   notify?: Notify;
@@ -292,10 +280,7 @@ export function runCloseOne(
 
     // The reporter already has the message and it cannot be withdrawn: offer to close only.
     if (alreadyMessaged(id, comments)) {
-      const accepted = await confirm(
-        t("confirmCloseOnly"),
-        t("dialogCloseOnly"),
-      );
+      const accepted = await confirm(closeOnlySpec(id));
       if (!accepted) return null;
       const outcome = await closeOne(sdk, id, { allowConversation: true });
       if (outcome.result !== "closed") await notify(summarize([outcome]));
@@ -307,14 +292,8 @@ export function runCloseOne(
     // When the conversation could not be read there is no last comment to show, and the
     // plain confirmation stands, as before.
     const last = comments[comments.length - 1];
-    const key =
-      hasConversation && last ? "confirmOneConversation" : "confirmOne";
     const accepted = await confirm(
-      t(key, {
-        lang: lang.toUpperCase(),
-        message: buildMessage(lang),
-        comment: last ? excerpt(last.text) : "",
-      }),
+      closeOneSpec(id, lang, hasConversation && last ? last.text : null),
     );
     if (!accepted) return null;
 
@@ -356,13 +335,7 @@ export async function runCloseAll(
           ?.userPreferences?.language,
       ),
     );
-    const accepted = await confirm(
-      t("confirmAll", {
-        count: batch.length,
-        languages: describeLanguages(langs),
-        message: buildMessage(getLocale()),
-      }),
-    );
+    const accepted = await confirm(closeAllSpec(langs, getLocale()));
     if (!accepted) return null;
 
     const outcomes = await closeMany(sdk, batch);

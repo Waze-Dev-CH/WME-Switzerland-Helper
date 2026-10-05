@@ -50,14 +50,14 @@ export function isOfficialMessage(text: string): boolean {
 
 const ORDER: readonly LocaleCode[] = ["fr", "de", "it", "en"];
 
-/** "3 FR, 2 DE, 1 IT": what a batch is about to send, for its confirmation. */
-export function describeLanguages(langs: readonly LocaleCode[]): string {
+/** How many URs of a batch get each language, most frequent first, absent ones left out. */
+export function languageCounts(
+  langs: readonly LocaleCode[],
+): Array<{ lang: LocaleCode; count: number }> {
   return ORDER.map((lang) => ({
     lang,
     count: langs.filter((l) => l === lang).length,
   }))
     .filter((entry) => entry.count > 0)
-    .sort((a, b) => b.count - a.count)
-    .map((entry) => `${entry.count} ${entry.lang.toUpperCase()}`)
-    .join(", ");
+    .sort((a, b) => b.count - a.count);
 }

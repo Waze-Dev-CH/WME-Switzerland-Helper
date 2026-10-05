@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   buildMessage,
-  describeLanguages,
   isOfficialMessage,
+  languageCounts,
   messageLanguage,
 } from "./message";
 
@@ -100,14 +100,19 @@ describe("isOfficialMessage", () => {
   });
 });
 
-describe("describeLanguages", () => {
+describe("languageCounts", () => {
   it("counts per language, most frequent first", () => {
-    expect(describeLanguages(["de", "fr", "fr", "it", "fr", "de"])).toBe(
-      "3 FR, 2 DE, 1 IT",
-    );
+    expect(languageCounts(["de", "fr", "fr", "it", "fr", "de"])).toEqual([
+      { lang: "fr", count: 3 },
+      { lang: "de", count: 2 },
+      { lang: "it", count: 1 },
+    ]);
   });
 
   it("keeps a fixed order on a tie and omits absent languages", () => {
-    expect(describeLanguages(["en", "fr"])).toBe("1 FR, 1 EN");
+    expect(languageCounts(["en", "fr"])).toEqual([
+      { lang: "fr", count: 1 },
+      { lang: "en", count: 1 },
+    ]);
   });
 });
