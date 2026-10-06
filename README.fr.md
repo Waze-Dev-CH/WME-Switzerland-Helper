@@ -131,6 +131,10 @@ et ce projet adhère au [Versionnage Sémantique](https://semver.org/spec/v2.0.0
 
 ### [Non publié]
 
+#### Modifié
+
+- Le message envoyé aux auteurs des UR radar commence maintenant par une salutation et se termine par une signature de la communauté des éditeurs bénévoles. Les UR qui ont reçu l'ancienne formulation sont toujours reconnus et ne reçoivent jamais le message deux fois.
+
 ### [1.6.0] - 2026-10-05
 
 #### Ajouté

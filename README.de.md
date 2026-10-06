@@ -131,6 +131,10 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### [Unveröffentlicht]
 
+#### Geändert
+
+- Die Nachricht an die Personen, die Radar-URs melden, beginnt jetzt mit einer Begrüssung und endet mit einer Signatur der Community der freiwilligen Editoren. URs, die die bisherige Fassung erhalten haben, werden weiterhin erkannt und erhalten die Nachricht nie zweimal.
+
 ### [1.6.0] - 2026-10-05
 
 #### Hinzugefügt

@@ -291,7 +291,8 @@
     "dialogCloseOnly": "Fermer",
     "dialogCancel": "Annuler",
     "dialogOk": "OK",
-    "messageIntro": "Merci pour votre signalement.\n\nLes radars fixes ne peuvent pas être affichés dans Waze en Suisse et au Liechtenstein.",
-    "messageBody": "Afin de respecter la réglementation locale, Waze a désactivé le signalement de la police pour les utilisateurs naviguant en Suisse et au Liechtenstein.\n\nToutes les autres fonctionnalités de navigation, notamment les alertes de danger, les informations sur le trafic et les fermetures de routes, restent pleinement fonctionnelles."
+    "messageIntro": "Bonjour,\n\nMerci pour votre signalement.\n\nLes radars fixes ne peuvent pas être affichés dans Waze en Suisse et au Liechtenstein.",
+    "messageBody": "Afin de respecter la réglementation locale, Waze a désactivé le signalement de la police pour les utilisateurs naviguant en Suisse et au Liechtenstein.\n\nToutes les autres fonctionnalités de navigation, notamment les alertes de danger, les informations sur le trafic et les fermetures de routes, restent pleinement fonctionnelles.",
+    "messageSignature": "Belle journée et bonne route.\nLa communauté des éditeurs bénévoles"
   }
 }

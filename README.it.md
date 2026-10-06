@@ -131,6 +131,10 @@ e questo progetto aderisce al [Versionamento Semantico](https://semver.org/spec/
 
 ### [Non pubblicato]
 
+#### Modificato
+
+- Il messaggio inviato a chi segnala gli UR degli autovelox ora inizia con un saluto e termina con una firma della comunità degli editor volontari. Gli UR che hanno ricevuto la formulazione precedente vengono ancora riconosciuti e non ricevono mai il messaggio due volte.
+
 ### [1.6.0] - 2026-10-05
 
 #### Aggiunto

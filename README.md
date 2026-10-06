@@ -131,6 +131,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### [Unreleased]
 
+#### Changed
+
+- The message sent to speed-camera UR reporters now opens with a greeting and closes with a signature from the volunteer editor community. URs messaged with the previous wording are still recognised and never messaged twice.
+
 ### [1.6.0] - 2026-10-05
 
 #### Added

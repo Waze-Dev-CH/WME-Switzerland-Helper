@@ -23,9 +23,15 @@ export function messageLanguage(raw: string | null | undefined): LocaleCode {
  *
  * One idea per paragraph: the app shows the comment on a phone, where a single block of
  * four sentences reads as a wall of text.
+ *
+ * The signature has its own key rather than closing `messageBody`: `isOfficialMessage`
+ * matches the body verbatim, and comments sent before the signature existed must still match.
  */
 export function buildMessage(lang: LocaleCode): string {
-  return `${tIn(lang, "messageIntro")}\n\n${tIn(lang, "messageBody")}`;
+  const intro = tIn(lang, "messageIntro");
+  const body = tIn(lang, "messageBody");
+  const signature = tIn(lang, "messageSignature");
+  return `${intro}\n\n${body}\n\n${signature}`;
 }
 
 /** Spacing is not ours to trust once the server has stored and returned a comment. */
