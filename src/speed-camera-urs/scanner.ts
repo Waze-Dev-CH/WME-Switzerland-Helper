@@ -1,6 +1,13 @@
 import type { MapUpdateRequest, WmeSDK } from "wme-sdk-typings";
 import { alreadyMessaged, wasMessaged } from "./close";
-import { isInExtent, isSpeedCameraUr, triage, type Triage } from "./detect";
+import {
+  isInExtent,
+  isOnFreeway,
+  isSpeedCameraUr,
+  isTrafficLightUr,
+  triage,
+  type Triage,
+} from "./detect";
 import type { LocaleCode } from "./i18n";
 import { log } from "./log";
 import { messageLanguage } from "./message";
@@ -15,12 +22,18 @@ export interface UrEntry {
   triage: Triage | "pending";
 }
 
+/** No triage: traffic lights are handled one by one, their conversation is read on click. */
+export type TrafficLightEntry = Omit<UrEntry, "triage">;
+
 export interface ScanSnapshot {
   entries: UrEntry[];
+  trafficLights: TrafficLightEntry[];
 }
 
 const DEBOUNCE_MS = 300;
 const MODEL = "mapUpdateRequests";
+/** Tracked because a traffic light's verdict depends on the road under it. */
+const SEGMENTS = "segments";
 
 /**
  * Keeps the list of speed-camera URs on screen.
@@ -34,7 +47,8 @@ export class Scanner {
   private triageCache = new Map<number, Triage>();
   /** Bumped by forget(), so a read that was in flight when the UR changed is not cached. */
   private versions = new Map<number, number>();
-  private snapshot: ScanSnapshot = { entries: [] };
+  private snapshot: ScanSnapshot = { entries: [], trafficLights: [] };
+  private trafficLights: TrafficLightEntry[] = [];
   private listeners: Array<(snapshot: ScanSnapshot) => void> = [];
   /** Bumped by every rescan, so a slow one stops publishing once a newer one started. */
   private generation = 0;
@@ -43,14 +57,16 @@ export class Scanner {
   constructor(private sdk: WmeSDK) {}
 
   start(): void {
-    try {
-      // Data-model events only fire for tracked models.
-      this.sdk.Events.trackDataModelEvents({ dataModelName: MODEL });
-    } catch (err) {
-      log.warn(
-        "Could not track update requests; the list follows map moves only",
-        err,
-      );
+    for (const dataModelName of [MODEL, SEGMENTS] as const) {
+      try {
+        // Data-model events only fire for tracked models.
+        this.sdk.Events.trackDataModelEvents({ dataModelName });
+      } catch (err) {
+        log.warn(
+          `Could not track ${dataModelName}; the list follows map moves only`,
+          err,
+        );
+      }
     }
     const onModelEvent =
       (changed: boolean) =>
@@ -58,6 +74,10 @@ export class Scanner {
         dataModelName: string;
         objectIds: Array<string | number>;
       }) => {
+        if (payload.dataModelName === SEGMENTS) {
+          this.schedule();
+          return;
+        }
         if (payload.dataModelName !== MODEL) return;
         // A changed UR may have gained a comment or been reopened by an undo.
         if (changed) this.forget(payload.objectIds);
@@ -106,9 +126,17 @@ export class Scanner {
   async rescan(): Promise<void> {
     const generation = ++this.generation;
     const extent = this.sdk.Map.getMapExtent();
-    const found = this.sdk.DataModel.MapUpdateRequests.getAll()
-      .filter((ur) => isSpeedCameraUr(ur) && isInExtent(ur, extent))
+    const onScreen = this.sdk.DataModel.MapUpdateRequests.getAll()
+      .filter((ur) => isInExtent(ur, extent))
       .sort((a, b) => a.reportedOn - b.reportedOn);
+    const found = onScreen.filter(isSpeedCameraUr);
+
+    const candidates = onScreen.filter(isTrafficLightUr);
+    const segments =
+      candidates.length > 0 ? this.sdk.DataModel.Segments.getAll() : [];
+    this.trafficLights = candidates
+      .filter((ur) => isOnFreeway(ur, segments))
+      .map((ur) => this.basics(ur));
     this.publish(found);
 
     for (const ur of found) {
@@ -138,23 +166,29 @@ export class Scanner {
   }
 
   private publish(found: MapUpdateRequest[]): void {
-    this.snapshot = { entries: found.map((ur) => this.toEntry(ur)) };
+    this.snapshot = {
+      entries: found.map((ur) => this.toEntry(ur)),
+      trafficLights: this.trafficLights,
+    };
     for (const listener of this.listeners) listener(this.snapshot);
   }
 
   private toEntry(ur: MapUpdateRequest): UrEntry {
-    const [lon = 0, lat = 0] = ur.geometry.coordinates;
     // Checked at every publish rather than cached: a Ctrl+Z reopens a UR we already messaged.
     const cached = wasMessaged(ur.id)
       ? "conversation"
       : this.triageCache.get(ur.id);
+    return { ...this.basics(ur), triage: cached ?? "pending" };
+  }
+
+  private basics(ur: MapUpdateRequest): TrafficLightEntry {
+    const [lon = 0, lat = 0] = ur.geometry.coordinates;
     return {
       id: ur.id,
       lon,
       lat,
       reportedOn: ur.reportedOn,
       lang: messageLanguage(ur.userPreferences?.language),
-      triage: cached ?? "pending",
     };
   }
 }

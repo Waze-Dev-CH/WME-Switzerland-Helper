@@ -154,6 +154,12 @@ triage) → `TabUI`. `close.ts` is the only module that writes.
 
 - `message.ts`: `userPreferences.language` is the Waze app's language id, not ISO
   (`francais`, `eng`, `portuguese_pt` observed), hence a prefix rule with English fallback.
+- Traffic lights reported on a freeway: some reporters disguise a speed camera as a
+  `MISSING_TRAFFIC_LIGHT` UR. `isOnFreeway` (detect.ts) keeps one only when the **closest**
+  loaded segment within `FREEWAY_MAX_DISTANCE_M` (30) is a FREEWAY; ramps are excluded on
+  purpose, real lights stand at their end. The SDK links a UR to no segment, hence the
+  geometry, and the scanner tracks `segments` events so a UR drawn before its road still
+  appears. These are closed one by one, as not-identified and **without any message**.
 - `addComment` sends **immediately** and cannot be withdrawn, while the closure goes to the
   edit stack. That is why the comment goes first and the closure only follows a successful
   send.
@@ -169,6 +175,9 @@ triage) → `TabUI`. `close.ts` is the only module that writes.
   any of the four languages), which is what survives a reload when the closure was not saved.
   Closing it one by one closes it without re-sending, behind its own confirmation
   (`confirmCloseOnly`, button "Close").
+- Traffic lights have **no batch at all**, whatever the level: the prefix alone does not
+  make a speed camera. `closeTrafficLight` re-checks the prefix and `isOnFreeway` right
+  before writing, and `closeMany` cannot reach them (it only takes speed-camera URs).
 - Every UR is re-read right before writing; one closed in the meantime is skipped. The UR's
   state is live, but `getUpdateRequestDetails` may return the conversation already in WME's
   data model (the SDK offers no forced refresh), so a very recent comment can be missing.

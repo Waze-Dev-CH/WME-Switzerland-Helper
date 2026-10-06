@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { noteMessaged, resetMessagedForTests } from "./close";
-import { makeSdk, makeUr } from "./fake-sdk";
+import { makeSdk, makeSegment, makeTrafficLightUr, makeUr } from "./fake-sdk";
 import { Scanner, type ScanSnapshot } from "./scanner";
 
 const comment = { createdOn: 0, text: "hello", userName: null };
@@ -116,5 +116,49 @@ describe("Scanner.rescan", () => {
     await scanner.rescan();
     expect(calls).toEqual(["details:1"]);
     expect(scanner.getSnapshot().entries[0]?.triage).toBe("ready");
+  });
+});
+
+describe("Scanner traffic lights", () => {
+  it("lists traffic-light URs next to a freeway, apart from the speed cameras", async () => {
+    const urs = [
+      makeUr(1),
+      makeTrafficLightUr(2, { reportedOn: 200 }),
+      makeTrafficLightUr(3, { reportedOn: 100 }),
+      // Next to the ramp only.
+      makeTrafficLightUr(4, {
+        geometry: { type: "Point", coordinates: [6.65, 46.6] },
+      }),
+    ];
+    const segments = [
+      makeSegment(3, 46.5001),
+      makeSegment(4, 46.6001, [6.64, 6.66]),
+    ];
+    const scanner = new Scanner(makeSdk(urs, { segments }).sdk);
+
+    await scanner.rescan();
+
+    const snapshot = scanner.getSnapshot();
+    expect(snapshot.entries.map((e) => e.id)).toEqual([1]);
+    expect(snapshot.trafficLights.map((e) => e.id)).toEqual([3, 2]);
+  });
+
+  it("never reads the conversation of a traffic light", async () => {
+    const { sdk, calls } = makeSdk([makeTrafficLightUr(1)], {
+      segments: [makeSegment(3, 46.5001)],
+    });
+
+    await new Scanner(sdk).rescan();
+
+    expect(calls).toEqual([]);
+  });
+
+  it("rescans when segments load, so a UR shown before its road still appears", () => {
+    const { sdk } = makeSdk([]);
+    new Scanner(sdk).start();
+
+    expect(sdk.Events.trackDataModelEvents).toHaveBeenCalledWith({
+      dataModelName: "segments",
+    });
   });
 });

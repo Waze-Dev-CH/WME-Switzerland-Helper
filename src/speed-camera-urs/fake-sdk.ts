@@ -6,6 +6,7 @@ import { vi } from "vitest";
 import type {
   ConversationElement,
   MapUpdateRequest,
+  Segment,
   WmeSDK,
 } from "wme-sdk-typings";
 
@@ -36,6 +37,38 @@ export function makeUr(
   };
 }
 
+/** A traffic-light UR, placed on the freeway segment of `freewayAt`. */
+export function makeTrafficLightUr(
+  id: number,
+  overrides: Partial<MapUpdateRequest> = {},
+): MapUpdateRequest {
+  return makeUr(id, {
+    description: "MISSING_TRAFFIC_LIGHT: The user reported a traffic light.",
+    ...overrides,
+  });
+}
+
+/**
+ * A straight east-west segment through `lat`, wide enough to cover the default UR position.
+ * Road type 3 is FREEWAY.
+ */
+export function makeSegment(
+  roadType: number,
+  lat = 46.5,
+  lon: [number, number] = [6.59, 6.61],
+): Segment {
+  return {
+    roadType,
+    geometry: {
+      type: "LineString",
+      coordinates: [
+        [lon[0], lat],
+        [lon[1], lat],
+      ],
+    },
+  } as Segment;
+}
+
 export interface FakeOptions {
   /** Editor rank (0-based). `null` means no user info at all. Defaults to 2 (level 3). */
   rank?: number | null;
@@ -46,6 +79,8 @@ export interface FakeOptions {
   failComment?: number[];
   failClose?: number[];
   extent?: number[];
+  /** Loaded segments. Read at call time, so a test can change them mid-flow. */
+  segments?: Segment[];
 }
 
 export function makeSdk(urs: MapUpdateRequest[], options: FakeOptions = {}) {
@@ -66,6 +101,7 @@ export function makeSdk(urs: MapUpdateRequest[], options: FakeOptions = {}) {
     },
     Events: { on: vi.fn(), trackDataModelEvents: vi.fn() },
     DataModel: {
+      Segments: { getAll: () => options.segments ?? [] },
       MapUpdateRequests: {
         getAll: () => urs,
         getById: ({ mapUpdateRequestId }: IdArgs) => byId(mapUpdateRequestId),

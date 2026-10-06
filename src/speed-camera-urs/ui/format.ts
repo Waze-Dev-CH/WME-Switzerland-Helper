@@ -1,6 +1,6 @@
 import { BATCH_CAP } from "../close";
 import { t, type LocaleCode } from "../i18n";
-import type { UrEntry } from "../scanner";
+import type { TrafficLightEntry, UrEntry } from "../scanner";
 
 /** The tab's wording, kept free of DOM so it can be tested. */
 
@@ -27,7 +27,10 @@ export function formatStatus(entries: readonly UrEntry[]): string {
     : found;
 }
 
-export function formatRowLabel(entry: UrEntry, locale: LocaleCode): string {
+export function formatRowLabel(
+  entry: TrafficLightEntry,
+  locale: LocaleCode,
+): string {
   const date = new Date(entry.reportedOn).toLocaleDateString(locale);
   return `#${entry.id} · ${entry.lang.toUpperCase()} · ${date}`;
 }

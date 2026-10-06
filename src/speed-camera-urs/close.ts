@@ -1,8 +1,18 @@
 import type { ConversationElement, WmeSDK } from "wme-sdk-typings";
-import { isSpeedCameraUr, triage } from "./detect";
+import {
+  isOnFreeway,
+  isSpeedCameraUr,
+  isTrafficLightUr,
+  triage,
+} from "./detect";
 import { getLocale, t } from "./i18n";
 import { log } from "./log";
-import { closeAllSpec, closeOneSpec, closeOnlySpec } from "./confirm-spec";
+import {
+  closeAllSpec,
+  closeOneSpec,
+  closeOnlySpec,
+  closeTrafficLightSpec,
+} from "./confirm-spec";
 import { buildMessage, isOfficialMessage, messageLanguage } from "./message";
 import {
   confirmDialog,
@@ -23,7 +33,7 @@ export const BATCH_MIN_RANK = 2;
  */
 export const BATCH_CAP = 50;
 
-export type SkipReason = "skipGone" | "skipConversation";
+export type SkipReason = "skipGone" | "skipConversation" | "skipNotFreeway";
 export type FailReason =
   | "errNotAllowed"
   | "errDetails"
@@ -175,6 +185,32 @@ async function sendAndClose(
 }
 
 /**
+ * Close one traffic light reported on a freeway, without any message. There is no batch
+ * for these and none should be added: the prefix alone does not make a speed camera, the
+ * editor looks at each one.
+ *
+ * Both conditions are checked again here rather than trusted from the list: the segment
+ * may have been re-typed or unloaded since it was drawn, and a gate living only in the tab
+ * would be one missed check away from being gone.
+ */
+export async function closeTrafficLight(
+  sdk: WmeSDK,
+  id: number,
+): Promise<CloseOutcome> {
+  if (!sdk.Editing.isEditingAllowed())
+    return { id, result: "failed", reason: "errNotAllowed" };
+
+  const urs = sdk.DataModel.MapUpdateRequests;
+  const ur = urs.getById({ mapUpdateRequestId: id });
+  if (!ur || !isTrafficLightUr(ur))
+    return { id, result: "skipped", reason: "skipGone" };
+  if (!isOnFreeway(ur, sdk.DataModel.Segments.getAll()))
+    return { id, result: "skipped", reason: "skipNotFreeway" };
+
+  return closeWithoutMessage(urs, id);
+}
+
+/**
  * The batch. Re-checks the rank itself: two surfaces could call it, and a gate enforced
  * only where the button is drawn would be one missed check away from being gone.
  */
@@ -191,8 +227,14 @@ export async function closeMany(
   return outcomes;
 }
 
-/** What the editor reads once a flow ends: counts, each problem by UR, and the save reminder. */
-export function summarize(outcomes: readonly CloseOutcome[]): string {
+/**
+ * What the editor reads once a flow ends: counts, each problem by UR, and the save reminder.
+ * `messagesSent` is false for the traffic lights, which close without any message.
+ */
+export function summarize(
+  outcomes: readonly CloseOutcome[],
+  { messagesSent = true }: { messagesSent?: boolean } = {},
+): string {
   const count = (result: CloseOutcome["result"]) =>
     outcomes.filter((outcome) => outcome.result === result).length;
   const lines = [
@@ -206,7 +248,8 @@ export function summarize(outcomes: readonly CloseOutcome[]): string {
     if (outcome.result === "closed") continue;
     lines.push(t("summaryLine", { id: outcome.id, reason: t(outcome.reason) }));
   }
-  if (count("closed") > 0) lines.push("", t("saveReminder"));
+  const reminder = messagesSent ? "saveReminder" : "saveReminderNoMessage";
+  if (count("closed") > 0) lines.push("", t(reminder));
   return lines.join("\n");
 }
 
@@ -303,6 +346,44 @@ export function runCloseOne(
       allowConversation: hasConversation,
     });
     if (outcome.result !== "closed") await notify(summarize([outcome]));
+    return outcome;
+  });
+}
+
+/**
+ * One traffic light, from the tab. Open to every level like runCloseOne. The conversation
+ * is read only to show its last comment: someone may be talking with the reporter.
+ */
+export function runCloseTrafficLight(
+  sdk: WmeSDK,
+  id: number,
+  prompts: Prompts = {},
+): Promise<CloseOutcome | null> {
+  const confirm = prompts.confirm ?? confirmDialog;
+  const notify = prompts.notify ?? notifyDialog;
+  return withCloseLock(async () => {
+    const urs = sdk.DataModel.MapUpdateRequests;
+    if (!urs.getById({ mapUpdateRequestId: id })) return null;
+
+    let comments: ConversationElement[] = [];
+    try {
+      comments =
+        (await urs.getUpdateRequestDetails({ mapUpdateRequestId: id }))
+          ?.comments ?? [];
+    } catch (err) {
+      // Nothing is sent, so an unread conversation only costs the excerpt in the dialog.
+      log.warn(`Could not read the conversation of UR ${id}`, err);
+    }
+
+    const last = comments[comments.length - 1];
+    const accepted = await confirm(
+      closeTrafficLightSpec(id, last ? last.text : null),
+    );
+    if (!accepted) return null;
+
+    const outcome = await closeTrafficLight(sdk, id);
+    if (outcome.result !== "closed")
+      await notify(summarize([outcome], { messagesSent: false }));
     return outcome;
   });
 }

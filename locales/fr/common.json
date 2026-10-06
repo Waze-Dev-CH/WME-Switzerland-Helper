@@ -292,6 +292,12 @@
     "dialogCancel": "Annuler",
     "dialogOk": "OK",
     "messageIntro": "Merci pour votre signalement.\n\nLes radars fixes ne peuvent pas être affichés dans Waze en Suisse et au Liechtenstein.",
-    "messageBody": "Afin de respecter la réglementation locale, Waze a désactivé le signalement de la police pour les utilisateurs naviguant en Suisse et au Liechtenstein.\n\nToutes les autres fonctionnalités de navigation, notamment les alertes de danger, les informations sur le trafic et les fermetures de routes, restent pleinement fonctionnelles."
+    "messageBody": "Afin de respecter la réglementation locale, Waze a désactivé le signalement de la police pour les utilisateurs naviguant en Suisse et au Liechtenstein.\n\nToutes les autres fonctionnalités de navigation, notamment les alertes de danger, les informations sur le trafic et les fermetures de routes, restent pleinement fonctionnelles.",
+    "sectionTrafficLights": "Feux signalés sur autoroute ({{count}})",
+    "trafficLightNote": "UR MISSING_TRAFFIC_LIGHT dont la route la plus proche est une autoroute : souvent un radar signalé comme feu. Traitement un par un uniquement : ouvrez chaque UR et vérifiez-le avant de le fermer. Aucun message n'est envoyé.",
+    "btnCloseTrafficLight": "Fermer",
+    "dlgFactNoMessage": "Aucun message n'est envoyé à l'utilisateur.",
+    "saveReminderNoMessage": "Sauvegardez pour enregistrer les fermetures.",
+    "skipNotFreeway": "n'est plus à côté d'une autoroute"
   }
 }

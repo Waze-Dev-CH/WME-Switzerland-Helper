@@ -131,6 +131,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### [Unreleased]
 
+#### Added
+
+- **Traffic lights reported on a freeway.** Some reporters get round the missing speed-camera report by reporting a traffic light instead. The **CH · Speed-camera UR closer** tab now also lists the open `MISSING_TRAFFIC_LIGHT` URs whose closest road is a freeway (ramps excluded, real lights stand at their end). They are closed one by one only, as *Not identified* and without any message, after checking each one. There is no batch for them, whatever the level.
+
 ### [1.6.0] - 2026-10-05
 
 #### Added

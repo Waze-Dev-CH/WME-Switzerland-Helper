@@ -292,6 +292,12 @@
     "dialogCancel": "Annullare",
     "dialogOk": "OK",
     "messageIntro": "Grazie per la segnalazione.\n\nGli autovelox fissi non possono essere visualizzati in Waze in Svizzera e Liechtenstein.",
-    "messageBody": "Per conformarsi alle normative locali, Waze ha disattivato la segnalazione della polizia per gli utenti che navigano in Svizzera e Liechtenstein.\n\nTutte le altre funzioni di navigazione, comprese le segnalazioni di pericoli, le informazioni sul traffico e le chiusure stradali, rimangono pienamente operative."
+    "messageBody": "Per conformarsi alle normative locali, Waze ha disattivato la segnalazione della polizia per gli utenti che navigano in Svizzera e Liechtenstein.\n\nTutte le altre funzioni di navigazione, comprese le segnalazioni di pericoli, le informazioni sul traffico e le chiusure stradali, rimangono pienamente operative.",
+    "sectionTrafficLights": "Semafori segnalati in autostrada ({{count}})",
+    "trafficLightNote": "UR di tipo MISSING_TRAFFIC_LIGHT la cui strada più vicina è un'autostrada: spesso un autovelox segnalato come semaforo. Solo una per una: aprite ogni UR e verificatela prima di chiuderla. Nessun messaggio viene inviato.",
+    "btnCloseTrafficLight": "Chiudere",
+    "dlgFactNoMessage": "Chi ha segnalato non riceve alcun messaggio.",
+    "saveReminderNoMessage": "Salvate per registrare le chiusure.",
+    "skipNotFreeway": "non è più accanto a un'autostrada"
   }
 }

@@ -5,11 +5,12 @@ import {
   closeMany,
   alreadyMessaged,
   closeOne,
+  closeTrafficLight,
   resetMessagedForTests,
   summarize,
   wasMessaged,
 } from "./close";
-import { makeSdk, makeUr } from "./fake-sdk";
+import { makeSdk, makeSegment, makeTrafficLightUr, makeUr } from "./fake-sdk";
 import { buildMessage } from "./message";
 
 const comment = { createdOn: 0, text: "is it fixed?", userName: null };
@@ -262,8 +263,89 @@ describe("summarize", () => {
     expect(text).toContain("Save to record the closures.");
   });
 
+  it("does not claim messages were sent when the closures sent none", () => {
+    const text = summarize([{ id: 1, result: "closed" }], {
+      messagesSent: false,
+    });
+    expect(text).toContain("Save to record the closures.");
+    expect(text).not.toContain("already sent");
+  });
+
   it("does not ask to save when nothing was closed", () => {
     const text = summarize([{ id: 2, result: "skipped", reason: "skipGone" }]);
     expect(text).not.toContain("Save");
+  });
+});
+
+describe("closeTrafficLight", () => {
+  const freeway = [makeSegment(3, 46.5001)];
+
+  it("closes as not-identified and sends nothing", async () => {
+    const { sdk, calls, sent } = makeSdk([makeTrafficLightUr(1)], {
+      segments: freeway,
+    });
+
+    const outcome = await closeTrafficLight(sdk, 1);
+
+    expect(outcome).toEqual({ id: 1, result: "closed" });
+    expect(calls).toEqual(["close:1:not-identified"]);
+    expect(sent).toEqual([]);
+  });
+
+  it("checks the freeway again before writing", async () => {
+    const segments = [...freeway];
+    const { sdk, calls } = makeSdk([makeTrafficLightUr(1)], { segments });
+    // The segment was re-typed or unloaded since the list was drawn.
+    segments.splice(0, 1, makeSegment(4, 46.5001));
+
+    const outcome = await closeTrafficLight(sdk, 1);
+
+    expect(outcome).toEqual({
+      id: 1,
+      result: "skipped",
+      reason: "skipNotFreeway",
+    });
+    expect(calls).toEqual([]);
+  });
+
+  it("skips a UR closed meanwhile, and refuses a speed-camera UR", async () => {
+    const { sdk, calls } = makeSdk(
+      [makeTrafficLightUr(1, { isOpen: false }), makeUr(2)],
+      { segments: freeway },
+    );
+
+    expect(await closeTrafficLight(sdk, 1)).toMatchObject({
+      reason: "skipGone",
+    });
+    expect(await closeTrafficLight(sdk, 2)).toMatchObject({
+      reason: "skipGone",
+    });
+    expect(calls).toEqual([]);
+  });
+
+  it("writes nothing when editing is not allowed", async () => {
+    const { sdk, calls } = makeSdk([makeTrafficLightUr(1)], {
+      segments: freeway,
+      editingAllowed: false,
+    });
+
+    expect(await closeTrafficLight(sdk, 1)).toMatchObject({
+      reason: "errNotAllowed",
+    });
+    expect(calls).toEqual([]);
+  });
+
+  it("is out of the batch's reach", async () => {
+    const { sdk, calls, sent } = makeSdk([makeTrafficLightUr(1)], {
+      segments: freeway,
+    });
+
+    const outcomes = await closeMany(sdk, [1]);
+
+    expect(outcomes).toEqual([
+      { id: 1, result: "skipped", reason: "skipGone" },
+    ]);
+    expect(calls).toEqual([]);
+    expect(sent).toEqual([]);
   });
 });

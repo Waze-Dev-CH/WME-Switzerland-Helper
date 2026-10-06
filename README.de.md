@@ -131,6 +131,10 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### [Unveröffentlicht]
 
+#### Hinzugefügt
+
+- **Auf der Autobahn gemeldete Ampeln.** Manche Nutzer umgehen die fehlende Radarmeldung, indem sie eine Ampel melden. Der Reiter **CH · Radar-UR-Closer** listet nun auch die offenen URs vom Typ `MISSING_TRAFFIC_LIGHT`, deren nächste Strasse eine Autobahn ist (Ausfahrten ausgenommen, echte Ampeln stehen an ihrem Ende). Sie werden nur einzeln geschlossen, als *Nicht identifiziert* und ohne Nachricht, nachdem jede geprüft wurde. Ein gemeinsames Bearbeiten gibt es für sie nicht, unabhängig vom Level.
+
 ### [1.6.0] - 2026-10-05
 
 #### Hinzugefügt

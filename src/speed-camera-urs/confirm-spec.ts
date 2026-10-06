@@ -70,6 +70,30 @@ export function closeOnlySpec(id: number): ConfirmSpec {
 }
 
 /**
+ * A traffic light reported on a freeway: closed without a word to the reporter, since the
+ * official text speaks of a speed camera they never mentioned. Nothing leaves the editor's
+ * machine, the closure alone goes to the undo stack, so no warning either.
+ */
+export function closeTrafficLightSpec(
+  id: number,
+  lastComment: string | null,
+): ConfirmSpec {
+  const spec: ConfirmSpec = {
+    title: t("dlgTitleOne", { id }),
+    facts: [t("dlgFactCloseOne"), t("dlgFactNoMessage")],
+    confirmLabel: t("dialogCloseOnly"),
+    cancelLabel: t("dialogCancel"),
+  };
+  if (lastComment !== null) {
+    spec.previousComment = {
+      label: t("dlgConversation"),
+      text: excerpt(lastComment),
+    };
+  }
+  return spec;
+}
+
+/**
  * Every language of the batch is offered, not only the editor's: the German or Italian
  * text is what those reporters will read, and the editor should be able to see it before
  * sending it to them.
