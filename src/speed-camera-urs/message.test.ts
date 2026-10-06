@@ -30,39 +30,47 @@ describe("messageLanguage", () => {
 describe("buildMessage", () => {
   it("lays the French message out in short paragraphs", () => {
     expect(buildMessage("fr")).toBe(
-      "Merci pour votre signalement.\n\n" +
+      "Bonjour,\n\n" +
+        "Merci pour votre signalement.\n\n" +
         "Les radars fixes ne peuvent pas être affichés dans Waze en Suisse et au Liechtenstein.\n\n" +
         "Afin de respecter la réglementation locale, Waze a désactivé le signalement de la police " +
         "pour les utilisateurs naviguant en Suisse et au Liechtenstein.\n\n" +
         "Toutes les autres fonctionnalités de navigation, notamment les alertes de danger, les " +
-        "informations sur le trafic et les fermetures de routes, restent pleinement fonctionnelles.",
+        "informations sur le trafic et les fermetures de routes, restent pleinement fonctionnelles.\n\n" +
+        "Belle journée et bonne route.\nLa communauté des éditeurs bénévoles",
     );
   });
 
   it("speaks each of the four languages, in full", () => {
     expect(buildMessage("de")).toBe(
-      "Danke für Ihre Meldung.\n\n" +
+      "Guten Tag,\n\n" +
+        "Danke für Ihre Meldung.\n\n" +
         "Fest installierte Radare können in Waze in der Schweiz und in Liechtenstein nicht angezeigt werden.\n\n" +
         "Um den lokalen Vorschriften zu entsprechen, hat Waze die Meldung von Polizeikontrollen für Nutzer " +
         "deaktiviert, die in der Schweiz und in Liechtenstein navigieren.\n\n" +
         "Alle anderen Navigationsfunktionen, einschliesslich Gefahrenmeldungen, Verkehrsinformationen und " +
-        "Strassensperrungen, bleiben weiterhin uneingeschränkt verfügbar.",
+        "Strassensperrungen, bleiben weiterhin uneingeschränkt verfügbar.\n\n" +
+        "Einen schönen Tag und gute Fahrt.\nDie Community der freiwilligen Editoren",
     );
     expect(buildMessage("it")).toBe(
-      "Grazie per la segnalazione.\n\n" +
+      "Buongiorno,\n\n" +
+        "Grazie per la segnalazione.\n\n" +
         "Gli autovelox fissi non possono essere visualizzati in Waze in Svizzera e Liechtenstein.\n\n" +
         "Per conformarsi alle normative locali, Waze ha disattivato la segnalazione della polizia per " +
         "gli utenti che navigano in Svizzera e Liechtenstein.\n\n" +
         "Tutte le altre funzioni di navigazione, comprese le segnalazioni di pericoli, le informazioni " +
-        "sul traffico e le chiusure stradali, rimangono pienamente operative.",
+        "sul traffico e le chiusure stradali, rimangono pienamente operative.\n\n" +
+        "Buona giornata e buon viaggio.\nLa comunità degli editor volontari",
     );
     expect(buildMessage("en")).toBe(
-      "Thank you for your report.\n\n" +
+      "Hello,\n\n" +
+        "Thank you for your report.\n\n" +
         "Fixed speed cameras cannot be shown in Waze in Switzerland and Liechtenstein.\n\n" +
         "To comply with local regulations, Waze has disabled police reporting for users navigating " +
         "in Switzerland and Liechtenstein.\n\n" +
         "All other navigation features, including hazard alerts, traffic information and road " +
-        "closures, remain fully functional.",
+        "closures, remain fully functional.\n\n" +
+        "Have a nice day and safe travels.\nThe volunteer editor community",
     );
   });
 });
@@ -97,6 +105,17 @@ describe("isOfficialMessage", () => {
       "Toutes les autres fonctionnalités de navigation, notamment les alertes de danger, les " +
       "informations sur le trafic et les fermetures de routes, restent pleinement fonctionnelles.";
     expect(isOfficialMessage(oldLayout)).toBe(true);
+  });
+
+  it("still recognises the message sent before the greeting and signature", () => {
+    const withoutThem =
+      "Merci pour votre signalement.\n\n" +
+      "Les radars fixes ne peuvent pas être affichés dans Waze en Suisse et au Liechtenstein.\n\n" +
+      "Afin de respecter la réglementation locale, Waze a désactivé le signalement de la police " +
+      "pour les utilisateurs naviguant en Suisse et au Liechtenstein.\n\n" +
+      "Toutes les autres fonctionnalités de navigation, notamment les alertes de danger, les " +
+      "informations sur le trafic et les fermetures de routes, restent pleinement fonctionnelles.";
+    expect(isOfficialMessage(withoutThem)).toBe(true);
   });
 });
 
