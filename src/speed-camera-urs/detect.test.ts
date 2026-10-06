@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { isInExtent, isSpeedCameraUr, triage } from "./detect";
-import { makeUr } from "./fake-sdk";
+import {
+  isInExtent,
+  isOnFreeway,
+  isSpeedCameraUr,
+  isTrafficLightUr,
+  triage,
+} from "./detect";
+import { makeSegment, makeTrafficLightUr, makeUr } from "./fake-sdk";
 
 describe("isSpeedCameraUr", () => {
   it("accepts an open, editable UR whose description starts with the marker", () => {
@@ -63,5 +69,45 @@ describe("triage", () => {
 
   it("is a conversation when this session already sent the message", () => {
     expect(triage([], true)).toBe("conversation");
+  });
+});
+
+describe("isTrafficLightUr", () => {
+  it("accepts an open, editable UR whose description starts with the marker", () => {
+    expect(isTrafficLightUr(makeTrafficLightUr(1))).toBe(true);
+  });
+
+  it("rejects a speed-camera UR, a closed one and one the editor cannot edit", () => {
+    expect(isTrafficLightUr(makeUr(1))).toBe(false);
+    expect(isTrafficLightUr(makeTrafficLightUr(1, { isOpen: false }))).toBe(
+      false,
+    );
+    expect(isTrafficLightUr(makeTrafficLightUr(1, { isEditable: false }))).toBe(
+      false,
+    );
+  });
+});
+
+describe("isOnFreeway", () => {
+  const ur = makeTrafficLightUr(1);
+  // 0.0001° of latitude is about 11 m.
+  const near = 46.5001;
+  const far = 46.5005;
+
+  it("is true when the closest loaded segment is a freeway", () => {
+    expect(isOnFreeway(ur, [makeSegment(3, near)])).toBe(true);
+  });
+
+  it("is false when the closest segment is a ramp, even with a freeway a bit further", () => {
+    const segments = [makeSegment(4, 46.50005), makeSegment(3, 46.5002)];
+    expect(isOnFreeway(ur, segments)).toBe(false);
+  });
+
+  it("is false when the closest freeway is beyond the distance limit", () => {
+    expect(isOnFreeway(ur, [makeSegment(3, far)])).toBe(false);
+  });
+
+  it("is false when no segment is loaded", () => {
+    expect(isOnFreeway(ur, [])).toBe(false);
   });
 });

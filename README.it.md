@@ -131,6 +131,10 @@ e questo progetto aderisce al [Versionamento Semantico](https://semver.org/spec/
 
 ### [Non pubblicato]
 
+#### Aggiunto
+
+- **Semafori segnalati in autostrada.** Alcuni utenti aggirano l'assenza della segnalazione autovelox segnalando un semaforo. La scheda **CH · UR autovelox closer** elenca ora anche le UR `MISSING_TRAFFIC_LIGHT` aperte la cui strada più vicina è un'autostrada (rampe escluse, i veri semafori si trovano alla loro estremità). Si chiudono solo una per una, come *Non identificate* e senza alcun messaggio, dopo averle verificate. Per loro non esiste alcun trattamento in blocco, qualunque sia il livello.
+
 #### Modificato
 
 - Il messaggio inviato a chi segnala gli UR degli autovelox ora inizia con un saluto e termina con una firma della comunità degli editor volontari. Gli UR che hanno ricevuto la formulazione precedente vengono ancora riconosciuti e non ricevono mai il messaggio due volte.

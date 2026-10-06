@@ -131,6 +131,10 @@ et ce projet adhère au [Versionnage Sémantique](https://semver.org/spec/v2.0.0
 
 ### [Non publié]
 
+#### Ajouté
+
+- **Feux signalés sur autoroute.** Certains utilisateurs contournent l'absence de signalement radar en annonçant un feu de circulation. L'onglet **CH · URs radars closer** liste désormais aussi les UR `MISSING_TRAFFIC_LIGHT` ouverts dont la route la plus proche est une autoroute (bretelles exclues, les vrais feux se trouvent à leur extrémité). Ils se ferment un par un uniquement, en *Non identifié* et sans aucun message, après vérification de chacun. Aucun traitement groupé n'existe pour eux, quel que soit le niveau.
+
 #### Modifié
 
 - Le message envoyé aux auteurs des UR radar commence maintenant par une salutation et se termine par une signature de la communauté des éditeurs bénévoles. Les UR qui ont reçu l'ancienne formulation sont toujours reconnus et ne reçoivent jamais le message deux fois.

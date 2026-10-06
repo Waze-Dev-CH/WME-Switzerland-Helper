@@ -7,13 +7,14 @@ import {
   isCloseInFlight,
   runCloseAll,
   runCloseOne,
+  runCloseTrafficLight,
   summarize,
   type CloseOutcome,
 } from "../close";
 import { getLocale, t } from "../i18n";
 import { log } from "../log";
 import type { UrHighlight } from "../map-highlight";
-import type { Scanner, UrEntry } from "../scanner";
+import type { Scanner, TrafficLightEntry, UrEntry } from "../scanner";
 import {
   formatCloseAllButton,
   formatRowLabel,
@@ -30,7 +31,8 @@ function setSectionTitle(section: HTMLDetailsElement, text: string): void {
 }
 
 /**
- * The sidebar tab: state, last result, batch button, then the two lists.
+ * The sidebar tab: state, last result, batch button, then the two lists, and the traffic
+ * lights reported on a freeway, which have no batch at all.
  *
  * The skeleton is built once and only the live parts are rewritten, so the editor's
  * expand/collapse of a section survives the rescans that every map move triggers.
@@ -45,6 +47,8 @@ export class TabUI {
   private conversationList = el("div", "scu-list");
   private readySection: HTMLDetailsElement | null = null;
   private conversationSection: HTMLDetailsElement | null = null;
+  private trafficLightList = el("div", "scu-list");
+  private trafficLightSection: HTMLDetailsElement | null = null;
 
   constructor(
     private sdk: WmeSDK,
@@ -95,6 +99,13 @@ export class TabUI {
       t("sectionConversation", { count: 0 }),
       [el("div", "scu-note", t("conversationNote")), this.conversationList],
     );
+    this.trafficLightSection = buildSection(
+      "scu",
+      "warning",
+      t("sectionTrafficLights", { count: 0 }),
+      [el("div", "scu-note", t("trafficLightNote")), this.trafficLightList],
+      true,
+    );
 
     pane.append(
       brand,
@@ -104,14 +115,20 @@ export class TabUI {
       this.actions,
       this.readySection,
       this.conversationSection,
+      this.trafficLightSection,
     );
     this.tabPane.replaceChildren(pane);
   }
 
   private render(): void {
-    if (!this.tabPane || !this.readySection || !this.conversationSection)
+    if (
+      !this.tabPane ||
+      !this.readySection ||
+      !this.conversationSection ||
+      !this.trafficLightSection
+    )
       return;
-    const entries = this.scanner.getSnapshot().entries;
+    const { entries, trafficLights } = this.scanner.getSnapshot();
     const lists = splitEntries(entries);
     this.bannerText.textContent = formatStatus(entries);
 
@@ -132,6 +149,16 @@ export class TabUI {
       t("sectionConversation", { count: lists.conversation.length }),
     );
 
+    // Hidden while empty: most of the map has none, and an empty box would only add noise.
+    this.trafficLightSection.hidden = trafficLights.length === 0;
+    this.trafficLightList.replaceChildren(
+      ...trafficLights.map((entry) => this.trafficLightRow(entry)),
+    );
+    setSectionTitle(
+      this.trafficLightSection,
+      t("sectionTrafficLights", { count: trafficLights.length }),
+    );
+
     this.actions.replaceChildren();
     if (shouldShowCloseAll(canBatch(this.sdk), lists.ready.length)) {
       const ids = lists.ready.map((entry) => entry.id);
@@ -145,7 +172,7 @@ export class TabUI {
     }
   }
 
-  private row(entry: UrEntry): HTMLElement {
+  private rowWithLabel(entry: TrafficLightEntry): HTMLElement {
     const row = el("div", "scu-row");
     const label = button(
       formatRowLabel(entry, getLocale()),
@@ -154,6 +181,26 @@ export class TabUI {
     );
     label.title = t("rowTitle");
     row.appendChild(label);
+    return row;
+  }
+
+  private trafficLightRow(entry: TrafficLightEntry): HTMLElement {
+    const row = this.rowWithLabel(entry);
+    const action = button(
+      t("btnCloseTrafficLight"),
+      () =>
+        void this.handle(() => runCloseTrafficLight(this.sdk, entry.id), {
+          messagesSent: false,
+        }),
+      "scu-btn",
+    );
+    action.disabled = isCloseInFlight();
+    row.appendChild(action);
+    return row;
+  }
+
+  private row(entry: UrEntry): HTMLElement {
+    const row = this.rowWithLabel(entry);
 
     if (entry.triage === "pending") {
       row.appendChild(el("span", "scu-muted", t("rowPending")));
@@ -175,6 +222,7 @@ export class TabUI {
    */
   private async handle(
     start: () => Promise<CloseOutcome | CloseOutcome[] | null>,
+    summary: { messagesSent?: boolean } = {},
   ): Promise<void> {
     const running = start();
     this.render();
@@ -183,6 +231,7 @@ export class TabUI {
       if (outcome) {
         this.result.textContent = summarize(
           Array.isArray(outcome) ? outcome : [outcome],
+          summary,
         );
         this.result.hidden = false;
       }

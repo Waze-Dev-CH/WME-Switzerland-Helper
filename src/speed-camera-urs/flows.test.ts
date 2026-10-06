@@ -6,9 +6,10 @@ import {
   resetMessagedForTests,
   runCloseAll,
   runCloseOne,
+  runCloseTrafficLight,
 } from "./close";
 import type { ConfirmSpec } from "./confirm-spec";
-import { makeSdk, makeUr } from "./fake-sdk";
+import { makeSdk, makeSegment, makeTrafficLightUr, makeUr } from "./fake-sdk";
 import { buildMessage } from "./message";
 
 const official = {
@@ -256,5 +257,68 @@ describe("runCloseAll", () => {
     expect(second).toBeNull();
     expect(sent.map((s) => s.id)).toEqual([1]);
     expect(isCloseInFlight()).toBe(false);
+  });
+});
+
+describe("runCloseTrafficLight", () => {
+  const segments = [makeSegment(3, 46.5001)];
+
+  it("says the UR is closed without any message, then closes it", async () => {
+    const { sdk, calls, sent } = makeSdk([makeTrafficLightUr(1)], {
+      segments,
+    });
+    const confirm = accept();
+
+    const outcome = await runCloseTrafficLight(sdk, 1, {
+      confirm,
+      notify: silent(),
+    });
+
+    expect(outcome).toEqual({ id: 1, result: "closed" });
+    const spec = specOf(confirm);
+    expect(spec.facts.join(" ")).toContain("No message");
+    expect(spec.quotes).toBeUndefined();
+    expect(spec.confirmLabel).toBe("Close");
+    expect(calls).toEqual(["details:1", "close:1:not-identified"]);
+    expect(sent).toEqual([]);
+  });
+
+  it("shows the last comment when there is a conversation", async () => {
+    const { sdk } = makeSdk([makeTrafficLightUr(1)], {
+      segments,
+      comments: { 1: [comment] },
+    });
+    const confirm = accept();
+
+    await runCloseTrafficLight(sdk, 1, { confirm, notify: silent() });
+
+    expect(specOf(confirm).previousComment?.text).toBe("still there");
+  });
+
+  it("closes nothing when the editor declines", async () => {
+    const { sdk, calls } = makeSdk([makeTrafficLightUr(1)], { segments });
+
+    const outcome = await runCloseTrafficLight(sdk, 1, {
+      confirm: decline(),
+      notify: silent(),
+    });
+
+    expect(outcome).toBeNull();
+    expect(calls).toEqual(["details:1"]);
+  });
+
+  it("tells the editor when the UR is no longer on a freeway", async () => {
+    const { sdk } = makeSdk([makeTrafficLightUr(1)], {
+      segments: [makeSegment(4, 46.5001)],
+    });
+    const notify = silent();
+
+    const outcome = await runCloseTrafficLight(sdk, 1, {
+      confirm: accept(),
+      notify,
+    });
+
+    expect(outcome).toMatchObject({ reason: "skipNotFreeway" });
+    expect(notify).toHaveBeenCalledOnce();
   });
 });
