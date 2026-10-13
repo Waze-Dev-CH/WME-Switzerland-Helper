@@ -131,6 +131,8 @@ e questo progetto aderisce al [Versionamento Semantico](https://semver.org/spec/
 
 ### [Non pubblicato]
 
+### [1.7.0] - 2026-10-13
+
 #### Aggiunto
 
 - **UR abbandonate.** La scheda **CH · Assistente UR** può ora chiudere anche le UR aperte di qualsiasi tipo, senza attività da più di 14 giorni e in cui chi ha segnalato non ha l'ultima parola: nessuno ha scritto, oppure Map_Team o un editor ha sollecitato senza risposta. Le segnalazioni vocali Map Mate sono escluse. Vengono chiuse come *Non identificata*, senza messaggio. Una casella per famiglia sceglie cosa tratta la scheda, e un solo pulsante tratta tutto ciò che è selezionato: autovelox dal livello 3, abbandonate dal livello 4, al massimo 50.

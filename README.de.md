@@ -131,6 +131,8 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### [Unveröffentlicht]
 
+### [1.7.0] - 2026-10-13
+
 #### Hinzugefügt
 
 - **Verwaiste URs.** Der Reiter **CH · UR-Assistent** kann jetzt auch offene URs jeden Typs schliessen, die seit mehr als 14 Tagen inaktiv sind und bei denen die meldende Person nicht das letzte Wort hat: Niemand hat geschrieben, oder Map_Team oder ein Editor hat nachgefragt und keine Antwort erhalten. Sprachmeldungen von Map Mate sind ausgenommen. Sie werden als *Nicht identifiziert* geschlossen, ohne Nachricht. Ein Kästchen pro Gruppe wählt, was der Reiter bearbeitet, und eine einzige Schaltfläche bearbeitet alles Angekreuzte: Radare ab Level 3, verwaiste URs ab Level 4, höchstens 50.

@@ -131,6 +131,8 @@ et ce projet adhère au [Versionnage Sémantique](https://semver.org/spec/v2.0.0
 
 ### [Non publié]
 
+### [1.7.0] - 2026-10-13
+
 #### Ajouté
 
 - **UR abandonnés.** L'onglet **CH · Assistant UR** peut aussi fermer les UR ouverts de tout type, sans activité depuis plus de 14 jours et où le rapporteur n'a pas le dernier mot : personne n'a écrit, ou Map_Team ou un éditeur a relancé sans réponse. Les signalements vocaux Map Mate sont exclus. Ils sont fermés en *Non identifié*, sans message. Une case par famille choisit ce que l'onglet traite, et un seul bouton traite tout ce qui est coché : radars dès le niveau 3, abandonnés dès le niveau 4, 50 au plus.

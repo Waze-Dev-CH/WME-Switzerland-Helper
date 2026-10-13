@@ -131,6 +131,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### [Unreleased]
 
+### [1.7.0] - 2026-10-13
+
 #### Added
 
 - **Abandoned URs.** The **CH · UR assistant** tab can now also close open URs of any type with no activity for more than 14 days and where the reporter does not have the last word: nobody wrote, or Map_Team or an editor asked and got no answer. Map Mate voice reports are left out. They are closed as *Not identified*, without any message. A checkbox per family chooses what the tab handles, and a single button handles everything ticked: speed cameras from level 3, abandoned URs from level 4, 50 at most.
