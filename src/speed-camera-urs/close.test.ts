@@ -1,8 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  allowedBatch,
   BATCH_CAP,
   canBatch,
+  canBatchStale,
+  capBatch,
   closeMany,
+  closeStale,
   alreadyMessaged,
   closeOne,
   closeTrafficLight,
@@ -177,7 +181,7 @@ describe("a conversation that already holds our message", () => {
   it("is skipped by the batch", async () => {
     const { sdk, sent } = makeSdk([makeUr(1)], { comments: { 1: [official] } });
 
-    const outcomes = await closeMany(sdk, [1]);
+    const outcomes = await closeMany(sdk, { speedCamera: [1], stale: [] });
 
     expect(outcomes).toEqual([
       { id: 1, result: "skipped", reason: "skipConversation" },
@@ -215,7 +219,7 @@ describe("closeMany", () => {
   it("refuses below level 3, whatever the caller", async () => {
     const { sdk, calls } = makeSdk([makeUr(1)], { rank: 1 });
 
-    expect(await closeMany(sdk, [1])).toBeNull();
+    expect(await closeMany(sdk, { speedCamera: [1], stale: [] })).toBeNull();
     expect(calls).toEqual([]);
   });
 
@@ -223,10 +227,10 @@ describe("closeMany", () => {
     const urs = Array.from({ length: BATCH_CAP + 10 }, (_, i) => makeUr(i + 1));
     const { sdk, sent } = makeSdk(urs);
 
-    const outcomes = await closeMany(
-      sdk,
-      urs.map((ur) => ur.id),
-    );
+    const outcomes = await closeMany(sdk, {
+      speedCamera: urs.map((ur) => ur.id),
+      stale: [],
+    });
 
     expect(outcomes).toHaveLength(BATCH_CAP);
     expect(sent).toHaveLength(BATCH_CAP);
@@ -238,7 +242,10 @@ describe("closeMany", () => {
       failComment: [1],
     });
 
-    const outcomes = await closeMany(sdk, [1, 2, 3]);
+    const outcomes = await closeMany(sdk, {
+      speedCamera: [1, 2, 3],
+      stale: [],
+    });
 
     expect(outcomes?.map((o) => o.result)).toEqual([
       "failed",
@@ -340,12 +347,181 @@ describe("closeTrafficLight", () => {
       segments: freeway,
     });
 
-    const outcomes = await closeMany(sdk, [1]);
+    const outcomes = await closeMany(sdk, { speedCamera: [1], stale: [] });
 
     expect(outcomes).toEqual([
       { id: 1, result: "skipped", reason: "skipGone" },
     ]);
     expect(calls).toEqual([]);
     expect(sent).toEqual([]);
+  });
+});
+
+const DAY = 24 * 60 * 60 * 1000;
+/** 30 days after makeUr's default reportedOn. */
+const NOW = 1_760_000_000_000 + 30 * DAY;
+const road = { description: "Missing road" };
+const mapTeam = { createdOn: 0, text: "auto", userName: "Map_Team" };
+
+describe("closeStale", () => {
+  it("closes as not-identified without any message, Map_Team comments allowed", async () => {
+    const { sdk, calls, sent } = makeSdk([makeUr(1, road)], {
+      comments: { 1: [mapTeam] },
+    });
+
+    expect(await closeStale(sdk, 1, NOW)).toEqual({ id: 1, result: "closed" });
+    expect(calls).toEqual(["details:1", "close:1:not-identified"]);
+    expect(sent).toEqual([]);
+    expect(sdk.DataModel.MapUpdateRequests.addComment).not.toHaveBeenCalled();
+  });
+
+  it("re-reads the conversation and skips a UR someone wrote on meanwhile", async () => {
+    const { sdk, calls } = makeSdk([makeUr(1, road)], {
+      comments: { 1: [mapTeam, comment] },
+    });
+
+    expect(await closeStale(sdk, 1, NOW)).toEqual({
+      id: 1,
+      result: "skipped",
+      reason: "skipConversation",
+    });
+    expect(calls).toEqual(["details:1"]);
+  });
+
+  it("skips, without reading anything, a UR that is no longer a candidate", async () => {
+    const urs = [
+      makeUr(1, { ...road, reportedOn: NOW - DAY }),
+      makeUr(2, { ...road, isOpen: false }),
+      makeUr(3),
+    ];
+    const { sdk, calls } = makeSdk(urs);
+
+    for (const id of [1, 2, 3, 4]) {
+      expect(await closeStale(sdk, id, NOW)).toEqual({
+        id,
+        result: "skipped",
+        reason: "skipGone",
+      });
+    }
+    expect(calls).toEqual([]);
+  });
+
+  it("refuses a traffic light that sits on a freeway", async () => {
+    const { sdk, calls } = makeSdk([makeTrafficLightUr(1)], {
+      segments: [makeSegment(3, 46.5001)],
+    });
+
+    expect(await closeStale(sdk, 1, NOW)).toEqual({
+      id: 1,
+      result: "skipped",
+      reason: "skipGone",
+    });
+    expect(calls).toEqual([]);
+  });
+
+  it("writes nothing when the conversation cannot be read", async () => {
+    const { sdk, calls } = makeSdk([makeUr(1, road)], { failDetails: [1] });
+
+    expect(await closeStale(sdk, 1, NOW)).toEqual({
+      id: 1,
+      result: "failed",
+      reason: "errDetails",
+    });
+    expect(calls).toEqual(["details:1"]);
+  });
+
+  it("writes nothing when editing is not allowed", async () => {
+    const { sdk, calls } = makeSdk([makeUr(1, road)], {
+      editingAllowed: false,
+    });
+
+    expect(await closeStale(sdk, 1, NOW)).toEqual({
+      id: 1,
+      result: "failed",
+      reason: "errNotAllowed",
+    });
+    expect(calls).toEqual([]);
+  });
+
+  it("reports a closure failure", async () => {
+    const { sdk } = makeSdk([makeUr(1, road)], { failClose: [1] });
+
+    expect(await closeStale(sdk, 1, NOW)).toEqual({
+      id: 1,
+      result: "failed",
+      reason: "errClose",
+    });
+  });
+});
+
+describe("canBatchStale", () => {
+  it("needs rank 3 (displayed level 4)", () => {
+    expect(canBatchStale(makeSdk([], { rank: 3 }).sdk)).toBe(true);
+    expect(canBatchStale(makeSdk([], { rank: 2 }).sdk)).toBe(false);
+  });
+
+  it("treats an unknown rank as insufficient", () => {
+    expect(canBatchStale(makeSdk([], { rank: null }).sdk)).toBe(false);
+    expect(
+      allowedBatch(makeSdk([], { rank: null }).sdk, {
+        speedCamera: [1],
+        stale: [2],
+      }),
+    ).toEqual({ speedCamera: [], stale: [] });
+  });
+});
+
+describe("capBatch", () => {
+  it("caps the whole batch, speed cameras first", () => {
+    const speedCamera = Array.from({ length: 40 }, (_, i) => i + 1);
+    const stale = Array.from({ length: 20 }, (_, i) => i + 101);
+
+    const capped = capBatch({ speedCamera, stale });
+
+    expect(capped.speedCamera).toHaveLength(40);
+    expect(capped.stale).toEqual(stale.slice(0, BATCH_CAP - 40));
+  });
+});
+
+describe("closeMany with abandoned URs", () => {
+  it("drops the abandoned URs below level 4 and keeps the speed cameras at level 3", async () => {
+    const { sdk, calls } = makeSdk([makeUr(1), makeUr(2, road)], { rank: 2 });
+
+    const outcomes = await closeMany(
+      sdk,
+      { speedCamera: [1], stale: [2] },
+      NOW,
+    );
+
+    expect(outcomes?.map((o) => o.id)).toEqual([1]);
+    expect(calls).not.toContain("details:2");
+  });
+
+  it("refuses an abandoned-only batch below level 4", async () => {
+    const { sdk, calls } = makeSdk([makeUr(1, road)], { rank: 2 });
+
+    expect(
+      await closeMany(sdk, { speedCamera: [], stale: [1] }, NOW),
+    ).toBeNull();
+    expect(calls).toEqual([]);
+  });
+
+  it("shares the cap, speed cameras first, and never messages an abandoned UR", async () => {
+    const cameras = Array.from({ length: 40 }, (_, i) => makeUr(i + 1));
+    const old = Array.from({ length: 20 }, (_, i) => makeUr(i + 101, road));
+    const { sdk, sent } = makeSdk([...cameras, ...old], { rank: 3 });
+
+    const outcomes = await closeMany(
+      sdk,
+      { speedCamera: cameras.map((u) => u.id), stale: old.map((u) => u.id) },
+      NOW,
+    );
+
+    expect(outcomes).toHaveLength(BATCH_CAP);
+    expect(outcomes?.slice(40).map((o) => o.id)).toEqual(
+      old.slice(0, 10).map((u) => u.id),
+    );
+    expect(outcomes?.every((o) => o.result === "closed")).toBe(true);
+    expect(sent.map((s) => s.id)).toEqual(cameras.map((u) => u.id));
   });
 });

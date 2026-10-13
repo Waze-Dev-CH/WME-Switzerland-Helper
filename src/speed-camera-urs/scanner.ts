@@ -61,7 +61,11 @@ export class Scanner {
   private staleCache = new Map<number, boolean>();
   /** Bumped by forget(), so a read that was in flight when the UR changed is not cached. */
   private versions = new Map<number, number>();
-  private snapshot: ScanSnapshot = { entries: [], trafficLights: [], stale: [] };
+  private snapshot: ScanSnapshot = {
+    entries: [],
+    trafficLights: [],
+    stale: [],
+  };
   private trafficLights: TrafficLightEntry[] = [];
   private staleCandidates: MapUpdateRequest[] = [];
   /**

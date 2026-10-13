@@ -1,7 +1,9 @@
 import type { ConversationElement, WmeSDK } from "wme-sdk-typings";
 import {
+  hasDiscussion,
   isOnFreeway,
   isSpeedCameraUr,
+  isStaleCandidate,
   isTrafficLightUr,
   triage,
 } from "./detect";
@@ -32,6 +34,13 @@ export const BATCH_MIN_RANK = 2;
  * IMPORT_CAP: a limit living in the UI is one missed check away from being gone.
  */
 export const BATCH_CAP = 50;
+
+/**
+ * Lowest rank allowed to close abandoned URs in a batch: editor level 4. One level above
+ * the speed cameras because the family is far wider, any type of UR, and a batch of it is
+ * fifty closures nobody looked at one by one.
+ */
+export const STALE_BATCH_MIN_RANK = 3;
 
 export type SkipReason = "skipGone" | "skipConversation" | "skipNotFreeway";
 export type FailReason =
@@ -94,6 +103,31 @@ export function alreadyMessaged(
 export function canBatch(sdk: WmeSDK): boolean {
   const rank = sdk.State.getUserInfo()?.rank;
   return typeof rank === "number" && rank >= BATCH_MIN_RANK;
+}
+
+export function canBatchStale(sdk: WmeSDK): boolean {
+  const rank = sdk.State.getUserInfo()?.rank;
+  return typeof rank === "number" && rank >= STALE_BATCH_MIN_RANK;
+}
+
+export interface BatchRequest {
+  speedCamera: readonly number[];
+  stale: readonly number[];
+}
+
+/** Each family the editor lacks the rank for is emptied, the other one goes through. */
+export function allowedBatch(sdk: WmeSDK, request: BatchRequest): BatchRequest {
+  return {
+    speedCamera: canBatch(sdk) ? request.speedCamera : [],
+    stale: canBatchStale(sdk) ? request.stale : [],
+  };
+}
+
+/** Speed cameras first: their reporters are waiting for an explanation. */
+export function capBatch(request: BatchRequest): BatchRequest {
+  const speedCamera = request.speedCamera.slice(0, BATCH_CAP);
+  const stale = request.stale.slice(0, BATCH_CAP - speedCamera.length);
+  return { speedCamera, stale };
 }
 
 /**
@@ -211,18 +245,76 @@ export async function closeTrafficLight(
 }
 
 /**
- * The batch. Re-checks the rank itself: two surfaces could call it, and a gate enforced
- * only where the button is drawn would be one missed check away from being gone.
+ * Close one abandoned UR as not-identified, without any message: the reporter has not
+ * looked at it in weeks, and the official text speaks of speed cameras.
+ *
+ * Re-checks everything right before writing, like closeOne: the list may be minutes old,
+ * and a comment arriving since then means someone is talking to the reporter. Same
+ * inFlight guard, so a double click does not start two reads.
+ */
+export async function closeStale(
+  sdk: WmeSDK,
+  id: number,
+  now = Date.now(),
+): Promise<CloseOutcome> {
+  if (!sdk.Editing.isEditingAllowed())
+    return { id, result: "failed", reason: "errNotAllowed" };
+
+  const urs = sdk.DataModel.MapUpdateRequests;
+  const ur = urs.getById({ mapUpdateRequestId: id });
+  if (!ur || !isStaleCandidate(ur, now))
+    return { id, result: "skipped", reason: "skipGone" };
+  // Never through this door: traffic lights on a freeway have no batch at all.
+  const freewayLight =
+    isTrafficLightUr(ur) && isOnFreeway(ur, sdk.DataModel.Segments.getAll());
+  if (freewayLight) return { id, result: "skipped", reason: "skipGone" };
+
+  if (inFlight.has(id))
+    return { id, result: "skipped", reason: "skipConversation" };
+  inFlight.add(id);
+  try {
+    let comments: ConversationElement[];
+    try {
+      const details = await urs.getUpdateRequestDetails({
+        mapUpdateRequestId: id,
+      });
+      if (!details) return { id, result: "failed", reason: "errDetails" };
+      comments = details.comments;
+    } catch (err) {
+      log.warn(`Could not read the conversation of UR ${id}`, err);
+      return { id, result: "failed", reason: "errDetails" };
+    }
+    if (hasDiscussion(comments) || wasMessaged(id))
+      return { id, result: "skipped", reason: "skipConversation" };
+    return closeWithoutMessage(urs, id);
+  } finally {
+    inFlight.delete(id);
+  }
+}
+
+/**
+ * The batch. Re-checks both ranks itself: a gate enforced only where the button is drawn
+ * would be one missed check away from being gone. null when the editor has the rank for
+ * none of the families asked for.
  */
 export async function closeMany(
   sdk: WmeSDK,
-  ids: readonly number[],
+  request: BatchRequest,
+  now = Date.now(),
 ): Promise<CloseOutcome[] | null> {
-  if (!canBatch(sdk)) return null;
+  const allowed = allowedBatch(sdk, request);
+  const asked = request.speedCamera.length + request.stale.length;
+  const kept = allowed.speedCamera.length + allowed.stale.length;
+  if (asked > 0 && kept === 0) return null;
+
+  const batch = capBatch(allowed);
   const outcomes: CloseOutcome[] = [];
   // One at a time: gentler on the server, and a failure costs one UR rather than a burst.
-  for (const id of ids.slice(0, BATCH_CAP)) {
+  for (const id of batch.speedCamera) {
     outcomes.push(await closeOne(sdk, id, { allowConversation: false }));
+  }
+  for (const id of batch.stale) {
+    outcomes.push(await closeStale(sdk, id, now));
   }
   return outcomes;
 }
@@ -419,7 +511,7 @@ export async function runCloseAll(
     const accepted = await confirm(closeAllSpec(langs, getLocale()));
     if (!accepted) return null;
 
-    const outcomes = await closeMany(sdk, batch);
+    const outcomes = await closeMany(sdk, { speedCamera: batch, stale: [] });
     if (outcomes) await notify(summarize(outcomes));
     return outcomes;
   });
