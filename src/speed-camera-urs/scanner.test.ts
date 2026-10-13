@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { noteMessaged, resetMessagedForTests } from "./close";
-import { makeSdk, makeSegment, makeTrafficLightUr, makeUr } from "./fake-sdk";
+import {
+  makeMapMateUr,
+  makeSdk,
+  makeSegment,
+  makeTrafficLightUr,
+  makeUr,
+} from "./fake-sdk";
 import { Scanner, type ScanSnapshot } from "./scanner";
 
 const comment = { createdOn: 0, text: "hello", userName: "editor" };
@@ -294,5 +300,118 @@ describe("Scanner abandoned URs", () => {
     await scanner.rescan();
 
     expect(scanner.getSnapshot().stale).toEqual([]);
+  });
+});
+
+const kindsOf = (snapshot: ScanSnapshot) =>
+  snapshot.mapMate.map((e) => [e.id, e.kind, e.state]);
+
+describe("Scanner Map Mate reports", () => {
+  it("reads nothing and lists nothing while the box is unchecked", async () => {
+    const { sdk, calls } = makeSdk([makeMapMateUr(1, "INCORRECT_ROUTE")]);
+    const scanner = new Scanner(sdk, { now: () => NOW });
+
+    await scanner.rescan();
+
+    expect(calls).toEqual([]);
+    expect(scanner.getSnapshot().mapMate).toEqual([]);
+  });
+
+  it("lists each case, pending until read, and drops one somebody wrote on", async () => {
+    const urs = [
+      makeMapMateUr(1, "INCORRECT_ROUTE"),
+      makeMapMateUr(2, "INCORRECT_TURN"),
+      makeMapMateUr(3, "GENERAL_MAP_UPDATE"),
+    ];
+    const { sdk } = makeSdk(urs, {
+      comments: { 2: [mapTeam], 3: [mapTeam, { ...comment, userName: "x" }] },
+    });
+    const scanner = new Scanner(sdk, { now: () => NOW });
+    scanner.setReadMapMate(true);
+    const snapshots: ScanSnapshot[] = [];
+    scanner.onUpdate((snapshot) => snapshots.push(snapshot));
+
+    await scanner.rescan();
+
+    expect(kindsOf(snapshots[0]!)).toEqual([
+      [1, "route", "pending"],
+      [2, "turn", "pending"],
+      [3, "general", "pending"],
+    ]);
+    expect(kindsOf(scanner.getSnapshot())).toEqual([
+      [1, "route", "ready"],
+      [2, "turn", "ready"],
+    ]);
+  });
+
+  it("asks about a traffic light only once its road is known and not a freeway", async () => {
+    const urs = [
+      makeMapMateUr(1),
+      makeMapMateUr(2, "MISSING_TRAFFIC_LIGHT", {
+        geometry: { type: "Point", coordinates: [6.65, 46.6] },
+      }),
+      makeMapMateUr(3, "MISSING_TRAFFIC_LIGHT", {
+        geometry: { type: "Point", coordinates: [6.8, 46.8] },
+      }),
+    ];
+    const segments = [
+      makeSegment(3, 46.5001),
+      makeSegment(1, 46.6001, [6.64, 6.66]),
+    ];
+    const scanner = new Scanner(makeSdk(urs, { segments }).sdk, {
+      now: () => NOW,
+    });
+    scanner.setReadMapMate(true);
+
+    await scanner.rescan();
+
+    // 1 sits on the freeway, 2 on a street, 3 has no road loaded.
+    expect(scanner.getSnapshot().trafficLights.map((e) => e.id)).toEqual([1]);
+    expect(kindsOf(scanner.getSnapshot())).toEqual([
+      [2, "trafficLight", "ready"],
+    ]);
+  });
+
+  it("does not need a road for the other cases", async () => {
+    const scanner = new Scanner(
+      makeSdk([makeMapMateUr(1, "INCORRECT_SPEED_LIMIT")]).sdk,
+      { now: () => NOW },
+    );
+    scanner.setReadMapMate(true);
+
+    await scanner.rescan();
+
+    expect(kindsOf(scanner.getSnapshot())).toEqual([
+      [1, "speedLimit", "ready"],
+    ]);
+  });
+
+  it("reads speed cameras, then Map Mate, then abandoned URs", async () => {
+    const urs = [
+      makeUr(1, road),
+      makeMapMateUr(2, "INCORRECT_ROUTE"),
+      makeUr(3),
+    ];
+    const { sdk, calls } = makeSdk(urs);
+    const scanner = new Scanner(sdk, { now: () => NOW });
+    scanner.setReadMapMate(true);
+    scanner.setReadStale(true);
+
+    await scanner.rescan();
+
+    expect(calls).toEqual(["details:3", "details:2", "details:1"]);
+  });
+
+  it("drops a report this session already asked", async () => {
+    const { sdk } = makeSdk([makeMapMateUr(1, "INCORRECT_ROUTE")]);
+    const scanner = new Scanner(sdk, { now: () => NOW });
+    scanner.setReadMapMate(true);
+    await scanner.rescan();
+    expect(kindsOf(scanner.getSnapshot())).toEqual([[1, "route", "ready"]]);
+
+    noteMessaged(1);
+    await scanner.rescan();
+
+    expect(scanner.getSnapshot().mapMate).toEqual([]);
   });
 });

@@ -12,12 +12,14 @@ import {
   isSpeedCameraUr,
   isStaleCandidate,
   isTrafficLightUr,
+  mapMateKind,
   triage,
+  type MapMateKind,
   type Triage,
 } from "./detect";
 import type { LocaleCode } from "./i18n";
 import { log } from "./log";
-import { messageLanguage } from "./message";
+import { mayAskMapMate, messageLanguage } from "./message";
 
 export interface UrEntry {
   id: number;
@@ -37,9 +39,18 @@ export interface StaleEntry extends TrafficLightEntry {
   state: "pending" | "stale";
 }
 
+/** A Map Mate report and its case. Once someone wrote, or we asked, it leaves the list. */
+export interface MapMateEntry extends TrafficLightEntry {
+  kind: MapMateKind;
+  state: "pending" | "ready";
+}
+
+type MapMateCandidate = { ur: MapUpdateRequest; kind: MapMateKind };
+
 export interface ScanSnapshot {
   entries: UrEntry[];
   trafficLights: TrafficLightEntry[];
+  mapMate: MapMateEntry[];
   stale: StaleEntry[];
 }
 
@@ -60,11 +71,14 @@ export class Scanner {
   private triageCache = new Map<number, Triage>();
   /** true = abandoned, false = someone wrote. Kept when the box is unchecked. */
   private staleCache = new Map<number, boolean>();
+  /** true = nobody but Map_Team wrote and we did not ask yet. */
+  private mapMateCache = new Map<number, boolean>();
   /** Bumped by forget(), so a read that was in flight when the UR changed is not cached. */
   private versions = new Map<number, number>();
   private snapshot: ScanSnapshot = {
     entries: [],
     trafficLights: [],
+    mapMate: [],
     stale: [],
   };
   private trafficLights: TrafficLightEntry[] = [];
@@ -74,6 +88,9 @@ export class Scanner {
    * when the editor checks "abandoned", then schedules a rescan itself.
    */
   private readStale = false;
+  private mapMateCandidates: MapMateCandidate[] = [];
+  /** Off by default, like readStale: each report costs a round trip, and it sends messages. */
+  private readMapMate = false;
   private listeners: Array<(snapshot: ScanSnapshot) => void> = [];
   /** Bumped by every rescan, so a slow one stops publishing once a newer one started. */
   private generation = 0;
@@ -89,6 +106,10 @@ export class Scanner {
 
   setReadStale(on: boolean): void {
     this.readStale = on;
+  }
+
+  setReadMapMate(on: boolean): void {
+    this.readMapMate = on;
   }
 
   start(): void {
@@ -150,6 +171,7 @@ export class Scanner {
       const key = Number(id);
       this.triageCache.delete(key);
       this.staleCache.delete(key);
+      this.mapMateCache.delete(key);
       this.versions.set(key, (this.versions.get(key) ?? 0) + 1);
     }
   }
@@ -181,6 +203,9 @@ export class Scanner {
     this.staleCandidates = this.readStale
       ? onScreen.filter((ur) => isStaleCandidate(ur, now) && lightAllowed(ur))
       : [];
+    this.mapMateCandidates = this.readMapMate
+      ? onScreen.flatMap((ur) => this.mapMateCandidate(ur, segments))
+      : [];
     this.publish(found);
 
     for (const ur of found) {
@@ -195,7 +220,16 @@ export class Scanner {
       this.publish(found);
     }
 
-    // After the speed cameras: those carry a message the reporter is waiting for.
+    // After the speed cameras: those close, these only ask.
+    for (const { ur } of this.mapMateCandidates) {
+      if (this.mapMateCache.has(ur.id)) continue;
+      const comments = await this.readConversation(ur.id, generation);
+      if (comments) this.mapMateCache.set(ur.id, mayAskMapMate(comments));
+      if (generation !== this.generation) return;
+      this.publish(found);
+    }
+
+    // Last: closing an abandoned UR waits, a reporter's question does not.
     for (const ur of this.staleCandidates) {
       if (this.staleCache.has(ur.id)) continue;
       const comments = await this.readConversation(ur.id, generation);
@@ -233,9 +267,32 @@ export class Scanner {
     this.snapshot = {
       entries: found.map((ur) => this.toEntry(ur)),
       trafficLights: this.trafficLights,
+      mapMate: this.mapMateCandidates.flatMap((c) => this.toMapMateEntry(c)),
       stale: this.staleCandidates.flatMap((ur) => this.toStaleEntry(ur)),
     };
     for (const listener of this.listeners) listener(this.snapshot);
+  }
+
+  /**
+   * A traffic light is asked about only on a known road that is not a freeway: on a
+   * freeway it is likely a speed camera, and on an unloaded road it may be one.
+   */
+  private mapMateCandidate(
+    ur: MapUpdateRequest,
+    segments: Parameters<typeof isKnownOffFreeway>[1],
+  ): MapMateCandidate[] {
+    const kind = mapMateKind(ur);
+    if (!kind) return [];
+    const lightOnUnknownRoad =
+      kind === "trafficLight" && !isKnownOffFreeway(ur, segments);
+    return lightOnUnknownRoad ? [] : [{ ur, kind }];
+  }
+
+  private toMapMateEntry({ ur, kind }: MapMateCandidate): MapMateEntry[] {
+    const verdict = this.mapMateCache.get(ur.id);
+    if (verdict === false || wasMessaged(ur.id)) return [];
+    const state = verdict === true ? "ready" : "pending";
+    return [{ ...this.basics(ur), kind, state }];
   }
 
   /** Empty when someone wrote: the UR is not abandoned and has nothing to do here. */
