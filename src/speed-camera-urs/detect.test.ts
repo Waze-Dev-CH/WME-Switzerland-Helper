@@ -172,9 +172,13 @@ describe("hasDiscussion", () => {
     expect(hasDiscussion([mapTeam, someone])).toBe(true);
   });
 
-  it("counts an anonymous or differently-cased author as a discussion", () => {
-    expect(hasDiscussion([{ ...mapTeam, userName: null }])).toBe(true);
+  it("counts a differently-cased or empty author as a discussion", () => {
     expect(hasDiscussion([{ ...mapTeam, userName: "map_team" }])).toBe(true);
+    expect(hasDiscussion([{ ...mapTeam, userName: "" }])).toBe(true);
+  });
+
+  it("takes a null author for Map_Team", () => {
+    expect(hasDiscussion([{ ...mapTeam, userName: null }])).toBe(false);
   });
 });
 

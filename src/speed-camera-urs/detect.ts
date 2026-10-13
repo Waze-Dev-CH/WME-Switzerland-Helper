@@ -76,10 +76,19 @@ export function isStaleCandidate(
   return ur.isOpen && ur.isEditable && oldEnough && !speedCamera && !mapMate;
 }
 
+/**
+ * shortcut: a null author is assumed to be Map_Team, whose automatic messages (the Swiss
+ * community's "what was the problem?") came back with userName null in WME. If a
+ * reporter's reply also comes back null, an answered UR would pass; then match the
+ * automatic message by its text instead.
+ */
 export function hasDiscussion(
   comments: readonly ConversationElement[],
 ): boolean {
-  return comments.some((comment) => comment.userName !== MAP_TEAM_USER);
+  return comments.some(
+    (comment) =>
+      comment.userName !== null && comment.userName !== MAP_TEAM_USER,
+  );
 }
 
 /** ROAD_TYPE.FREEWAY in the SDK; the typings declare the constant but ship no runtime value. */

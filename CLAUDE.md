@@ -162,7 +162,8 @@ triage) → `TabUI`. `close.ts` is the only module that writes.
   appears. These are closed one by one, as not-identified and **without any message**.
 - Abandoned URs (`isStaleCandidate`, detect.ts): open, editable, reported more than
   `STALE_AGE_DAYS` (14) days ago, any type, and nobody but `Map_Team` in the conversation
-  (`hasDiscussion`, exact `userName` match; `null` counts as a person). Map Mate voice
+  (`hasDiscussion`, exact `userName` match; `null` counts as Map_Team, whose automatic
+  messages come back without a name, `""` still counts as a person). Map Mate voice
   reports (`source === "REPORTING_AGENT"`) never qualify: their description often carries
   what the driver said. Closed as not-identified **without any message**. The scanner reads their conversations only when
   the "Abandoned" box is checked, after the speed cameras'.

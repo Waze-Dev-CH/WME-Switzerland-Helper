@@ -3,7 +3,7 @@ import { noteMessaged, resetMessagedForTests } from "./close";
 import { makeSdk, makeSegment, makeTrafficLightUr, makeUr } from "./fake-sdk";
 import { Scanner, type ScanSnapshot } from "./scanner";
 
-const comment = { createdOn: 0, text: "hello", userName: null };
+const comment = { createdOn: 0, text: "hello", userName: "editor" };
 
 beforeEach(() => resetMessagedForTests());
 

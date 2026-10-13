@@ -17,7 +17,7 @@ import {
 import { makeSdk, makeSegment, makeTrafficLightUr, makeUr } from "./fake-sdk";
 import { buildMessage } from "./message";
 
-const comment = { createdOn: 0, text: "is it fixed?", userName: null };
+const comment = { createdOn: 0, text: "is it fixed?", userName: "editor" };
 
 beforeEach(() => resetMessagedForTests());
 

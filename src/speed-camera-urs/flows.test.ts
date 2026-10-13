@@ -18,7 +18,7 @@ const official = {
   text: buildMessage("de"),
   userName: "editor",
 };
-const comment = { createdOn: 0, text: "still there", userName: null };
+const comment = { createdOn: 0, text: "still there", userName: "editor" };
 const DAY = 24 * 60 * 60 * 1000;
 /** 30 days after makeUr's default reportedOn. */
 const NOW = 1_760_000_000_000 + 30 * DAY;
