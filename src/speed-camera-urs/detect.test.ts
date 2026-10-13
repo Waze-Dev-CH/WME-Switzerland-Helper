@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ageInDays,
+  descriptionCode,
   hasDiscussion,
   isInExtent,
   isOnFreeway,
@@ -8,10 +9,16 @@ import {
   isStaleCandidate,
   isTrafficLightUr,
   MAP_TEAM_USER,
+  mapMateKind,
   STALE_AGE_DAYS,
   triage,
 } from "./detect";
-import { makeSegment, makeTrafficLightUr, makeUr } from "./fake-sdk";
+import {
+  makeSegment,
+  makeTrafficLightUr,
+  makeUr,
+  makeMapMateUr,
+} from "./fake-sdk";
 
 describe("isSpeedCameraUr", () => {
   it("accepts an open, editable UR whose description starts with the marker", () => {
@@ -185,5 +192,65 @@ describe("hasDiscussion", () => {
 describe("ageInDays", () => {
   it("counts whole days", () => {
     expect(ageInDays(REPORTED, REPORTED + 15 * DAY + 5)).toBe(15);
+  });
+});
+
+describe("descriptionCode", () => {
+  it("is the text before the first colon, or the whole text without one", () => {
+    expect(descriptionCode("INCORRECT_ROUTE: a: b")).toBe("INCORRECT_ROUTE");
+    expect(descriptionCode("GENERAL_MAP_UPDATE")).toBe("GENERAL_MAP_UPDATE");
+    expect(descriptionCode(null)).toBe("");
+  });
+});
+
+describe("mapMateKind", () => {
+  it("recognises each of the five codes", () => {
+    expect(mapMateKind(makeMapMateUr(1, "MISSING_TRAFFIC_LIGHT"))).toBe(
+      "trafficLight",
+    );
+    expect(mapMateKind(makeMapMateUr(1, "INCORRECT_ROUTE"))).toBe("route");
+    expect(mapMateKind(makeMapMateUr(1, "INCORRECT_SPEED_LIMIT"))).toBe(
+      "speedLimit",
+    );
+    expect(mapMateKind(makeMapMateUr(1, "INCORRECT_TURN"))).toBe("turn");
+    expect(mapMateKind(makeMapMateUr(1, "GENERAL_MAP_UPDATE"))).toBe("general");
+  });
+
+  it("needs the exact code, and ignores unknown ones and prototype names", () => {
+    for (const code of [
+      "INCORRECT_TURN_X",
+      "UNKNOWN_CODE",
+      "constructor",
+      "toString",
+      "__proto__",
+    ]) {
+      expect(mapMateKind(makeMapMateUr(1, code))).toBeNull();
+    }
+    const quoted = makeMapMateUr(1, "x", {
+      description: "see INCORRECT_TURN: x",
+    });
+    expect(mapMateKind(quoted)).toBeNull();
+  });
+
+  it("leaves a Map Mate speed camera to the speed-camera family", () => {
+    expect(
+      mapMateKind(makeMapMateUr(1, "MISSING_STATIC_SPEED_CAMERA")),
+    ).toBeNull();
+  });
+
+  it("only takes Map Mate's open, editable general-error URs", () => {
+    const code = "INCORRECT_ROUTE";
+    expect(
+      mapMateKind(makeMapMateUr(1, code, { source: "MOBILE_CLIENT" })),
+    ).toBeNull();
+    expect(
+      mapMateKind(
+        makeMapMateUr(1, code, { updateRequestType: "INCORRECT_ROUTE" }),
+      ),
+    ).toBeNull();
+    expect(mapMateKind(makeMapMateUr(1, code, { isOpen: false }))).toBeNull();
+    expect(
+      mapMateKind(makeMapMateUr(1, code, { isEditable: false })),
+    ).toBeNull();
   });
 });

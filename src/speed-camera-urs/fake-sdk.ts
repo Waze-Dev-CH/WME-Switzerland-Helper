@@ -48,6 +48,19 @@ export function makeTrafficLightUr(
   });
 }
 
+/** A Map Mate voice report: description starting with `code`, type INCORRECT_GENERAL_ERROR. */
+export function makeMapMateUr(
+  id: number,
+  code = "MISSING_TRAFFIC_LIGHT",
+  overrides: Partial<MapUpdateRequest> = {},
+): MapUpdateRequest {
+  return makeUr(id, {
+    source: "REPORTING_AGENT",
+    description: `${code}: L'utilisateur a signalé un problème.`,
+    ...overrides,
+  });
+}
+
 /**
  * A straight east-west segment through `lat`, wide enough to cover the default UR position.
  * Road type 3 is FREEWAY.

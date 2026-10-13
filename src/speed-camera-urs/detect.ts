@@ -54,6 +54,55 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 export const MAP_MATE_SOURCE = "REPORTING_AGENT";
 
+export type MapMateKind =
+  | "trafficLight"
+  | "route"
+  | "speedLimit"
+  | "turn"
+  | "general";
+
+/** The order quotes and labels follow. */
+export const MAP_MATE_KINDS: readonly MapMateKind[] = [
+  "trafficLight",
+  "route",
+  "speedLimit",
+  "turn",
+  "general",
+];
+
+/**
+ * Codes Map Mate puts before the first ":" of its description. A Map rather than an
+ * object literal: "constructor" or "toString" must not look up a prototype function.
+ */
+const MAP_MATE_CODES = new Map<string, MapMateKind>([
+  [TRAFFIC_LIGHT_PREFIX, "trafficLight"],
+  ["INCORRECT_ROUTE", "route"],
+  ["INCORRECT_SPEED_LIMIT", "speedLimit"],
+  ["INCORRECT_TURN", "turn"],
+  ["GENERAL_MAP_UPDATE", "general"],
+]);
+
+export function descriptionCode(description: string | null): string {
+  return (description ?? "").split(":")[0] ?? "";
+}
+
+/**
+ * Which question a Map Mate report gets, or null for none. An unknown code gets nothing:
+ * a generic question would be worse than silence. The road is not checked here; a traffic
+ * light also needs isKnownOffFreeway, which the caller applies.
+ */
+export function mapMateKind(
+  ur: UrFields & Pick<MapUpdateRequest, "source" | "updateRequestType">,
+): MapMateKind | null {
+  const mapMate =
+    ur.isOpen &&
+    ur.isEditable &&
+    ur.source === MAP_MATE_SOURCE &&
+    ur.updateRequestType === "INCORRECT_GENERAL_ERROR";
+  if (!mapMate) return null;
+  return MAP_MATE_CODES.get(descriptionCode(ur.description)) ?? null;
+}
+
 export function ageInDays(reportedOn: number, now: number): number {
   return Math.floor((now - reportedOn) / DAY_MS);
 }
