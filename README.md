@@ -75,8 +75,8 @@ With this script, you get:
 - **Official Street-Name Check**  
   Compares the street names of the segments you see against the official Swiss street register (swisstopo) and highlights mismatches, with one-click fixes. A dedicated **CH · Street names** sidebar tab lists the issues, grouped and colour-coded, and the segment edit panel shows the verdict for the selected segment.
 
-- **Speed-Camera URs**  
-  Lists the open URs on screen that report a fixed speed camera, which Swiss law does not allow Waze to show, and closes them with the official explanation in the reporter's language. A dedicated **CH · Speed-camera UR closer** sidebar tab holds the list.
+- **UR Assistant**  
+  Handles the open URs on screen in a dedicated **CH · UR assistant** tab: speed-camera URs (which Swiss law does not allow Waze to show) get the official explanation in the reporter's language and are closed; traffic lights reported on a freeway and abandoned URs are closed without a message; Map Mate voice reports get a question suited to their case. Each family has its own checkbox.
 
 All map data comes from official Swiss sources (swisstopo), so you can trust its accuracy.
 
@@ -130,6 +130,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### [Unreleased]
+
+#### Added
+
+- **Abandoned URs.** The **CH · UR assistant** tab can now also close open URs of any type with no activity for more than 14 days and where the reporter does not have the last word: nobody wrote, or Map_Team or an editor asked and got no answer. Map Mate voice reports are left out. They are closed as *Not identified*, without any message. A checkbox per family chooses what the tab handles, and a single button handles everything ticked: speed cameras from level 3, abandoned URs from level 4, 50 at most.
+- **Questions to Map Mate reporters.** Map Mate voice reports (traffic light, route, speed limit, turn, level crossing, general map update) get a question suited to their case in the reporter's language, asking where exactly and what they expected (a level crossing gets told that Switzerland maps them only when really dangerous, and to say so if it is); a traffic light also suggests reporting roadworks if it was a temporary one. The UR stays open for the answer. Nothing is sent once someone other than Map_Team has commented, never twice, and never to a traffic light whose closest road is a freeway. One by one for everyone, in the batch from level 3. Off by default.
+
+#### Changed
+
+- The **CH · Speed-camera UR closer** tab is now **CH · UR assistant**, since it handles every family of URs. Each family's description moved behind an (i) at the end of its checkbox, and the status line counts every ticked family. Your ticked boxes are kept.
 
 ### [1.6.1] - 2026-10-06
 

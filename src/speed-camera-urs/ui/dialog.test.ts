@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { installFakeDocument, type FakeNode } from "../../ui/fake-dom";
-import { closeAllSpec, closeOneSpec } from "../confirm-spec";
-import { buildMessage } from "../message";
+import { closeOneSpec, closeSelectedSpec } from "../confirm-spec";
+import { buildMapMateQuestion, buildMessage } from "../message";
 import { showConfirm, showNotice, type DialogHost } from "./dialog";
 
 // The stylesheet needs document.head, which the fake document does not have.
@@ -53,7 +53,7 @@ describe("showConfirm", () => {
 
   it("switches the quoted text when another language's flag is clicked", () => {
     const { host, mounted } = makeHost();
-    void showConfirm(closeAllSpec(["fr", "fr", "de"], "fr"), host);
+    void showConfirm(closeSelectedSpec(["fr", "fr", "de"], [], 0, "fr"), host);
     const root = mounted[0]!;
     const quote = findAll(root, "scu-quote")[0]!;
     const [french, german] = findAll(root, "scu-flag");
@@ -72,6 +72,17 @@ describe("showConfirm", () => {
 
     expect(findAll(mounted[0]!, "scu-quote-muted")[0]?.textContent).toBe(
       "still there",
+    );
+  });
+  it("shows one quotation per quoted text", () => {
+    const { host, mounted } = makeHost();
+    void showConfirm(
+      closeSelectedSpec(["fr"], [{ kind: "turn", lang: "fr" }], 0, "fr"),
+      host,
+    );
+
+    expect(findAll(mounted[0]!, "scu-quote").map((q) => q.textContent)).toEqual(
+      [buildMessage("fr"), buildMapMateQuestion("turn", "fr")],
     );
   });
 });

@@ -35,6 +35,178 @@ export function isTrafficLightUr(ur: UrFields): boolean {
   );
 }
 
+/** Past this age with nobody but Map_Team in the conversation, the reporter is not coming back. */
+export const STALE_AGE_DAYS = 14;
+
+/**
+ * Author of the automatic comments WME adds to a UR. They are not a conversation: nobody
+ * is waiting for an answer to them. Exact match on purpose: any other spelling is treated
+ * as a person, which keeps the UR out of the batch rather than in it.
+ */
+export const MAP_TEAM_USER = "Map_Team";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Source of the URs created by Map Mate, Waze's voice reporting (observed in WME on a UR
+ * labelled "Map Mate (signalement vocal)"). Their description often carries what the driver
+ * actually said, so silence in the conversation does not make them abandoned.
+ */
+export const MAP_MATE_SOURCE = "REPORTING_AGENT";
+
+export type MapMateKind =
+  | "trafficLight"
+  | "route"
+  | "speedLimit"
+  | "turn"
+  | "railroadCrossing"
+  | "general";
+
+/** The order quotes and labels follow. */
+export const MAP_MATE_KINDS: readonly MapMateKind[] = [
+  "trafficLight",
+  "route",
+  "speedLimit",
+  "turn",
+  "railroadCrossing",
+  "general",
+];
+
+/**
+ * Codes Map Mate puts before the first ":" of its description. A Map rather than an
+ * object literal: "constructor" or "toString" must not look up a prototype function.
+ */
+const MAP_MATE_CODES = new Map<string, MapMateKind>([
+  [TRAFFIC_LIGHT_PREFIX, "trafficLight"],
+  ["INCORRECT_ROUTE", "route"],
+  ["INCORRECT_SPEED_LIMIT", "speedLimit"],
+  ["INCORRECT_TURN", "turn"],
+  ["RAILROAD_CROSSING", "railroadCrossing"],
+  ["GENERAL_MAP_UPDATE", "general"],
+]);
+
+export function descriptionCode(description: string | null): string {
+  return (description ?? "").split(":")[0] ?? "";
+}
+
+/**
+ * Which question a Map Mate report gets, or null for none. An unknown code gets nothing:
+ * a generic question would be worse than silence. The road is not checked here; a traffic
+ * light also needs isKnownOffFreeway, which the caller applies.
+ */
+export function mapMateKind(
+  ur: UrFields & Pick<MapUpdateRequest, "source" | "updateRequestType">,
+): MapMateKind | null {
+  const mapMate =
+    ur.isOpen &&
+    ur.isEditable &&
+    ur.source === MAP_MATE_SOURCE &&
+    ur.updateRequestType === "INCORRECT_GENERAL_ERROR";
+  if (!mapMate) return null;
+  return MAP_MATE_CODES.get(descriptionCode(ur.description)) ?? null;
+}
+
+export function ageInDays(reportedOn: number, now: number): number {
+  return Math.floor((now - reportedOn) / DAY_MS);
+}
+
+/**
+ * An open UR old enough to be abandoned, read from the data model alone. The final verdict
+ * also needs the conversation (isAbandoned), which costs a server round trip.
+ *
+ * Speed cameras are excluded here rather than by the caller: they always get the official
+ * message, and must not slip into a family that closes without one.
+ */
+export function isStaleCandidate(
+  ur: UrFields & Pick<MapUpdateRequest, "reportedOn" | "source">,
+  now: number,
+): boolean {
+  const description = ur.description ?? "";
+  const oldEnough = now - ur.reportedOn > STALE_AGE_DAYS * DAY_MS;
+  const speedCamera = description.startsWith(SPEED_CAMERA_PREFIX);
+  const mapMate = ur.source === MAP_MATE_SOURCE;
+  return ur.isOpen && ur.isEditable && oldEnough && !speedCamera && !mapMate;
+}
+
+/**
+ * Who wrote a comment, as observed in WME: the automatic messages carry "Map_Team", an
+ * editor carries their name, and the reporter, who has no editor account, comes back with
+ * userName null or "admin" (UR 27179414), probably depending on how they answered. "admin"
+ * has no editor profile, so it cannot be an editor.
+ */
+const REPORTER_NAMES: ReadonlyArray<string | null> = [null, "admin"];
+
+/**
+ * The Swiss community's automatic question, one line per language. WME does not always
+ * return its author: the same comment read "Map_Team" when the list was built and null
+ * when it was read again at closure, so the text has to vouch for it then. Only then:
+ * editors paste this question by hand, under their own name.
+ */
+const MAP_TEAM_QUESTIONS = [
+  "Hallo, was war das Problem bitte?",
+  "Bonjour, quel a été le problème SVP?",
+  "Ciao, qual è stato il problema, per favore?",
+];
+
+function isMapTeam(comment: ConversationElement): boolean {
+  if (comment.userName === MAP_TEAM_USER) return true;
+  if (comment.userName !== null) return false;
+  return MAP_TEAM_QUESTIONS.some((question) => comment.text.includes(question));
+}
+
+function isReporter(comment: ConversationElement): boolean {
+  return !isMapTeam(comment) && REPORTER_NAMES.includes(comment.userName);
+}
+
+/** Anyone but Map_Team, the reporter included. */
+export function hasDiscussion(
+  comments: readonly ConversationElement[],
+): boolean {
+  return comments.some((comment) => !isMapTeam(comment));
+}
+
+/** The latest comment by date, or the report itself when nobody wrote. */
+export function lastActivity(
+  reportedOn: number,
+  comments: readonly ConversationElement[],
+): number {
+  return Math.max(reportedOn, ...comments.map((comment) => comment.createdOn));
+}
+
+/**
+ * The final verdict on a stale candidate, once its conversation is read: nothing has
+ * happened for STALE_AGE_DAYS, and the reporter does not have the last word. When they
+ * do, someone owes them an answer. A question from Map_Team or an editor left unanswered
+ * is exactly what this family closes.
+ */
+export function isAbandoned(
+  comments: readonly ConversationElement[],
+  reportedOn: number,
+  now: number,
+): boolean {
+  if (reporterHasLastWord(comments)) return false;
+  return isIdle(lastActivity(reportedOn, comments), now);
+}
+
+/**
+ * Whether the reporter spoke last among the people in the conversation. Map_Team is left
+ * out: its automatic question can land after the reporter's reply, and the reporter would
+ * still be the one waiting.
+ */
+export function reporterHasLastWord(
+  comments: readonly ConversationElement[],
+): boolean {
+  const latest = comments
+    .filter((comment) => !isMapTeam(comment))
+    .sort((a, b) => a.createdOn - b.createdOn)
+    .pop();
+  return latest !== undefined && isReporter(latest);
+}
+
+export function isIdle(lastActivityOn: number, now: number): boolean {
+  return now - lastActivityOn > STALE_AGE_DAYS * DAY_MS;
+}
+
 /** ROAD_TYPE.FREEWAY in the SDK; the typings declare the constant but ship no runtime value. */
 const FREEWAY_ROAD_TYPE = 3;
 
@@ -66,19 +238,15 @@ function bboxNear(segment: SegmentFields, lon: number, lat: number): boolean {
 }
 
 /**
- * Whether the closest loaded segment is a freeway. The closest one decides, not any freeway
- * in range: ramps are excluded on purpose, real traffic lights stand at their far end, and
- * a UR next to one belongs to the ramp even when the freeway runs a few metres further.
- *
- * The SDK links a UR to no segment, hence the geometry. A UR whose segments are not loaded
- * yet is not on a freeway; the scanner looks again when they arrive.
+ * Road type of the closest loaded segment within FREEWAY_MAX_DISTANCE_M, or null when none
+ * is loaded there. The SDK links a UR to no segment, hence the geometry.
  */
-export function isOnFreeway(
+function closestRoadType(
   ur: Pick<MapUpdateRequest, "geometry">,
   segments: readonly SegmentFields[],
-): boolean {
+): number | null {
   const [lon, lat] = ur.geometry.coordinates;
-  if (lon === undefined || lat === undefined) return false;
+  if (lon === undefined || lat === undefined) return null;
   const where = point([lon, lat]);
   let closestType: number | null = null;
   let closestDistance = FREEWAY_MAX_DISTANCE_M;
@@ -91,7 +259,35 @@ export function isOnFreeway(
     closestDistance = distance;
     closestType = segment.roadType;
   }
-  return closestType === FREEWAY_ROAD_TYPE;
+  return closestType;
+}
+
+/**
+ * Whether the closest loaded segment is a freeway. The closest one decides, not any freeway
+ * in range: ramps are excluded on purpose, real traffic lights stand at their far end, and
+ * a UR next to one belongs to the ramp even when the freeway runs a few metres further.
+ *
+ * A UR whose segments are not loaded yet is not on a freeway; the scanner looks again when
+ * they arrive.
+ */
+export function isOnFreeway(
+  ur: Pick<MapUpdateRequest, "geometry">,
+  segments: readonly SegmentFields[],
+): boolean {
+  return closestRoadType(ur, segments) === FREEWAY_ROAD_TYPE;
+}
+
+/**
+ * Whether a traffic-light UR may be treated as abandoned: only once the road under it is
+ * loaded and is not a freeway. "Not loaded" must not count as "not a freeway" here, unlike
+ * in isOnFreeway: a freeway light would then reach a batch, which that family never does.
+ */
+export function isKnownOffFreeway(
+  ur: Pick<MapUpdateRequest, "geometry">,
+  segments: readonly SegmentFields[],
+): boolean {
+  const type = closestRoadType(ur, segments);
+  return type !== null && type !== FREEWAY_ROAD_TYPE;
 }
 
 /** `extent` is the map's GeoJSON bbox: [west, south, east, north]. */

@@ -1,19 +1,33 @@
 import type { ConversationElement, WmeSDK } from "wme-sdk-typings";
 import {
+  ageInDays,
+  isAbandoned,
+  lastActivity,
+  isKnownOffFreeway,
   isOnFreeway,
   isSpeedCameraUr,
+  isStaleCandidate,
   isTrafficLightUr,
+  mapMateKind,
   triage,
 } from "./detect";
 import { getLocale, t } from "./i18n";
 import { log } from "./log";
 import {
-  closeAllSpec,
+  askMapMateSpec,
   closeOneSpec,
   closeOnlySpec,
+  closeSelectedSpec,
+  closeStaleSpec,
   closeTrafficLightSpec,
 } from "./confirm-spec";
-import { buildMessage, isOfficialMessage, messageLanguage } from "./message";
+import {
+  buildMapMateQuestion,
+  buildMessage,
+  isOfficialMessage,
+  mayAskMapMate,
+  messageLanguage,
+} from "./message";
 import {
   confirmDialog,
   notifyDialog,
@@ -33,7 +47,19 @@ export const BATCH_MIN_RANK = 2;
  */
 export const BATCH_CAP = 50;
 
-export type SkipReason = "skipGone" | "skipConversation" | "skipNotFreeway";
+/**
+ * Lowest rank allowed to close abandoned URs in a batch: editor level 4. One level above
+ * the speed cameras because the family is far wider, any type of UR, and a batch of it is
+ * fifty closures nobody looked at one by one.
+ */
+export const STALE_BATCH_MIN_RANK = 3;
+
+export type SkipReason =
+  | "skipGone"
+  | "skipConversation"
+  | "skipNotFreeway"
+  /** A traffic light whose road is not loaded, or turned out to be a freeway. */
+  | "skipRoadUnknown";
 export type FailReason =
   | "errNotAllowed"
   | "errDetails"
@@ -42,6 +68,8 @@ export type FailReason =
 
 export type CloseOutcome =
   | { id: number; result: "closed" }
+  /** A Map Mate report was asked for details; nothing was closed. */
+  | { id: number; result: "asked" }
   | { id: number; result: "skipped"; reason: SkipReason }
   | { id: number; result: "failed"; reason: FailReason };
 
@@ -96,6 +124,43 @@ export function canBatch(sdk: WmeSDK): boolean {
   return typeof rank === "number" && rank >= BATCH_MIN_RANK;
 }
 
+export function canBatchStale(sdk: WmeSDK): boolean {
+  const rank = sdk.State.getUserInfo()?.rank;
+  return typeof rank === "number" && rank >= STALE_BATCH_MIN_RANK;
+}
+
+export interface BatchRequest {
+  speedCamera: readonly number[];
+  mapMate: readonly number[];
+  stale: readonly number[];
+}
+
+/** Each family the editor lacks the rank for is emptied, the others go through. */
+export function allowedBatch(sdk: WmeSDK, request: BatchRequest): BatchRequest {
+  const level3 = canBatch(sdk);
+  return {
+    speedCamera: level3 ? request.speedCamera : [],
+    mapMate: level3 ? request.mapMate : [],
+    stale: canBatchStale(sdk) ? request.stale : [],
+  };
+}
+
+/** Speed cameras first, then the reporters we ask; abandoned URs can wait. */
+export function capBatch(request: BatchRequest): BatchRequest {
+  const speedCamera = request.speedCamera.slice(0, BATCH_CAP);
+  let room = BATCH_CAP - speedCamera.length;
+  const mapMate = request.mapMate.slice(0, room);
+  room -= mapMate.length;
+  const stale = request.stale.slice(0, room);
+  return { speedCamera, mapMate, stale };
+}
+
+function batchSize(request: BatchRequest): number {
+  return (
+    request.speedCamera.length + request.mapMate.length + request.stale.length
+  );
+}
+
 /**
  * Send the official message to one UR's reporter, then close the UR as not-identified.
  *
@@ -140,17 +205,8 @@ async function sendAndClose(
   options: { allowConversation: boolean },
 ): Promise<CloseOutcome> {
   const urs = sdk.DataModel.MapUpdateRequests;
-  let comments: ConversationElement[];
-  try {
-    const details = await urs.getUpdateRequestDetails({
-      mapUpdateRequestId: id,
-    });
-    if (!details) return { id, result: "failed", reason: "errDetails" };
-    comments = details.comments;
-  } catch (err) {
-    log.warn(`Could not read the conversation of UR ${id}`, err);
-    return { id, result: "failed", reason: "errDetails" };
-  }
+  const comments = await readConversation(urs, id);
+  if (!comments) return { id, result: "failed", reason: "errDetails" };
 
   const messagedBefore = alreadyMessaged(id, comments);
   const hasConversation = triage(comments, messagedBefore) === "conversation";
@@ -211,18 +267,138 @@ export async function closeTrafficLight(
 }
 
 /**
- * The batch. Re-checks the rank itself: two surfaces could call it, and a gate enforced
- * only where the button is drawn would be one missed check away from being gone.
+ * Close one abandoned UR as not-identified, without any message: the reporter has not
+ * looked at it in weeks, and the official text speaks of speed cameras.
+ *
+ * Re-checks everything right before writing, like closeOne: the list may be minutes old,
+ * and a comment arriving since then means someone is talking to the reporter. Same
+ * inFlight guard, so a double click does not start two reads.
+ */
+export async function closeStale(
+  sdk: WmeSDK,
+  id: number,
+  now = Date.now(),
+): Promise<CloseOutcome> {
+  if (!sdk.Editing.isEditingAllowed())
+    return { id, result: "failed", reason: "errNotAllowed" };
+
+  const urs = sdk.DataModel.MapUpdateRequests;
+  const ur = urs.getById({ mapUpdateRequestId: id });
+  if (!ur || !isStaleCandidate(ur, now))
+    return { id, result: "skipped", reason: "skipGone" };
+  // Never through this door: traffic lights on a freeway have no batch at all, and one
+  // whose road is not loaded may well be on a freeway.
+  const lightBlocked =
+    isTrafficLightUr(ur) &&
+    !isKnownOffFreeway(ur, sdk.DataModel.Segments.getAll());
+  if (lightBlocked) return { id, result: "skipped", reason: "skipRoadUnknown" };
+
+  if (inFlight.has(id)) {
+    log.warn(`Abandoned UR ${id} skipped: already being handled`);
+    return { id, result: "skipped", reason: "skipConversation" };
+  }
+  inFlight.add(id);
+  try {
+    const comments = await readConversation(urs, id);
+    if (!comments) return { id, result: "failed", reason: "errDetails" };
+    const messaged = wasMessaged(id);
+    const abandoned = isAbandoned(comments, ur.reportedOn, now);
+    if (messaged || !abandoned) {
+      // Everything the verdict was made of: the list said abandoned, this read says not.
+      log.warn(`Abandoned UR ${id} skipped at closure`, {
+        wasMessaged: messaged,
+        isAbandoned: abandoned,
+        reportedOn: describeTime(ur.reportedOn),
+        now: describeTime(now),
+        comments: comments.map((comment) => ({
+          userName: comment.userName,
+          createdOn: describeTime(comment.createdOn),
+        })),
+      });
+      return { id, result: "skipped", reason: "skipConversation" };
+    }
+    return closeWithoutMessage(urs, id);
+  } finally {
+    inFlight.delete(id);
+  }
+}
+
+/**
+ * Ask a Map Mate reporter for details: one comment, and the UR stays open for the answer.
+ * updateResolutionState is never called here.
+ *
+ * Everything is re-read right before sending, as in closeOne: the comment cannot be
+ * withdrawn. There is no way to force it: once anyone but Map_Team has written, a canned
+ * question would talk over them.
+ */
+export async function askMapMate(
+  sdk: WmeSDK,
+  id: number,
+): Promise<CloseOutcome> {
+  if (!sdk.Editing.isEditingAllowed())
+    return { id, result: "failed", reason: "errNotAllowed" };
+
+  const urs = sdk.DataModel.MapUpdateRequests;
+  const ur = urs.getById({ mapUpdateRequestId: id });
+  const kind = ur ? mapMateKind(ur) : null;
+  if (!ur || !kind) return { id, result: "skipped", reason: "skipGone" };
+  // On a freeway it is likely a speed camera; on an unloaded road it may be one.
+  const lightOnUnknownRoad =
+    kind === "trafficLight" &&
+    !isKnownOffFreeway(ur, sdk.DataModel.Segments.getAll());
+  if (lightOnUnknownRoad)
+    return { id, result: "skipped", reason: "skipRoadUnknown" };
+
+  if (inFlight.has(id))
+    return { id, result: "skipped", reason: "skipConversation" };
+  inFlight.add(id);
+  try {
+    const comments = await readConversation(urs, id);
+    if (!comments) return { id, result: "failed", reason: "errDetails" };
+    if (wasMessaged(id) || !mayAskMapMate(comments))
+      return { id, result: "skipped", reason: "skipConversation" };
+
+    const lang = messageLanguage(ur.userPreferences?.language);
+    try {
+      await urs.addComment({
+        mapUpdateRequestId: id,
+        text: buildMapMateQuestion(kind, lang),
+      });
+    } catch (err) {
+      log.warn(`Could not send the question to UR ${id}`, err);
+      return { id, result: "failed", reason: "errComment" };
+    }
+    noteMessaged(id);
+    return { id, result: "asked" };
+  } finally {
+    inFlight.delete(id);
+  }
+}
+
+/**
+ * The batch. Re-checks both ranks itself: a gate enforced only where the button is drawn
+ * would be one missed check away from being gone. null when the editor has the rank for
+ * none of the families asked for.
  */
 export async function closeMany(
   sdk: WmeSDK,
-  ids: readonly number[],
+  request: BatchRequest,
+  now = Date.now(),
 ): Promise<CloseOutcome[] | null> {
-  if (!canBatch(sdk)) return null;
+  const allowed = allowedBatch(sdk, request);
+  if (batchSize(request) > 0 && batchSize(allowed) === 0) return null;
+
+  const batch = capBatch(allowed);
   const outcomes: CloseOutcome[] = [];
   // One at a time: gentler on the server, and a failure costs one UR rather than a burst.
-  for (const id of ids.slice(0, BATCH_CAP)) {
+  for (const id of batch.speedCamera) {
     outcomes.push(await closeOne(sdk, id, { allowConversation: false }));
+  }
+  for (const id of batch.mapMate) {
+    outcomes.push(await askMapMate(sdk, id));
+  }
+  for (const id of batch.stale) {
+    outcomes.push(await closeStale(sdk, id, now));
   }
   return outcomes;
 }
@@ -244,13 +420,60 @@ export function summarize(
       failed: count("failed"),
     }),
   ];
+  if (count("asked") > 0)
+    lines.push(t("summaryAsked", { count: count("asked") }));
   for (const outcome of outcomes) {
-    if (outcome.result === "closed") continue;
+    if (outcome.result === "closed" || outcome.result === "asked") continue;
     lines.push(t("summaryLine", { id: outcome.id, reason: t(outcome.reason) }));
   }
+  // A question alone leaves nothing in the edit stack: there is nothing to save.
   const reminder = messagesSent ? "saveReminder" : "saveReminderNoMessage";
   if (count("closed") > 0) lines.push("", t(reminder));
+  else if (count("asked") > 0) lines.push("", t("askedReminder"));
   return lines.join("\n");
+}
+
+/**
+ * The batch's summary. It claims messages were sent only when a speed camera was actually
+ * closed: a batch of abandoned URs sends nothing.
+ */
+export function summarizeBatch(
+  outcomes: readonly CloseOutcome[],
+  speedCameraIds: readonly number[],
+): string {
+  const cameras = new Set(speedCameraIds);
+  const messagesSent = outcomes.some(
+    (outcome) => outcome.result === "closed" && cameras.has(outcome.id),
+  );
+  return summarize(outcomes, { messagesSent });
+}
+
+/**
+ * The conversation every writer re-reads right before writing, or null when it cannot be
+ * read: absent details and a failed request both stop the write the same way.
+ */
+async function readConversation(
+  urs: WmeSDK["DataModel"]["MapUpdateRequests"],
+  id: number,
+): Promise<ConversationElement[] | null> {
+  try {
+    const details = await urs.getUpdateRequestDetails({
+      mapUpdateRequestId: id,
+    });
+    return details ? details.comments : null;
+  } catch (err) {
+    log.warn(`Could not read the conversation of UR ${id}`, err);
+    return null;
+  }
+}
+
+/** The raw value next to its date: a wrong type or unit shows at a glance. */
+function describeTime(value: unknown): string {
+  const date = new Date(value as number);
+  const readable = Number.isNaN(date.getTime())
+    ? "invalid"
+    : date.toISOString();
+  return `${String(value)} (${typeof value}, ${readable})`;
 }
 
 function closeWithoutMessage(
@@ -388,21 +611,92 @@ export function runCloseTrafficLight(
   });
 }
 
-/** Every ready UR at once, level 3 and up. The rank is checked before anything is asked. */
-export async function runCloseAll(
+/** One abandoned UR, from the tab. Open to every level, like the other single closures. */
+export function runCloseStale(
   sdk: WmeSDK,
-  ids: readonly number[],
+  id: number,
   prompts: Prompts = {},
+  now = Date.now(),
+): Promise<CloseOutcome | null> {
+  const confirm = prompts.confirm ?? confirmDialog;
+  const notify = prompts.notify ?? notifyDialog;
+  return withCloseLock(async () => {
+    const urs = sdk.DataModel.MapUpdateRequests;
+    const ur = urs.getById({ mapUpdateRequestId: id });
+    if (!ur) return null;
+
+    // Read only to show how long nothing has happened; closeStale reads it again.
+    let comments: ConversationElement[] = [];
+    try {
+      comments =
+        (await urs.getUpdateRequestDetails({ mapUpdateRequestId: id }))
+          ?.comments ?? [];
+    } catch (err) {
+      log.warn(`Could not read the conversation of UR ${id}`, err);
+    }
+    const idleDays = ageInDays(lastActivity(ur.reportedOn, comments), now);
+    const accepted = await confirm(closeStaleSpec(id, idleDays));
+    if (!accepted) return null;
+
+    const outcome = await closeStale(sdk, id, now);
+    if (outcome.result !== "closed")
+      await notify(summarize([outcome], { messagesSent: false }));
+    return outcome;
+  });
+}
+
+/**
+ * One Map Mate report, from the tab. Open to every level. The conversation is not read
+ * first: a report with comments is not listed, and askMapMate checks again after the
+ * confirmation, so a comment arriving while the dialog is open still stops the send.
+ */
+export function runAskMapMate(
+  sdk: WmeSDK,
+  id: number,
+  prompts: Prompts = {},
+): Promise<CloseOutcome | null> {
+  const confirm = prompts.confirm ?? confirmDialog;
+  const notify = prompts.notify ?? notifyDialog;
+  return withCloseLock(async () => {
+    const ur = sdk.DataModel.MapUpdateRequests.getById({
+      mapUpdateRequestId: id,
+    });
+    const kind = ur ? mapMateKind(ur) : null;
+    if (!ur || !kind) return null;
+
+    const lang = messageLanguage(ur.userPreferences?.language);
+    const accepted = await confirm(askMapMateSpec(id, kind, lang));
+    if (!accepted) return null;
+
+    const outcome = await askMapMate(sdk, id);
+    if (outcome.result !== "asked") await notify(summarize([outcome]));
+    return outcome;
+  });
+}
+
+/**
+ * Everything the editor ticked, at once. Each family is filtered by its own rank before
+ * anything is asked, and closeMany checks again. When nothing is left, the editor is told
+ * which level the request needed.
+ */
+export async function runCloseSelected(
+  sdk: WmeSDK,
+  request: BatchRequest,
+  prompts: Prompts = {},
+  now = Date.now(),
 ): Promise<CloseOutcome[] | null> {
   const confirm = prompts.confirm ?? confirmDialog;
   const notify = prompts.notify ?? notifyDialog;
-  if (!canBatch(sdk)) {
-    await notify(t("errBatchRank", { level: BATCH_MIN_RANK + 1 }));
+  const allowed = allowedBatch(sdk, request);
+  if (batchSize(request) > 0 && batchSize(allowed) === 0) {
+    const level3Asked = request.speedCamera.length + request.mapMate.length > 0;
+    const minRank = level3Asked ? BATCH_MIN_RANK : STALE_BATCH_MIN_RANK;
+    await notify(t("errBatchRank", { level: minRank + 1 }));
     return null;
   }
-  const batch = ids.slice(0, BATCH_CAP);
-  if (batch.length === 0) return [];
-  // closeOne checks again per UR, but asking the editor to confirm a batch that can only
+  const batch = capBatch(allowed);
+  if (batchSize(batch) === 0) return [];
+  // Each closure checks again, but asking the editor to confirm a batch that can only
   // fail is a worse experience than saying so up front.
   if (!sdk.Editing.isEditingAllowed()) {
     await notify(t("errNotAllowedBatch"));
@@ -410,17 +704,28 @@ export async function runCloseAll(
   }
 
   return withCloseLock(async () => {
-    const langs = batch.map((id) =>
+    const urs = sdk.DataModel.MapUpdateRequests;
+    const langOf = (id: number) =>
       messageLanguage(
-        sdk.DataModel.MapUpdateRequests.getById({ mapUpdateRequestId: id })
-          ?.userPreferences?.language,
+        urs.getById({ mapUpdateRequestId: id })?.userPreferences?.language,
+      );
+    const mapMate = batch.mapMate.flatMap((id) => {
+      const ur = urs.getById({ mapUpdateRequestId: id });
+      const kind = ur ? mapMateKind(ur) : null;
+      return kind ? [{ kind, lang: langOf(id) }] : [];
+    });
+    const accepted = await confirm(
+      closeSelectedSpec(
+        batch.speedCamera.map(langOf),
+        mapMate,
+        batch.stale.length,
+        getLocale(),
       ),
     );
-    const accepted = await confirm(closeAllSpec(langs, getLocale()));
     if (!accepted) return null;
 
-    const outcomes = await closeMany(sdk, batch);
-    if (outcomes) await notify(summarize(outcomes));
+    const outcomes = await closeMany(sdk, batch, now);
+    if (outcomes) await notify(summarizeBatch(outcomes, batch.speedCamera));
     return outcomes;
   });
 }

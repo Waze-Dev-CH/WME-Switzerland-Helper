@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { MAP_MATE_KINDS } from "./detect";
 import {
+  buildMapMateQuestion,
   buildMessage,
+  isMapMateQuestion,
   isOfficialMessage,
+  kindLabel,
   languageCounts,
+  mayAskMapMate,
   messageLanguage,
 } from "./message";
 
@@ -133,5 +138,82 @@ describe("languageCounts", () => {
       { lang: "fr", count: 1 },
       { lang: "en", count: 1 },
     ]);
+  });
+});
+
+describe("buildMapMateQuestion", () => {
+  it("greets, asks the case's question and signs, in short paragraphs", () => {
+    expect(buildMapMateQuestion("turn", "fr")).toBe(
+      "Bonjour,\n\nMerci pour votre signalement.\n\n" +
+        "Pourriez-vous nous en dire plus sur ce virage ? Sur quelle rue rouliez-vous, dans quelle rue vouliez-vous tourner, et où avez-vous effectivement tourné ?\n\n" +
+        "Belle journée et bonne route.\nLa communauté des éditeurs bénévoles",
+    );
+  });
+
+  it("tells a roadworks light to report roadworks instead", () => {
+    expect(buildMapMateQuestion("trafficLight", "de")).toContain(
+      "Baustellenampel",
+    );
+  });
+
+  it("explains that level crossings are mapped only when really dangerous", () => {
+    const text = buildMapMateQuestion("railroadCrossing", "fr");
+    expect(text).toContain("passages à niveau ne sont pas indiqués");
+    expect(text).toContain("n'hésitez pas à nous le dire");
+  });
+
+  it("has a distinct text for every case in every language", () => {
+    const texts = MAP_MATE_KINDS.flatMap((kind) =>
+      (["fr", "de", "it", "en"] as const).map((lang) =>
+        buildMapMateQuestion(kind, lang),
+      ),
+    );
+    expect(new Set(texts).size).toBe(texts.length);
+  });
+});
+
+describe("isMapMateQuestion", () => {
+  it("recognises every case in every language, however the spaces came back", () => {
+    for (const kind of MAP_MATE_KINDS) {
+      for (const lang of ["fr", "de", "it", "en"] as const) {
+        const sent = buildMapMateQuestion(kind, lang).replace(/\n+/g, " ");
+        expect(isMapMateQuestion(sent)).toBe(true);
+      }
+    }
+  });
+
+  it("does not take the speed-camera message or a reply for a question", () => {
+    expect(isMapMateQuestion(buildMessage("fr"))).toBe(false);
+    expect(isMapMateQuestion("C'est au carrefour de la gare")).toBe(false);
+  });
+});
+
+describe("mayAskMapMate", () => {
+  const mapTeam = { createdOn: 0, text: "auto", userName: "Map_Team" };
+  const nameless = { createdOn: 0, text: "auto", userName: null };
+  const someone = { createdOn: 0, text: "hi", userName: "editor" };
+
+  it("allows an empty conversation, or Map_Team's alone", () => {
+    expect(mayAskMapMate([])).toBe(true);
+    expect(mayAskMapMate([mapTeam, mapTeam])).toBe(true);
+  });
+
+  it("refuses once the reporter, who has no name, has replied", () => {
+    expect(mayAskMapMate([mapTeam, nameless])).toBe(false);
+  });
+
+  it("refuses once someone else wrote", () => {
+    expect(mayAskMapMate([mapTeam, someone])).toBe(false);
+  });
+
+  it("refuses when our question is already there, even without a name", () => {
+    const ours = { ...nameless, text: buildMapMateQuestion("route", "it") };
+    expect(mayAskMapMate([ours])).toBe(false);
+  });
+});
+
+describe("kindLabel", () => {
+  it("names the case in the editor's language", () => {
+    expect(kindLabel("speedLimit")).toBe("Speed limit");
   });
 });

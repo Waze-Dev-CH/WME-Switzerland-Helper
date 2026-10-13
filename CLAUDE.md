@@ -133,11 +133,13 @@ excluded by default and runs with `WME_CH_INTEGRATION=1`.
 
 ### Speed-camera URs (`src/speed-camera-urs/`)
 
-Closes the URs that report a fixed speed camera, which Swiss law forbids showing in Waze.
-They are recognised by the `MISSING_STATIC_SPEED_CAMERA` prefix of their description; their
-type is always `INCORRECT_GENERAL_ERROR`, so the type cannot filter them. Entry point:
-`initSpeedCameraUrs()` (`index.ts`), called from `main.user.ts` after the importer, with its
-own scriptId for the same reason.
+The **CH · UR assistant** tab: it handles four families of open URs, each behind a checkbox.
+It started as the speed-camera closer, hence the folder, the i18n section `speedCameraUrs`,
+the scriptId and the settings key, all kept on purpose so saved choices and the tab's place
+survive. Speed cameras are recognised by the `MISSING_STATIC_SPEED_CAMERA` prefix of their
+description; their type is always `INCORRECT_GENERAL_ERROR`, so the type cannot filter
+them. Entry point: `initSpeedCameraUrs()` (`index.ts`), called from `main.user.ts` after the
+importer, with its own scriptId for the same reason.
 
 Pipeline: `Scanner` (scanner.ts: data-model events and map extent) → `detect.ts` (prefix,
 triage) → `TabUI`. `close.ts` is the only module that writes.
@@ -160,24 +162,64 @@ triage) → `TabUI`. `close.ts` is the only module that writes.
   purpose, real lights stand at their end. The SDK links a UR to no segment, hence the
   geometry, and the scanner tracks `segments` events so a UR drawn before its road still
   appears. These are closed one by one, as not-identified and **without any message**.
+- Comment authors, as observed in WME: `"Map_Team"` for the automatic messages, the editor's
+  name for an editor, and `null` or `"admin"` for the **reporter**, who has no editor
+  account (`"admin"` has no editor profile; seen on UR 27179414, probably depending on how
+  the reporter answered). WME does **not** always return the author: the same Map_Team
+  comment came back `"Map_Team"` to the scanner and `null` at closure. So a **nameless**
+  comment is also recognised as Map_Team by its fixed text (`MAP_TEAM_QUESTIONS`, one line
+  per language, detect.ts); a named one never is, since editors paste that question by
+  hand. `hasDiscussion` ignores Map_Team only. A nameless comment with any other text is
+  the reporter.
+- Abandoned URs (`isStaleCandidate` prefilter, `isAbandoned` verdict, detect.ts): open,
+  editable, any type, **no activity for more than `STALE_AGE_DAYS` (14) days** (latest
+  comment, or the report when there is none), and the reporter does **not** have the last
+  word among the people (`reporterHasLastWord`: Map_Team is left out, its automatic question
+  can land after the reporter's reply). The scanner caches what the conversation said and
+  decides at each publish, so a UR crossing the 14 days shows up without a reload. A question from Map_Team or an editor left unanswered is exactly what this family
+  closes; a UR whose reporter wrote last is never abandoned, someone owes them an answer.
+  Map Mate voice reports (`source === "REPORTING_AGENT"`) never qualify. Closed as
+  not-identified **without any message**. The scanner reads their conversations only when
+  the "Abandoned" box is checked, after the speed cameras' and Map Mate's.
+- Overlaps: a speed camera is never "abandoned", it always gets the message. A traffic light
+  on a freeway is never "abandoned" either, or it would reach a batch through the back door.
+- Map Mate reports (`mapMateKind`, detect.ts): `source === "REPORTING_AGENT"`, type
+  `INCORRECT_GENERAL_ERROR`, and the code before the first `:` of the description, matched
+  exactly through a `Map` (an object literal would answer `constructor`). Six codes, six
+  questions (`message.ts`, `askBody*`; `RAILROAD_CROSSING` explains that level crossings
+  are mapped only when really dangerous); any other code gets nothing. `askMapMate` only
+  comments: the UR **stays open** and the outcome is `"asked"`. A `MISSING_TRAFFIC_LIGHT`
+  is asked about only when `isKnownOffFreeway`; on a freeway it belongs to the
+  traffic-light family, on an unloaded road it waits.
+- Map Mate never gets a question once anyone but Map_Team has commented (`mayAskMapMate`),
+  with no override, and never twice: `wasMessaged`, plus `isMapMateQuestion` on the
+  conversation, as a second check behind `hasDiscussion`.
+- `settings.ts`: the four checkboxes, localStorage key `wme-ch-speed-camera-urs.settings`,
+  non-boolean values fall back to the defaults (speed cameras ☑, traffic lights ☑, Map Mate ☐,
+  abandoned ☐).
 - `addComment` sends **immediately** and cannot be withdrawn, while the closure goes to the
   edit stack. That is why the comment goes first and the closure only follows a successful
   send.
 
 **Safety rules:**
 
-- `BATCH_MIN_RANK` (level 3) and `BATCH_CAP` (50) live in `close.ts` and are enforced in
-  `closeMany`, not only in the tab. The batch button is hidden below the level.
-- Any comment on a UR keeps it out of the batch. `wasMessaged` covers Ctrl+Z: the closure
+- `BATCH_MIN_RANK` (level 3, speed cameras and Map Mate), `STALE_BATCH_MIN_RANK` (level 4)
+  and `BATCH_CAP` (50, the whole batch: speed cameras, then Map Mate, then abandoned) live in
+  `close.ts` and are enforced in `closeMany`, not only in the tab. One batch button covers
+  what is ticked and allowed; it is hidden when that is empty.
+- Any comment keeps a speed camera out of the batch, and any comment but Map_Team's keeps
+  a Map Mate report out; abandoned URs follow their own rule (`isAbandoned`). `wasMessaged` covers Ctrl+Z: the closure
   is undone but the message is not, and WME's cached conversation may not show it yet.
 - A UR already messaged is never messaged again: `alreadyMessaged` is true when
   `wasMessaged(id)` (this session) or a comment contains the official text (`isOfficialMessage`,
   any of the four languages), which is what survives a reload when the closure was not saved.
   Closing it one by one closes it without re-sending, behind its own confirmation
   (`confirmCloseOnly`, button "Close").
-- Traffic lights have **no batch at all**, whatever the level: the prefix alone does not
-  make a speed camera. `closeTrafficLight` re-checks the prefix and `isOnFreeway` right
-  before writing, and `closeMany` cannot reach them (it only takes speed-camera URs).
+- Traffic lights **on a freeway** have **no batch at all**, whatever the level: the prefix
+  alone does not make a speed camera. (A Map Mate light known to be off a freeway does reach
+  the batch, as a question.) `closeTrafficLight` re-checks the prefix and `isOnFreeway` right
+  before writing. `closeMany` cannot reach them: the speed-camera family needs the speed-camera
+  prefix, `askMapMate` and `closeStale` refuse a light not known to be off a freeway.
 - Every UR is re-read right before writing; one closed in the meantime is skipped. The UR's
   state is live, but `getUpdateRequestDetails` may return the conversation already in WME's
   data model (the SDK offers no forced refresh), so a very recent comment can be missing.

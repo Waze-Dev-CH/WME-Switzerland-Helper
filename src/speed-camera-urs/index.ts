@@ -10,12 +10,13 @@ import { normalizeLocale, setLocale } from "./i18n";
 import { log } from "./log";
 import { UrHighlight } from "./map-highlight";
 import { Scanner } from "./scanner";
+import { loadSettings } from "./settings";
 import { TabUI } from "./ui/tab";
 
 // Own scriptId so this feature gets its own Scripts-sidebar tab: registerScriptTab() throws
 // if the host's scriptId already owns a tab.
 const SCRIPT_ID = "wme-ch-speed-camera-urs";
-const SCRIPT_NAME = "WME CH Speed Camera URs";
+const SCRIPT_NAME = "WME CH UR Assistant";
 
 export async function initSpeedCameraUrs(): Promise<void> {
   await unsafeWindow.SDK_INITIALIZED;
@@ -29,10 +30,14 @@ export async function initSpeedCameraUrs(): Promise<void> {
   await sdk.Events.once({ eventName: "wme-ready" });
   setLocale(normalizeLocale(sdk.Settings.getLocale().localeCode));
 
+  const settings = loadSettings();
   const scanner = new Scanner(sdk);
+  scanner.setReadSpeedCamera(settings.criteria.speedCamera);
+  scanner.setReadStale(settings.criteria.stale);
+  scanner.setReadMapMate(settings.criteria.mapMate);
   const highlight = new UrHighlight(sdk);
   highlight.init();
-  await new TabUI(sdk, scanner, highlight).init();
+  await new TabUI(sdk, scanner, highlight, settings).init();
   scanner.start();
   log.info(`ready (SDK ${sdk.getSDKVersion()}, WME ${sdk.getWMEVersion()})`);
 }
