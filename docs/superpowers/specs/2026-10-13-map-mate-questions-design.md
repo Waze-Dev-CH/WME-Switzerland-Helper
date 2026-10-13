@@ -177,8 +177,8 @@ déjà partis et qu'il n'y a rien à sauvegarder (nouvelle clé `askedReminder`)
 Les cases, dans l'ordre : Radars, Feux sur autoroute, Map Mate : demander des précisions,
 Abandonnés.
 
-La section « Map Mate (N) » vient après les feux sur autoroute. Sa note explique la famille
-et dit que l'UR reste ouvert. Chaque ligne affiche le cas : `#id · Feu · FR · date`. Les
+La section « Map Mate (N) » vient après les feux sur autoroute. Sa description est dans le
+« (i) » de sa case (§4.6). Chaque ligne affiche le cas : `#id · Feu · FR · date`. Les
 lignes `pending` n'ont pas de bouton. Il n'y a pas de lignes « conversation » : un UR
 commenté n'est pas listé.
 
@@ -192,14 +192,12 @@ Son nom, son titre, sa note et sa bannière le disent.
 | `tabName` (préfixé `CH · `) | Assistant UR | UR-Assistent | Assistente UR | UR assistant |
 | `appName` (titre dans l'onglet) | Assistant des UR | Assistent für URs | Assistente per le UR | Update request assistant |
 
-**`tabNote`**
-- FR : Traite les UR ouverts à l'écran, par familles à cocher ci-dessous : radars (message officiel, puis fermeture), feux signalés sur autoroute (fermeture sans message), signalements Map Mate (question au rapporteur, l'UR reste ouvert) et UR abandonnés (fermeture sans message). Rien n'est sauvegardé automatiquement.
-- DE : Bearbeitet die offenen URs im Bildausschnitt, nach den unten angekreuzten Gruppen: Radare (offizielle Nachricht, dann Schliessen), auf der Autobahn gemeldete Ampeln (Schliessen ohne Nachricht), Map-Mate-Meldungen (Frage an die meldende Person, die UR bleibt offen) und verwaiste URs (Schliessen ohne Nachricht). Nichts wird automatisch gespeichert.
-- IT : Tratta le UR aperte sullo schermo, secondo le famiglie selezionate qui sotto: autovelox (messaggio ufficiale, poi chiusura), semafori segnalati in autostrada (chiusura senza messaggio), segnalazioni Map Mate (domanda a chi ha segnalato, la UR resta aperta) e UR abbandonate (chiusura senza messaggio). Nulla viene salvato automaticamente.
-- EN : Handles the open URs on screen, by the families ticked below: speed cameras (official message, then closure), traffic lights reported on a freeway (closed without a message), Map Mate reports (a question to the reporter, the UR stays open) and abandoned URs (closed without a message). Nothing is saved automatically.
-
-La note du radar, qui explique la loi suisse, passe dans une note propre à la section des
-radars (`speedCameraNote`), comme `trafficLightNote` et `staleNote` pour leurs sections.
+**Note en tête d'onglet (`tabNote`)** : une ligne courte. Le détail de chaque famille passe
+dans son « (i) » (§4.6).
+- FR : Traite les UR ouverts à l'écran, selon les familles cochées ci-dessous. Rien n'est sauvegardé automatiquement.
+- DE : Bearbeitet die offenen URs im Bildausschnitt, nach den unten angekreuzten Gruppen. Nichts wird automatisch gespeichert.
+- IT : Tratta le UR aperte sullo schermo, secondo le famiglie selezionate qui sotto. Nulla viene salvato automaticamente.
+- EN : Handles the open URs on screen, by the families ticked below. Nothing is saved automatically.
 
 **Bannière.** Elle compte toutes les familles cochées, plus seulement les radars :
 « N UR à traiter à l'écran, M en vérification ». Sans aucune famille cochée, elle invite à
@@ -216,6 +214,40 @@ texte dans les quatre langues, et `stateNoFamily` s'ajoute.
   cochées survivent à la mise à jour.
 
 `SCRIPT_NAME` devient « WME CH UR Assistant ».
+
+### 4.6 Un « (i) » au bout de chaque case
+
+Chaque case porte, en bout de ligne, un petit « (i) ». Le survoler (ou y arriver au clavier)
+affiche la description de la famille. Ces textes remplacent les notes en haut des sections,
+pour qu'ils ne soient écrits qu'à un seul endroit.
+
+| Case | Clé | Contenu |
+| --- | --- | --- |
+| Radars | `speedCameraInfo` | L'ancien `tabNote` : commente et ferme en Non identifié les UR `MISSING_STATIC_SPEED_CAMERA` ; la loi suisse interdit d'afficher les radars fixes ; chaque utilisateur reçoit l'explication officielle dans sa langue |
+| Feux sur autoroute | `trafficLightNote` (renommée `trafficLightInfo`) | Texte actuel, inchangé |
+| Map Mate | `mapMateInfo` | Les signalements vocaux Map Mate reçoivent une question adaptée au cas (feu, itinéraire, vitesse, virage, général) dans la langue du rapporteur ; l'UR reste ouvert ; rien n'est envoyé dès qu'il y a eu un commentaire |
+| Abandonnés | `staleNote` (renommée `staleInfo`) | Texte actuel, inchangé |
+
+`conversationNote`, dans la section radars « Déjà une conversation », reste où elle est : elle
+explique cette sous-liste, pas la famille.
+
+**Rendu.**
+- Le « (i) » est un petit rond dessiné en CSS (`.scu-info`), avec la lettre « i ». On
+  n'utilise pas d'icône de la police Waze : aucune icône « info » n'est vérifiée dans le
+  projet.
+- La case et le « (i) » sont posés côte à côte dans une ligne (`.scu-criterion-row`). Le
+  « (i) » n'est **pas** dans le libellé de la case : cliquer dessus ne coche ni ne décoche
+  rien.
+- Le texte passe dans l'attribut `title`, pour l'infobulle native du navigateur au survol.
+  Il passe aussi dans `aria-label`, avec `tabindex="0"`, pour le clavier et les lecteurs
+  d'écran.
+- Sur écran tactile, l'infobulle native ne s'affiche pas. C'est accepté : WME s'utilise
+  essentiellement à la souris.
+
+**Tests (`ui/criteria.test.ts`)** :
+- le « (i) » porte le texte dans `title` et `aria-label` ;
+- il est focalisable ;
+- il est hors du libellé, et le cliquer ne déclenche pas `onChange`.
 
 ## 5. Erreurs
 
