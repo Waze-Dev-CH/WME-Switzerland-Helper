@@ -297,8 +297,10 @@ export async function closeStale(
     !isKnownOffFreeway(ur, sdk.DataModel.Segments.getAll());
   if (lightBlocked) return { id, result: "skipped", reason: "skipGone" };
 
-  if (inFlight.has(id))
+  if (inFlight.has(id)) {
+    log.warn(`Abandoned UR ${id} skipped: already being handled`);
     return { id, result: "skipped", reason: "skipConversation" };
+  }
   inFlight.add(id);
   try {
     let comments: ConversationElement[];
@@ -312,8 +314,22 @@ export async function closeStale(
       log.warn(`Could not read the conversation of UR ${id}`, err);
       return { id, result: "failed", reason: "errDetails" };
     }
-    if (wasMessaged(id) || !isAbandoned(comments, ur.reportedOn, now))
+    const messaged = wasMessaged(id);
+    const abandoned = isAbandoned(comments, ur.reportedOn, now);
+    if (messaged || !abandoned) {
+      // Everything the verdict was made of: the list said abandoned, this read says not.
+      log.warn(`Abandoned UR ${id} skipped at closure`, {
+        wasMessaged: messaged,
+        isAbandoned: abandoned,
+        reportedOn: describeTime(ur.reportedOn),
+        now: describeTime(now),
+        comments: comments.map((comment) => ({
+          userName: comment.userName,
+          createdOn: describeTime(comment.createdOn),
+        })),
+      });
       return { id, result: "skipped", reason: "skipConversation" };
+    }
     return closeWithoutMessage(urs, id);
   } finally {
     inFlight.delete(id);
@@ -451,6 +467,15 @@ export function summarizeBatch(
     (outcome) => outcome.result === "closed" && cameras.has(outcome.id),
   );
   return summarize(outcomes, { messagesSent });
+}
+
+/** The raw value next to its date: a wrong type or unit shows at a glance. */
+function describeTime(value: unknown): string {
+  const date = new Date(value as number);
+  const readable = Number.isNaN(date.getTime())
+    ? "invalid"
+    : date.toISOString();
+  return `${String(value)} (${typeof value}, ${readable})`;
 }
 
 function closeWithoutMessage(
