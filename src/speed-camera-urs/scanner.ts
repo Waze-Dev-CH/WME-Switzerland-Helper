@@ -1,9 +1,15 @@
-import type { MapUpdateRequest, WmeSDK } from "wme-sdk-typings";
+import type {
+  ConversationElement,
+  MapUpdateRequest,
+  WmeSDK,
+} from "wme-sdk-typings";
 import { alreadyMessaged, wasMessaged } from "./close";
 import {
+  hasDiscussion,
   isInExtent,
   isOnFreeway,
   isSpeedCameraUr,
+  isStaleCandidate,
   isTrafficLightUr,
   triage,
   type Triage,
@@ -25,9 +31,15 @@ export interface UrEntry {
 /** No triage: traffic lights are handled one by one, their conversation is read on click. */
 export type TrafficLightEntry = Omit<UrEntry, "triage">;
 
+/** "pending" until the conversation is read; a UR found to have one leaves the list. */
+export interface StaleEntry extends TrafficLightEntry {
+  state: "pending" | "stale";
+}
+
 export interface ScanSnapshot {
   entries: UrEntry[];
   trafficLights: TrafficLightEntry[];
+  stale: StaleEntry[];
 }
 
 const DEBOUNCE_MS = 300;
@@ -45,16 +57,34 @@ const SEGMENTS = "segments";
  */
 export class Scanner {
   private triageCache = new Map<number, Triage>();
+  /** true = abandoned, false = someone wrote. Kept when the box is unchecked. */
+  private staleCache = new Map<number, boolean>();
   /** Bumped by forget(), so a read that was in flight when the UR changed is not cached. */
   private versions = new Map<number, number>();
-  private snapshot: ScanSnapshot = { entries: [], trafficLights: [] };
+  private snapshot: ScanSnapshot = { entries: [], trafficLights: [], stale: [] };
   private trafficLights: TrafficLightEntry[] = [];
+  private staleCandidates: MapUpdateRequest[] = [];
+  /**
+   * Off by default: every old UR on screen costs a server round trip. The tab turns it on
+   * when the editor checks "abandoned", then schedules a rescan itself.
+   */
+  private readStale = false;
   private listeners: Array<(snapshot: ScanSnapshot) => void> = [];
   /** Bumped by every rescan, so a slow one stops publishing once a newer one started. */
   private generation = 0;
   private timer: ReturnType<typeof setTimeout> | undefined;
+  private now: () => number;
 
-  constructor(private sdk: WmeSDK) {}
+  constructor(
+    private sdk: WmeSDK,
+    options: { now?: () => number } = {},
+  ) {
+    this.now = options.now ?? (() => Date.now());
+  }
+
+  setReadStale(on: boolean): void {
+    this.readStale = on;
+  }
 
   start(): void {
     for (const dataModelName of [MODEL, SEGMENTS] as const) {
@@ -114,6 +144,7 @@ export class Scanner {
     for (const id of ids) {
       const key = Number(id);
       this.triageCache.delete(key);
+      this.staleCache.delete(key);
       this.versions.set(key, (this.versions.get(key) ?? 0) + 1);
     }
   }
@@ -134,34 +165,63 @@ export class Scanner {
     const candidates = onScreen.filter(isTrafficLightUr);
     const segments =
       candidates.length > 0 ? this.sdk.DataModel.Segments.getAll() : [];
-    this.trafficLights = candidates
-      .filter((ur) => isOnFreeway(ur, segments))
-      .map((ur) => this.basics(ur));
+    const lights = candidates.filter((ur) => isOnFreeway(ur, segments));
+    this.trafficLights = lights.map((ur) => this.basics(ur));
+
+    // A traffic light on a freeway stays a traffic light: as "abandoned" it would reach a
+    // batch, which that family must never do.
+    const lightIds = new Set(lights.map((ur) => ur.id));
+    const now = this.now();
+    this.staleCandidates = this.readStale
+      ? onScreen.filter(
+          (ur) => isStaleCandidate(ur, now) && !lightIds.has(ur.id),
+        )
+      : [];
     this.publish(found);
 
     for (const ur of found) {
       if (this.triageCache.has(ur.id)) continue;
-      const version = this.versions.get(ur.id) ?? 0;
-      try {
-        const details =
-          await this.sdk.DataModel.MapUpdateRequests.getUpdateRequestDetails({
-            mapUpdateRequestId: ur.id,
-          });
-        // Not cached on failure or absence: the UR stays pending and the next scan retries.
-        // A stale scan or a UR changed meanwhile read an outdated conversation: do not cache it.
-        const overtaken =
-          generation !== this.generation ||
-          version !== (this.versions.get(ur.id) ?? 0);
-        if (details && !overtaken)
-          this.triageCache.set(
-            ur.id,
-            triage(details.comments, alreadyMessaged(ur.id, details.comments)),
-          );
-      } catch (err) {
-        log.warn(`Could not read the conversation of UR ${ur.id}`, err);
-      }
+      const comments = await this.readConversation(ur.id, generation);
+      if (comments)
+        this.triageCache.set(
+          ur.id,
+          triage(comments, alreadyMessaged(ur.id, comments)),
+        );
       if (generation !== this.generation) return;
       this.publish(found);
+    }
+
+    // After the speed cameras: those carry a message the reporter is waiting for.
+    for (const ur of this.staleCandidates) {
+      if (this.staleCache.has(ur.id)) continue;
+      const comments = await this.readConversation(ur.id, generation);
+      if (comments) this.staleCache.set(ur.id, !hasDiscussion(comments));
+      if (generation !== this.generation) return;
+      this.publish(found);
+    }
+  }
+
+  /**
+   * null on failure, absence, or when a newer scan or a change to the UR overtook the read:
+   * the UR then stays pending and the next scan retries.
+   */
+  private async readConversation(
+    id: number,
+    generation: number,
+  ): Promise<ConversationElement[] | null> {
+    const version = this.versions.get(id) ?? 0;
+    try {
+      const details =
+        await this.sdk.DataModel.MapUpdateRequests.getUpdateRequestDetails({
+          mapUpdateRequestId: id,
+        });
+      const overtaken =
+        generation !== this.generation ||
+        version !== (this.versions.get(id) ?? 0);
+      return details && !overtaken ? details.comments : null;
+    } catch (err) {
+      log.warn(`Could not read the conversation of UR ${id}`, err);
+      return null;
     }
   }
 
@@ -169,8 +229,17 @@ export class Scanner {
     this.snapshot = {
       entries: found.map((ur) => this.toEntry(ur)),
       trafficLights: this.trafficLights,
+      stale: this.staleCandidates.flatMap((ur) => this.toStaleEntry(ur)),
     };
     for (const listener of this.listeners) listener(this.snapshot);
+  }
+
+  /** Empty when someone wrote: the UR is not abandoned and has nothing to do here. */
+  private toStaleEntry(ur: MapUpdateRequest): StaleEntry[] {
+    const verdict = this.staleCache.get(ur.id);
+    if (verdict === false || wasMessaged(ur.id)) return [];
+    const state = verdict === true ? "stale" : "pending";
+    return [{ ...this.basics(ur), state }];
   }
 
   private toEntry(ur: MapUpdateRequest): UrEntry {
