@@ -232,9 +232,10 @@ pour qu'ils ne soient écrits qu'à un seul endroit.
 explique cette sous-liste, pas la famille.
 
 **Rendu.**
-- Le « (i) » est un petit rond dessiné en CSS (`.scu-info`), avec la lettre « i ». On
-  n'utilise pas d'icône de la police Waze : aucune icône « info » n'est vérifiée dans le
-  projet.
+- Le « (i) » est l'icône `w-icon-info` de la police Waze (le contour, plus discret que
+  `w-icon-info-fill`), via `icon("info")` de `src/ui/dom.ts`. Elle est dans un `<span
+  class="scu-info">` qui porte l'infobulle : l'icône elle-même reste décorative
+  (`aria-hidden`), comme partout ailleurs.
 - La case et le « (i) » sont posés côte à côte dans une ligne (`.scu-criterion-row`). Le
   « (i) » n'est **pas** dans le libellé de la case : cliquer dessus ne coche ni ne décoche
   rien.
