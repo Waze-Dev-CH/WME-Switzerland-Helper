@@ -5,7 +5,7 @@ import type {
 } from "wme-sdk-typings";
 import { alreadyMessaged, wasMessaged } from "./close";
 import {
-  isAbandoned,
+  isIdle,
   isInExtent,
   isKnownOffFreeway,
   isOnFreeway,
@@ -13,6 +13,7 @@ import {
   isStaleCandidate,
   isTrafficLightUr,
   lastActivity,
+  reporterHasLastWord,
   mapMateKind,
   triage,
   type MapMateKind,
@@ -72,8 +73,14 @@ const SEGMENTS = "segments";
  */
 export class Scanner {
   private triageCache = new Map<number, Triage>();
-  /** Last activity when abandoned, false when not. Kept when the box is unchecked. */
-  private staleCache = new Map<number, number | false>();
+  /**
+   * What the conversation said, not the verdict: the verdict depends on the time, and a UR
+   * crosses the 14 days during a session. Kept when the box is unchecked.
+   */
+  private staleCache = new Map<
+    number,
+    { lastActivity: number; reporterHasLastWord: boolean }
+  >();
   /** true = nobody but Map_Team wrote and we did not ask yet. */
   private mapMateCache = new Map<number, boolean>();
   /** Bumped by forget(), so a read that was in flight when the UR changed is not cached. */
@@ -236,11 +243,11 @@ export class Scanner {
     for (const ur of this.staleCandidates) {
       if (this.staleCache.has(ur.id)) continue;
       const comments = await this.readConversation(ur.id, generation);
-      if (comments) {
-        const abandoned = isAbandoned(comments, ur.reportedOn, now);
-        const since = lastActivity(ur.reportedOn, comments);
-        this.staleCache.set(ur.id, abandoned ? since : false);
-      }
+      if (comments)
+        this.staleCache.set(ur.id, {
+          lastActivity: lastActivity(ur.reportedOn, comments),
+          reporterHasLastWord: reporterHasLastWord(comments),
+        });
       if (generation !== this.generation) return;
       this.publish(found);
     }
@@ -304,13 +311,18 @@ export class Scanner {
 
   /** Empty when the UR turned out not to be abandoned: it has nothing to do here. */
   private toStaleEntry(ur: MapUpdateRequest): StaleEntry[] {
-    const verdict = this.staleCache.get(ur.id);
-    if (verdict === false || wasMessaged(ur.id)) return [];
-    if (verdict === undefined)
+    if (wasMessaged(ur.id)) return [];
+    const read = this.staleCache.get(ur.id);
+    if (read === undefined)
       return [
         { ...this.basics(ur), state: "pending", lastActivity: ur.reportedOn },
       ];
-    return [{ ...this.basics(ur), state: "stale", lastActivity: verdict }];
+    const abandoned =
+      !read.reporterHasLastWord && isIdle(read.lastActivity, this.now());
+    if (!abandoned) return [];
+    return [
+      { ...this.basics(ur), state: "stale", lastActivity: read.lastActivity },
+    ];
   }
 
   private toEntry(ur: MapUpdateRequest): UrEntry {

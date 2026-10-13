@@ -431,3 +431,23 @@ describe("Scanner Map Mate reports", () => {
     expect(scanner.getSnapshot().mapMate).toEqual([]);
   });
 });
+
+describe("Scanner abandoned URs over a long session", () => {
+  it("lists a UR the day it passes 14 days idle, without reloading", async () => {
+    let now = NOW;
+    const asked = { ...comment, createdOn: NOW - 10 * DAY };
+    const { sdk, calls } = makeSdk([makeUr(1, road)], {
+      comments: { 1: [asked] },
+    });
+    const scanner = new Scanner(sdk, { now: () => now });
+    scanner.setReadStale(true);
+    await scanner.rescan();
+    expect(scanner.getSnapshot().stale).toEqual([]);
+
+    now = NOW + 5 * DAY;
+    await scanner.rescan();
+
+    expect(stateOf(scanner.getSnapshot())).toEqual([[1, "stale"]]);
+    expect(calls).toEqual(["details:1"]);
+  });
+});
