@@ -34,40 +34,13 @@ import {
   shouldShowCloseSelected,
   splitEntries,
 } from "./format";
+import { criterionCheckbox } from "./criteria";
 import { injectStyles } from "./styles";
 
 /** The title span of a section built by buildSection: the icon is an <i>, the title a <span>. */
 function setSectionTitle(section: HTMLDetailsElement, text: string): void {
   const title = section.querySelector("summary span");
   if (title) title.textContent = text;
-}
-
-/**
- * WME's own checkbox, so the block looks like the rest of the editor. It is part of WME's
- * interface, not of the SDK, like <wz-button> in src/reloadButton.ts: it only renders, the
- * state lives in our settings. Where WME does not define it, a plain checkbox stands in.
- */
-function criterionCheckbox(
-  text: string,
-  checked: boolean,
-  onChange: (checked: boolean) => void,
-): HTMLElement {
-  if (customElements.get("wz-checkbox")) {
-    const box = document.createElement("wz-checkbox") as HTMLElement & {
-      checked: boolean;
-    };
-    box.checked = checked;
-    box.textContent = text;
-    box.addEventListener("change", () => onChange(box.checked));
-    return box;
-  }
-  const label = el("label", "scu-criterion");
-  const input = el("input");
-  input.type = "checkbox";
-  input.checked = checked;
-  input.addEventListener("change", () => onChange(input.checked));
-  label.append(input, el("span", undefined, text));
-  return label;
 }
 
 /**
