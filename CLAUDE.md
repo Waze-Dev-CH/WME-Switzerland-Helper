@@ -173,8 +173,9 @@ triage) → `TabUI`. `close.ts` is the only module that writes.
   on a freeway is never "abandoned" either, or it would reach a batch through the back door.
 - Map Mate reports (`mapMateKind`, detect.ts): `source === "REPORTING_AGENT"`, type
   `INCORRECT_GENERAL_ERROR`, and the code before the first `:` of the description, matched
-  exactly through a `Map` (an object literal would answer `constructor`). Five codes, five
-  questions (`message.ts`, `askBody*`); any other code gets nothing. `askMapMate` only
+  exactly through a `Map` (an object literal would answer `constructor`). Six codes, six
+  questions (`message.ts`, `askBody*`; `RAILROAD_CROSSING` explains that level crossings
+  are mapped only when really dangerous); any other code gets nothing. `askMapMate` only
   comments: the UR **stays open** and the outcome is `"asked"`. A `MISSING_TRAFFIC_LIGHT`
   is asked about only when `isKnownOffFreeway`; on a freeway it belongs to the
   traffic-light family, on an unloaded road it waits.

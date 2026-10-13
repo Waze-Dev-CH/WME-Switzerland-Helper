@@ -39,6 +39,7 @@ ouvert pour qu'il puisse répondre.
 | `INCORRECT_ROUTE` | Itinéraire | Quel trajet, où était le conducteur au moment du problème, ce qu'il attendait, ce qu'il a eu |
 | `INCORRECT_SPEED_LIMIT` | Vitesse | Sur quel tronçon (de où à où), quelle est la bonne limitation, changement local récent ? |
 | `INCORRECT_TURN` | Virage | Sur quelle rue il roulait, dans laquelle il voulait tourner, où il a vraiment tourné |
+| `RAILROAD_CROSSING` | Passage à niveau | En Suisse, pas indiqué sur la carte par défaut, sauf s'il est vraiment dangereux ; si c'est le cas, nous le dire (où, et pourquoi) |
 | `GENERAL_MAP_UPDATE` | Général | Où exactement, et quelle modification de la carte |
 
 ### 2.2 Feux : partage avec les feux sur autoroute

@@ -156,6 +156,12 @@ describe("buildMapMateQuestion", () => {
     );
   });
 
+  it("explains that level crossings are mapped only when really dangerous", () => {
+    const text = buildMapMateQuestion("railroadCrossing", "fr");
+    expect(text).toContain("passages à niveau ne sont pas indiqués");
+    expect(text).toContain("n'hésitez pas à nous le dire");
+  });
+
   it("has a distinct text for every case in every language", () => {
     const texts = MAP_MATE_KINDS.flatMap((kind) =>
       (["fr", "de", "it", "en"] as const).map((lang) =>

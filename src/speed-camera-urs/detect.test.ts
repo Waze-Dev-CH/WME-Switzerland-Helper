@@ -213,6 +213,9 @@ describe("mapMateKind", () => {
       "speedLimit",
     );
     expect(mapMateKind(makeMapMateUr(1, "INCORRECT_TURN"))).toBe("turn");
+    expect(mapMateKind(makeMapMateUr(1, "RAILROAD_CROSSING"))).toBe(
+      "railroadCrossing",
+    );
     expect(mapMateKind(makeMapMateUr(1, "GENERAL_MAP_UPDATE"))).toBe("general");
   });
 

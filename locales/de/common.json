@@ -328,10 +328,12 @@
     "dlgQuoteLabelKind": "Gesendete Frage · {{kind}}",
     "summaryAsked": "{{count}} Frage(n) gesendet.",
     "askedReminder": "Die Fragen sind bereits gesendet; die URs bleiben offen, nichts zu speichern.",
-    "mapMateInfo": "Sprachmeldungen von Map Mate erhalten eine zum Fall passende Frage (Ampel, Strecke, Tempolimit, Abbiegen, Allgemein) in der Sprache der meldenden Person. Die UR bleibt für die Antwort offen. Es wird nichts gesendet, sobald jemand anderes als Map_Team kommentiert hat, und eine Ampel, deren nächste Strasse eine Autobahn ist, bleibt im Abschnitt der Autobahn-Ampeln.",
+    "mapMateInfo": "Sprachmeldungen von Map Mate erhalten eine zum Fall passende Frage (Ampel, Strecke, Tempolimit, Abbiegen, Bahnübergang, Allgemein) in der Sprache der meldenden Person. Die UR bleibt für die Antwort offen. Es wird nichts gesendet, sobald jemand anderes als Map_Team kommentiert hat, und eine Ampel, deren nächste Strasse eine Autobahn ist, bleibt im Abschnitt der Autobahn-Ampeln.",
     "stateNoFamily": "Keine Gruppe angekreuzt: Kreuzen Sie unten mindestens eine an.",
     "speedCameraInfo": "Kommentiert die offenen URs vom Typ MISSING_STATIC_SPEED_CAMERA im Bildausschnitt und schliesst sie als «Nicht identifiziert». Das Schweizer Recht verbietet, fest installierte Radare in Waze anzuzeigen: Jede meldende Person erhält die offizielle Erklärung in ihrer Sprache.",
     "trafficLightInfo": "URs vom Typ MISSING_TRAFFIC_LIGHT, deren nächste Strasse eine Autobahn ist: oft ein als Ampel gemeldeter Radar. Nur einzeln: Öffnen Sie jede UR und prüfen Sie sie vor dem Schliessen. Es wird keine Nachricht gesendet.",
-    "staleInfo": "Offene URs jeden Typs, vor mehr als {{days}} Tagen gemeldet, in denen niemand ausser Map_Team geschrieben hat. Sprachmeldungen von Map Mate sind ausgenommen. Werden als «Nicht identifiziert» geschlossen, ohne Nachricht."
+    "staleInfo": "Offene URs jeden Typs, vor mehr als {{days}} Tagen gemeldet, in denen niemand ausser Map_Team geschrieben hat. Sprachmeldungen von Map Mate sind ausgenommen. Werden als «Nicht identifiziert» geschlossen, ohne Nachricht.",
+    "askBodyRailroadCrossing": "In der Schweiz werden Bahnübergänge standardmässig nicht auf der Karte angezeigt, ausser sie sind wirklich gefährlich.\n\nFalls das bei diesem der Fall ist, sagen Sie es uns bitte, indem Sie hier antworten: Wo genau befindet er sich, und was macht ihn gefährlich?",
+    "kindRailroadCrossing": "Bahnübergang"
   }
 }

@@ -328,10 +328,12 @@
     "dlgQuoteLabelKind": "Question envoyée · {{kind}}",
     "summaryAsked": "{{count}} question(s) envoyée(s).",
     "askedReminder": "Les questions sont déjà parties ; les UR restent ouverts, rien à sauvegarder.",
-    "mapMateInfo": "Les signalements vocaux Map Mate reçoivent une question adaptée à leur cas (feu, itinéraire, vitesse, virage, général) dans la langue du rapporteur. L'UR reste ouvert pour sa réponse. Rien n'est envoyé dès qu'une autre personne que Map_Team a commenté, et un feu dont la route la plus proche est une autoroute reste à la section des feux sur autoroute.",
+    "mapMateInfo": "Les signalements vocaux Map Mate reçoivent une question adaptée à leur cas (feu, itinéraire, vitesse, virage, passage à niveau, général) dans la langue du rapporteur. L'UR reste ouvert pour sa réponse. Rien n'est envoyé dès qu'une autre personne que Map_Team a commenté, et un feu dont la route la plus proche est une autoroute reste à la section des feux sur autoroute.",
     "stateNoFamily": "Aucune famille cochée : cochez-en au moins une ci-dessous.",
     "speedCameraInfo": "Commente et ferme en Non identifié les UR de type MISSING_STATIC_SPEED_CAMERA ouverts à l'écran. La loi suisse interdit d'afficher les radars fixes dans Waze : chaque utilisateur reçoit l'explication officielle dans sa langue.",
     "trafficLightInfo": "UR MISSING_TRAFFIC_LIGHT dont la route la plus proche est une autoroute : souvent un radar signalé comme feu. Traitement un par un uniquement : ouvrez chaque UR et vérifiez-le avant de le fermer. Aucun message n'est envoyé.",
-    "staleInfo": "UR ouverts de tout type, signalés il y a plus de {{days}} jours, où personne d'autre que Map_Team n'a écrit. Les signalements vocaux Map Mate sont exclus. Fermés en Non identifié, sans message."
+    "staleInfo": "UR ouverts de tout type, signalés il y a plus de {{days}} jours, où personne d'autre que Map_Team n'a écrit. Les signalements vocaux Map Mate sont exclus. Fermés en Non identifié, sans message.",
+    "askBodyRailroadCrossing": "En Suisse, les passages à niveau ne sont pas indiqués sur la carte par défaut, sauf s'ils sont vraiment dangereux.\n\nSi c'est le cas de celui-ci, n'hésitez pas à nous le dire en répondant ici : où se trouve-t-il exactement, et qu'est-ce qui le rend dangereux ?",
+    "kindRailroadCrossing": "Passage à niveau"
   }
 }

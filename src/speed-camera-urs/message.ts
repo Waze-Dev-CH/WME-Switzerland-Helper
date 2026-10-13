@@ -75,6 +75,7 @@ const ASK_BODY: Record<MapMateKind, StringKey> = {
   route: "askBodyRoute",
   speedLimit: "askBodySpeedLimit",
   turn: "askBodyTurn",
+  railroadCrossing: "askBodyRailroadCrossing",
   general: "askBodyGeneral",
 };
 
@@ -83,6 +84,7 @@ const KIND_LABEL: Record<MapMateKind, StringKey> = {
   route: "kindRoute",
   speedLimit: "kindSpeedLimit",
   turn: "kindTurn",
+  railroadCrossing: "kindRailroadCrossing",
   general: "kindGeneral",
 };
 

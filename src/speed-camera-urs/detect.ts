@@ -59,6 +59,7 @@ export type MapMateKind =
   | "route"
   | "speedLimit"
   | "turn"
+  | "railroadCrossing"
   | "general";
 
 /** The order quotes and labels follow. */
@@ -67,6 +68,7 @@ export const MAP_MATE_KINDS: readonly MapMateKind[] = [
   "route",
   "speedLimit",
   "turn",
+  "railroadCrossing",
   "general",
 ];
 
@@ -79,6 +81,7 @@ const MAP_MATE_CODES = new Map<string, MapMateKind>([
   ["INCORRECT_ROUTE", "route"],
   ["INCORRECT_SPEED_LIMIT", "speedLimit"],
   ["INCORRECT_TURN", "turn"],
+  ["RAILROAD_CROSSING", "railroadCrossing"],
   ["GENERAL_MAP_UPDATE", "general"],
 ]);
 
