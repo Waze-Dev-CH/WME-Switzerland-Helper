@@ -5,6 +5,7 @@ export interface Criteria {
   speedCamera: boolean;
   trafficLight: boolean;
   stale: boolean;
+  mapMate: boolean;
 }
 
 export interface Settings {
@@ -16,12 +17,14 @@ export const STORAGE_KEY = "wme-ch-speed-camera-urs.settings";
 
 /**
  * Abandoned starts off: checking it reads the conversation of every old UR on screen, one
- * server round trip each, and widens a lot what a single click can close.
+ * server round trip each, and widens a lot what a single click can close. Map Mate starts
+ * off too: it sends messages that cannot be withdrawn.
  */
 export const DEFAULT_CRITERIA: Criteria = {
   speedCamera: true,
   trafficLight: true,
   stale: false,
+  mapMate: false,
 };
 
 export type SettingsStore = Pick<Storage, "getItem" | "setItem">;

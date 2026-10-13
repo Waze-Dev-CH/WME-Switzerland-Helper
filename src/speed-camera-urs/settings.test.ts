@@ -30,7 +30,12 @@ describe("loadSettings", () => {
   it("starts with speed cameras and traffic lights on, abandoned off", () => {
     expect(loadSettings(memoryStore().store)).toEqual({
       version: 1,
-      criteria: { speedCamera: true, trafficLight: true, stale: false },
+      criteria: {
+        speedCamera: true,
+        trafficLight: true,
+        stale: false,
+        mapMate: false,
+      },
     });
     expect(DEFAULT_CRITERIA.stale).toBe(false);
   });
@@ -43,6 +48,7 @@ describe("loadSettings", () => {
       speedCamera: true,
       trafficLight: true,
       stale: true,
+      mapMate: false,
     });
   });
 
@@ -61,6 +67,21 @@ describe("loadSettings", () => {
     }
   });
 
+  it("keeps Map Mate off for settings saved before it existed", () => {
+    const { store } = memoryStore(
+      JSON.stringify({
+        version: 1,
+        criteria: { speedCamera: true, trafficLight: false, stale: true },
+      }),
+    );
+    expect(loadSettings(store).criteria).toEqual({
+      speedCamera: true,
+      trafficLight: false,
+      stale: true,
+      mapMate: false,
+    });
+  });
+
   it("falls back to the defaults when the storage throws or is missing", () => {
     expect(loadSettings(throwing).criteria).toEqual(DEFAULT_CRITERIA);
     expect(loadSettings(null).criteria).toEqual(DEFAULT_CRITERIA);
@@ -72,7 +93,12 @@ describe("saveSettings", () => {
     const { store, data } = memoryStore();
     const settings = {
       version: 1 as const,
-      criteria: { speedCamera: false, trafficLight: true, stale: true },
+      criteria: {
+        speedCamera: false,
+        trafficLight: true,
+        stale: true,
+        mapMate: true,
+      },
     };
     saveSettings(settings, store);
     expect(JSON.parse(data.get(STORAGE_KEY) ?? "")).toEqual(settings);

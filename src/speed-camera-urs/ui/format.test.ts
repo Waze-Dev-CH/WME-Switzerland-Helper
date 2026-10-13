@@ -75,7 +75,12 @@ describe("selectedBatch", () => {
   });
 
   it("drops a family that is unchecked", () => {
-    const criteria = { speedCamera: false, trafficLight: true, stale: true };
+    const criteria = {
+      speedCamera: false,
+      trafficLight: true,
+      stale: true,
+      mapMate: false,
+    };
     expect(selectedBatch(criteria, everyone, ready)).toEqual({
       speedCamera: [],
       stale: [10],
