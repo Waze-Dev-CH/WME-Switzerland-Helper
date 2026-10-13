@@ -18,6 +18,7 @@ import {
   makeTrafficLightUr,
   makeUr,
 } from "./fake-sdk";
+import { Scanner } from "./scanner";
 import { buildMapMateQuestion, buildMessage } from "./message";
 
 const official = {
@@ -593,5 +594,36 @@ describe("runCloseSelected with Map Mate", () => {
     expect(specOf(confirm).quotes).toHaveLength(2);
     expect(sent.map((s) => s.id)).toEqual([1, 2]);
     expect(notify.mock.calls[0]?.[0]).toContain("1 question(s) sent.");
+  });
+});
+
+describe("an abandoned UR with only Map_Team's question (reported from WME)", () => {
+  const conversation = [
+    {
+      createdOn: Date.parse("2026-09-14T05:28:01.420Z"),
+      text: "Hallo, was war das Problem bitte? \n Bonjour, quel a été le problème SVP? \n Ciao,",
+      userName: "Map_Team",
+    },
+  ];
+  const ur = () =>
+    makeUr(1, { ...road, reportedOn: Date.parse("2026-09-13T18:00:00Z") });
+
+  it("is listed as abandoned, then closed when the editor confirms, right now", async () => {
+    const now = Date.now();
+    const { sdk, calls } = makeSdk([ur()], { comments: { 1: conversation } });
+    const scanner = new Scanner(sdk, { now: () => now });
+    scanner.setReadStale(true);
+    await scanner.rescan();
+    expect(scanner.getSnapshot().stale.map((e) => e.state)).toEqual(["stale"]);
+
+    const outcome = await runCloseStale(
+      sdk,
+      1,
+      { confirm: accept(), notify: silent() },
+      now,
+    );
+
+    expect(outcome).toEqual({ id: 1, result: "closed" });
+    expect(calls[calls.length - 1]).toBe("close:1:not-identified");
   });
 });
