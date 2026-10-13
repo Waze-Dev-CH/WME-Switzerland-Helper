@@ -6,6 +6,7 @@ import {
   canBatch,
   canBatchStale,
   isCloseInFlight,
+  runAskMapMate,
   runCloseOne,
   runCloseSelected,
   runCloseStale,
@@ -21,12 +22,14 @@ import type { UrHighlight } from "../map-highlight";
 import type {
   Scanner,
   StaleEntry,
+  MapMateEntry,
   TrafficLightEntry,
   UrEntry,
 } from "../scanner";
 import { saveSettings, type Criteria, type Settings } from "../settings";
 import {
   formatCloseSelectedButton,
+  formatMapMateRowLabel,
   formatRowLabel,
   formatStaleRowLabel,
   formatStatus,
@@ -65,6 +68,8 @@ export class TabUI {
   private criteria = el("div", "scu-criteria");
   private staleList = el("div", "scu-list");
   private staleSection: HTMLDetailsElement | null = null;
+  private mapMateList = el("div", "scu-list");
+  private mapMateSection: HTMLDetailsElement | null = null;
 
   constructor(
     private sdk: WmeSDK,
@@ -120,19 +125,23 @@ export class TabUI {
       "scu",
       "warning",
       t("sectionTrafficLights", { count: 0 }),
-      [el("div", "scu-note", t("trafficLightNote")), this.trafficLightList],
+      [this.trafficLightList],
       true,
     );
 
+    this.mapMateSection = buildSection(
+      "scu",
+      "warning",
+      t("sectionMapMate", { count: 0 }),
+      [this.mapMateList],
+      true,
+    );
     this.buildCriteria();
     this.staleSection = buildSection(
       "scu",
       "warning",
       t("sectionStale", { count: 0 }),
-      [
-        el("div", "scu-note", t("staleNote", { days: STALE_AGE_DAYS })),
-        this.staleList,
-      ],
+      [this.staleList],
       true,
     );
 
@@ -146,6 +155,7 @@ export class TabUI {
       this.readySection,
       this.conversationSection,
       this.trafficLightSection,
+      this.mapMateSection,
       this.staleSection,
     );
     this.tabPane.replaceChildren(pane);
@@ -159,23 +169,32 @@ export class TabUI {
       el("div", "scu-criteria-label", t("criteriaLabel")),
       criterionCheckbox(
         t("criterionSpeedCamera"),
+        t("speedCameraInfo"),
         current.speedCamera,
         toggle("speedCamera"),
       ),
       criterionCheckbox(
         t("criterionTrafficLight"),
+        t("trafficLightInfo"),
         current.trafficLight,
         toggle("trafficLight"),
       ),
       criterionCheckbox(
+        t("criterionMapMate"),
+        t("mapMateInfo"),
+        current.mapMate,
+        toggle("mapMate"),
+      ),
+      criterionCheckbox(
         t("criterionStale", { days: STALE_AGE_DAYS }),
+        t("staleInfo", { days: STALE_AGE_DAYS }),
         current.stale,
         toggle("stale"),
       ),
     );
   }
 
-  /** Unchecking "abandoned" stops the reads from the next scan; cached verdicts stay. */
+  /** Unchecking a family that reads conversations stops the reads from the next scan; cached verdicts stay. */
   private setCriterion(key: keyof Criteria, checked: boolean): void {
     this.settings = {
       ...this.settings,
@@ -183,6 +202,7 @@ export class TabUI {
     };
     saveSettings(this.settings);
     this.scanner.setReadStale(this.settings.criteria.stale);
+    this.scanner.setReadMapMate(this.settings.criteria.mapMate);
     this.scanner.schedule();
     this.render();
   }
@@ -193,13 +213,15 @@ export class TabUI {
       !this.readySection ||
       !this.conversationSection ||
       !this.trafficLightSection ||
+      !this.mapMateSection ||
       !this.staleSection
     )
       return;
     const criteria = this.settings.criteria;
-    const { entries, trafficLights, stale } = this.scanner.getSnapshot();
+    const snapshot = this.scanner.getSnapshot();
+    const { entries, trafficLights, mapMate, stale } = snapshot;
     const lists = splitEntries(entries);
-    this.bannerText.textContent = formatStatus(entries);
+    this.bannerText.textContent = formatStatus(snapshot, criteria);
 
     this.readySection.hidden = !criteria.speedCamera;
     this.conversationSection.hidden = !criteria.speedCamera;
@@ -231,6 +253,15 @@ export class TabUI {
       t("sectionTrafficLights", { count: trafficLights.length }),
     );
 
+    this.mapMateSection.hidden = !criteria.mapMate;
+    this.mapMateList.replaceChildren(
+      ...mapMate.map((entry) => this.mapMateRow(entry)),
+    );
+    setSectionTitle(
+      this.mapMateSection,
+      t("sectionMapMate", { count: mapMate.length }),
+    );
+
     this.staleSection.hidden = !criteria.stale;
     const now = Date.now();
     this.staleList.replaceChildren(
@@ -241,17 +272,22 @@ export class TabUI {
       t("sectionStale", { count: stale.length }),
     );
 
+    const level3 = canBatch(this.sdk);
     const batch = selectedBatch(
       criteria,
-      { speedCamera: canBatch(this.sdk), stale: canBatchStale(this.sdk) },
+      { speedCamera: level3, mapMate: level3, stale: canBatchStale(this.sdk) },
       {
         speedCamera: lists.ready.map((entry) => entry.id),
+        mapMate: mapMate
+          .filter((entry) => entry.state === "ready")
+          .map((entry) => entry.id),
         stale: stale
           .filter((entry) => entry.state === "stale")
           .map((entry) => entry.id),
       },
     );
-    const total = batch.speedCamera.length + batch.stale.length;
+    const total =
+      batch.speedCamera.length + batch.mapMate.length + batch.stale.length;
     this.actions.replaceChildren();
     if (!shouldShowCloseSelected(total)) return;
     const all = button(
@@ -288,6 +324,30 @@ export class TabUI {
           () => runCloseTrafficLight(this.sdk, entry.id),
           (outcomes) => summarize(outcomes, { messagesSent: false }),
         ),
+      "scu-btn",
+    );
+    action.disabled = isCloseInFlight();
+    row.appendChild(action);
+    return row;
+  }
+
+  private mapMateRow(entry: MapMateEntry): HTMLElement {
+    const row = el("div", "scu-row");
+    const label = button(
+      formatMapMateRowLabel(entry, getLocale()),
+      () => this.highlight.focus(entry),
+      "scu-plain scu-row-label",
+    );
+    label.title = t("rowTitle");
+    row.appendChild(label);
+
+    if (entry.state === "pending") {
+      row.appendChild(el("span", "scu-muted", t("rowPending")));
+      return row;
+    }
+    const action = button(
+      t("btnAskMapMate"),
+      () => void this.handle(() => runAskMapMate(this.sdk, entry.id)),
       "scu-btn",
     );
     action.disabled = isCloseInFlight();

@@ -16,7 +16,7 @@ import { TabUI } from "./ui/tab";
 // Own scriptId so this feature gets its own Scripts-sidebar tab: registerScriptTab() throws
 // if the host's scriptId already owns a tab.
 const SCRIPT_ID = "wme-ch-speed-camera-urs";
-const SCRIPT_NAME = "WME CH Speed Camera URs";
+const SCRIPT_NAME = "WME CH UR Assistant";
 
 export async function initSpeedCameraUrs(): Promise<void> {
   await unsafeWindow.SDK_INITIALIZED;
@@ -33,6 +33,7 @@ export async function initSpeedCameraUrs(): Promise<void> {
   const settings = loadSettings();
   const scanner = new Scanner(sdk);
   scanner.setReadStale(settings.criteria.stale);
+  scanner.setReadMapMate(settings.criteria.mapMate);
   const highlight = new UrHighlight(sdk);
   highlight.init();
   await new TabUI(sdk, scanner, highlight, settings).init();

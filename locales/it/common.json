@@ -246,11 +246,11 @@
     "tabTitle": "Numeri civici"
   },
   "speedCameraUrs": {
-    "appName": "Chiusura delle UR autovelox",
-    "tabName": "UR autovelox closer",
-    "tabNote": "Commenta e chiude come Non identificate le UR aperte sullo schermo di tipo MISSING_STATIC_SPEED_CAMERA. La legge svizzera vieta di mostrare gli autovelox fissi in Waze: chi ha segnalato riceve la spiegazione ufficiale nella sua lingua.",
-    "stateNone": "Nessuna UR autovelox sullo schermo. Le UR devono essere visibili sulla mappa per essere trovate.",
-    "stateFound": "{{count}} UR autovelox sullo schermo",
+    "appName": "Assistente per le UR",
+    "tabName": "Assistente UR",
+    "tabNote": "Tratta le UR aperte sullo schermo, secondo le famiglie selezionate qui sotto. Nulla viene salvato automaticamente.",
+    "stateNone": "Nessuna UR da trattare sullo schermo. Le UR devono essere visibili sulla mappa per essere trovate.",
+    "stateFound": "{{count}} UR da trattare sullo schermo",
     "statePending": "{{count}} in verifica",
     "sectionReady": "Da trattare ({{count}})",
     "sectionConversation": "Già una conversazione ({{count}})",
@@ -290,7 +290,6 @@
     "messageBody": "Per conformarsi alle normative locali, Waze ha disattivato la segnalazione della polizia per gli utenti che navigano in Svizzera e Liechtenstein.\n\nTutte le altre funzioni di navigazione, comprese le segnalazioni di pericoli, le informazioni sul traffico e le chiusure stradali, rimangono pienamente operative.",
     "messageSignature": "Buona giornata e buon viaggio.\nLa comunità degli editor volontari",
     "sectionTrafficLights": "Semafori segnalati in autostrada ({{count}})",
-    "trafficLightNote": "UR di tipo MISSING_TRAFFIC_LIGHT la cui strada più vicina è un'autostrada: spesso un autovelox segnalato come semaforo. Solo una per una: aprite ogni UR e verificatela prima di chiuderla. Nessun messaggio viene inviato.",
     "btnCloseTrafficLight": "Chiudere",
     "dlgFactNoMessage": "Chi ha segnalato non riceve alcun messaggio.",
     "saveReminderNoMessage": "Salvate per registrare le chiusure.",
@@ -300,11 +299,10 @@
     "criterionTrafficLight": "Semafori in autostrada",
     "criterionStale": "Abbandonate (oltre {{days}} giorni)",
     "sectionStale": "Abbandonate ({{count}})",
-    "staleNote": "UR aperte di qualsiasi tipo, segnalate più di {{days}} giorni fa, in cui nessuno tranne Map_Team ha scritto. Le segnalazioni vocali Map Mate sono escluse. Chiuse come Non identificata, senza messaggio.",
     "btnCloseStale": "Chiudere",
     "rowAgeDays": "{{count}} g",
-    "btnCloseSelected": "Chiudere le {{count}} UR selezionate",
-    "btnCloseSelectedCapped": "Chiudere {{cap}} delle {{count}} UR selezionate",
+    "btnCloseSelected": "Trattare le {{count}} UR selezionate",
+    "btnCloseSelectedCapped": "Trattare {{cap}} delle {{count}} UR selezionate",
     "dlgTitleSelected": "Trattare {{count}} UR",
     "dlgFactFamilySpeedCamera": "{{count}} autovelox: messaggio inviato ora, poi chiusura come Non identificata",
     "dlgFactFamilyStale": "{{count}} abbandonate: chiusura come Non identificata, senza messaggio",
@@ -332,6 +330,8 @@
     "askedReminder": "Le domande sono già state inviate; le UR restano aperte, niente da salvare.",
     "mapMateInfo": "Le segnalazioni vocali Map Mate ricevono una domanda adatta al caso (semaforo, percorso, velocità, svolta, generale) nella lingua di chi ha segnalato. La UR resta aperta per la risposta. Non viene inviato nulla se qualcuno diverso da Map_Team ha commentato, e un semaforo la cui strada più vicina è un'autostrada resta nella sezione dei semafori in autostrada.",
     "stateNoFamily": "Nessuna famiglia selezionata: selezionatene almeno una qui sotto.",
-    "speedCameraInfo": "Commenta e chiude come Non identificate le UR aperte sullo schermo di tipo MISSING_STATIC_SPEED_CAMERA. La legge svizzera vieta di mostrare gli autovelox fissi in Waze: chi ha segnalato riceve la spiegazione ufficiale nella sua lingua."
+    "speedCameraInfo": "Commenta e chiude come Non identificate le UR aperte sullo schermo di tipo MISSING_STATIC_SPEED_CAMERA. La legge svizzera vieta di mostrare gli autovelox fissi in Waze: chi ha segnalato riceve la spiegazione ufficiale nella sua lingua.",
+    "trafficLightInfo": "UR di tipo MISSING_TRAFFIC_LIGHT la cui strada più vicina è un'autostrada: spesso un autovelox segnalato come semaforo. Solo una per una: aprite ogni UR e verificatela prima di chiuderla. Nessun messaggio viene inviato.",
+    "staleInfo": "UR aperte di qualsiasi tipo, segnalate più di {{days}} giorni fa, in cui nessuno tranne Map_Team ha scritto. Le segnalazioni vocali Map Mate sono escluse. Chiuse come Non identificata, senza messaggio."
   }
 }

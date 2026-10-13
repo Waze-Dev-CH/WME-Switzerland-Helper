@@ -246,11 +246,11 @@
     "tabTitle": "Hausnummern"
   },
   "speedCameraUrs": {
-    "appName": "Schliessen von Radar-URs",
-    "tabName": "Radar-UR-Closer",
-    "tabNote": "Kommentiert die offenen URs vom Typ MISSING_STATIC_SPEED_CAMERA im Bildausschnitt und schliesst sie als «Nicht identifiziert». Das Schweizer Recht verbietet, fest installierte Radare in Waze anzuzeigen: Jede meldende Person erhält die offizielle Erklärung in ihrer Sprache.",
-    "stateNone": "Keine Radar-UR im Bildausschnitt. URs müssen auf der Karte angezeigt werden, damit sie gefunden werden.",
-    "stateFound": "{{count}} Radar-UR(s) im Bildausschnitt",
+    "appName": "Assistent für URs",
+    "tabName": "UR-Assistent",
+    "tabNote": "Bearbeitet die offenen URs im Bildausschnitt, nach den unten angekreuzten Gruppen. Nichts wird automatisch gespeichert.",
+    "stateNone": "Keine UR zu bearbeiten im Bildausschnitt. URs müssen auf der Karte angezeigt werden, damit sie gefunden werden.",
+    "stateFound": "{{count}} URs zu bearbeiten im Bildausschnitt",
     "statePending": "{{count}} in Prüfung",
     "sectionReady": "Zu bearbeiten ({{count}})",
     "sectionConversation": "Bereits eine Unterhaltung ({{count}})",
@@ -290,7 +290,6 @@
     "messageBody": "Um den lokalen Vorschriften zu entsprechen, hat Waze die Meldung von Polizeikontrollen für Nutzer deaktiviert, die in der Schweiz und in Liechtenstein navigieren.\n\nAlle anderen Navigationsfunktionen, einschliesslich Gefahrenmeldungen, Verkehrsinformationen und Strassensperrungen, bleiben weiterhin uneingeschränkt verfügbar.",
     "messageSignature": "Einen schönen Tag und gute Fahrt.\nDie Community der freiwilligen Editoren",
     "sectionTrafficLights": "Ampeln auf der Autobahn gemeldet ({{count}})",
-    "trafficLightNote": "URs vom Typ MISSING_TRAFFIC_LIGHT, deren nächste Strasse eine Autobahn ist: oft ein als Ampel gemeldeter Radar. Nur einzeln: Öffnen Sie jede UR und prüfen Sie sie vor dem Schliessen. Es wird keine Nachricht gesendet.",
     "btnCloseTrafficLight": "Schliessen",
     "dlgFactNoMessage": "Die meldende Person erhält keine Nachricht.",
     "saveReminderNoMessage": "Speichern Sie, um die Schliessungen zu übernehmen.",
@@ -300,11 +299,10 @@
     "criterionTrafficLight": "Ampeln auf der Autobahn",
     "criterionStale": "Verwaist (über {{days}} Tage)",
     "sectionStale": "Verwaist ({{count}})",
-    "staleNote": "Offene URs jeden Typs, vor mehr als {{days}} Tagen gemeldet, in denen niemand ausser Map_Team geschrieben hat. Sprachmeldungen von Map Mate sind ausgenommen. Werden als «Nicht identifiziert» geschlossen, ohne Nachricht.",
     "btnCloseStale": "Schliessen",
     "rowAgeDays": "{{count}} T",
-    "btnCloseSelected": "Die {{count}} ausgewählten URs schliessen",
-    "btnCloseSelectedCapped": "{{cap}} der {{count}} ausgewählten URs schliessen",
+    "btnCloseSelected": "Die {{count}} ausgewählten URs bearbeiten",
+    "btnCloseSelectedCapped": "{{cap}} der {{count}} ausgewählten URs bearbeiten",
     "dlgTitleSelected": "{{count}} URs bearbeiten",
     "dlgFactFamilySpeedCamera": "{{count}} Radar(e): Nachricht wird jetzt gesendet, dann als «Nicht identifiziert» geschlossen",
     "dlgFactFamilyStale": "{{count}} verwaist: als «Nicht identifiziert» geschlossen, ohne Nachricht",
@@ -332,6 +330,8 @@
     "askedReminder": "Die Fragen sind bereits gesendet; die URs bleiben offen, nichts zu speichern.",
     "mapMateInfo": "Sprachmeldungen von Map Mate erhalten eine zum Fall passende Frage (Ampel, Strecke, Tempolimit, Abbiegen, Allgemein) in der Sprache der meldenden Person. Die UR bleibt für die Antwort offen. Es wird nichts gesendet, sobald jemand anderes als Map_Team kommentiert hat, und eine Ampel, deren nächste Strasse eine Autobahn ist, bleibt im Abschnitt der Autobahn-Ampeln.",
     "stateNoFamily": "Keine Gruppe angekreuzt: Kreuzen Sie unten mindestens eine an.",
-    "speedCameraInfo": "Kommentiert die offenen URs vom Typ MISSING_STATIC_SPEED_CAMERA im Bildausschnitt und schliesst sie als «Nicht identifiziert». Das Schweizer Recht verbietet, fest installierte Radare in Waze anzuzeigen: Jede meldende Person erhält die offizielle Erklärung in ihrer Sprache."
+    "speedCameraInfo": "Kommentiert die offenen URs vom Typ MISSING_STATIC_SPEED_CAMERA im Bildausschnitt und schliesst sie als «Nicht identifiziert». Das Schweizer Recht verbietet, fest installierte Radare in Waze anzuzeigen: Jede meldende Person erhält die offizielle Erklärung in ihrer Sprache.",
+    "trafficLightInfo": "URs vom Typ MISSING_TRAFFIC_LIGHT, deren nächste Strasse eine Autobahn ist: oft ein als Ampel gemeldeter Radar. Nur einzeln: Öffnen Sie jede UR und prüfen Sie sie vor dem Schliessen. Es wird keine Nachricht gesendet.",
+    "staleInfo": "Offene URs jeden Typs, vor mehr als {{days}} Tagen gemeldet, in denen niemand ausser Map_Team geschrieben hat. Sprachmeldungen von Map Mate sind ausgenommen. Werden als «Nicht identifiziert» geschlossen, ohne Nachricht."
   }
 }

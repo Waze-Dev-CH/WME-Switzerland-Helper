@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { BATCH_CAP } from "../close";
-import type { UrEntry } from "../scanner";
+import type { MapMateEntry, ScanSnapshot, UrEntry } from "../scanner";
 import { DEFAULT_CRITERIA } from "../settings";
 import {
   formatCloseSelectedButton,
+  formatMapMateRowLabel,
   formatRowLabel,
   formatStaleRowLabel,
   formatStatus,
@@ -36,17 +37,55 @@ describe("splitEntries", () => {
 });
 
 describe("formatStatus", () => {
-  it("says when nothing is on screen, and why that may be", () => {
-    expect(formatStatus([])).toContain("must be shown on the map");
+  const snapshot = (over: Partial<ScanSnapshot> = {}): ScanSnapshot => ({
+    entries: [],
+    trafficLights: [],
+    mapMate: [],
+    stale: [],
+    ...over,
+  });
+  const report = (id: number, state: MapMateEntry["state"]): MapMateEntry => ({
+    ...entry(id, "ready"),
+    kind: "route",
+    state,
   });
 
-  it("counts the URs and the ones still being checked", () => {
-    expect(formatStatus([entry(1, "ready"), entry(2, "pending")])).toBe(
-      "2 speed-camera UR(s) on screen, checking 1",
+  it("says when nothing is on screen, and why that may be", () => {
+    expect(formatStatus(snapshot(), DEFAULT_CRITERIA)).toContain(
+      "must be shown on the map",
     );
-    expect(formatStatus([entry(1, "ready")])).toBe(
-      "1 speed-camera UR(s) on screen",
+  });
+
+  it("asks to tick a family when none is", () => {
+    const none = {
+      speedCamera: false,
+      trafficLight: false,
+      mapMate: false,
+      stale: false,
+    };
+    expect(formatStatus(snapshot(), none)).toBe(
+      "No family ticked: tick at least one below.",
     );
+  });
+
+  it("counts every ticked family, and the URs still being checked", () => {
+    const criteria = { ...DEFAULT_CRITERIA, mapMate: true };
+    const status = formatStatus(
+      snapshot({
+        entries: [entry(1, "ready")],
+        mapMate: [report(2, "pending"), report(3, "ready")],
+      }),
+      criteria,
+    );
+    expect(status).toBe("3 UR(s) to handle on screen, checking 1");
+  });
+
+  it("leaves out the families that are not ticked", () => {
+    const status = formatStatus(
+      snapshot({ entries: [entry(1, "ready")], mapMate: [report(2, "ready")] }),
+      DEFAULT_CRITERIA,
+    );
+    expect(status).toBe("1 UR(s) to handle on screen");
   });
 });
 
@@ -59,18 +98,19 @@ describe("formatRowLabel", () => {
 });
 
 describe("selectedBatch", () => {
-  const ready = { speedCamera: [1, 2], stale: [10] };
-  const everyone = { speedCamera: true, stale: true };
+  const ready = { speedCamera: [1, 2], mapMate: [5], stale: [10] };
+  const everyone = { speedCamera: true, mapMate: true, stale: true };
 
-  it("takes the speed cameras by default, not the abandoned URs", () => {
+  it("takes the speed cameras by default, not Map Mate nor the abandoned URs", () => {
     expect(selectedBatch(DEFAULT_CRITERIA, everyone, ready)).toEqual({
       speedCamera: [1, 2],
+      mapMate: [],
       stale: [],
     });
   });
 
-  it("takes both families when both are checked and allowed", () => {
-    const criteria = { ...DEFAULT_CRITERIA, stale: true };
+  it("takes every family that is checked and allowed", () => {
+    const criteria = { ...DEFAULT_CRITERIA, mapMate: true, stale: true };
     expect(selectedBatch(criteria, everyone, ready)).toEqual(ready);
   });
 
@@ -83,26 +123,35 @@ describe("selectedBatch", () => {
     };
     expect(selectedBatch(criteria, everyone, ready)).toEqual({
       speedCamera: [],
+      mapMate: [],
       stale: [10],
     });
   });
 
   it("drops the abandoned URs at level 3 and everything below it", () => {
-    const criteria = { ...DEFAULT_CRITERIA, stale: true };
+    const criteria = { ...DEFAULT_CRITERIA, mapMate: true, stale: true };
     expect(
-      selectedBatch(criteria, { speedCamera: true, stale: false }, ready),
-    ).toEqual({ speedCamera: [1, 2], stale: [] });
+      selectedBatch(
+        criteria,
+        { speedCamera: true, mapMate: true, stale: false },
+        ready,
+      ),
+    ).toEqual({ speedCamera: [1, 2], mapMate: [5], stale: [] });
     expect(
-      selectedBatch(criteria, { speedCamera: false, stale: false }, ready),
-    ).toEqual({ speedCamera: [], stale: [] });
+      selectedBatch(
+        criteria,
+        { speedCamera: false, mapMate: false, stale: false },
+        ready,
+      ),
+    ).toEqual({ speedCamera: [], mapMate: [], stale: [] });
   });
 });
 
 describe("formatCloseSelectedButton", () => {
   it("names the count, and the cap when there are more", () => {
-    expect(formatCloseSelectedButton(12)).toBe("Close the 12 selected UR(s)");
+    expect(formatCloseSelectedButton(12)).toBe("Handle the 12 selected UR(s)");
     expect(formatCloseSelectedButton(BATCH_CAP + 5)).toBe(
-      `Close ${BATCH_CAP} of the ${BATCH_CAP + 5} selected UR(s)`,
+      `Handle ${BATCH_CAP} of the ${BATCH_CAP + 5} selected UR(s)`,
     );
   });
 });
@@ -119,5 +168,15 @@ describe("formatStaleRowLabel", () => {
     const now = Date.UTC(2026, 9, 1) + 20 * 24 * 60 * 60 * 1000;
     const label = formatStaleRowLabel(entry(5, "ready"), "en", now);
     expect(label).toMatch(/^#5 · DE · .* · 20 d$/);
+  });
+});
+
+describe("formatMapMateRowLabel", () => {
+  it("names the case after the id", () => {
+    const label = formatMapMateRowLabel(
+      { ...entry(9, "ready"), kind: "speedLimit", state: "ready" },
+      "en",
+    );
+    expect(label).toMatch(/^#9 · Speed limit · DE · /);
   });
 });

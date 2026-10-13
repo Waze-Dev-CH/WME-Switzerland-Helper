@@ -11,11 +11,13 @@ afterEach(() => restore());
 describe("criterionCheckbox", () => {
   it("is a real checkbox inside its label, reporting each change", () => {
     const onChange = vi.fn();
-    const label = criterionCheckbox(
+    const row = criterionCheckbox(
       "Speed cameras",
+      "About this family",
       true,
       onChange,
     ) as unknown as FakeNode;
+    const label = row.children[0]!;
     const input = label.querySelector("input");
 
     expect(label.tagName).toBe("label");
@@ -32,11 +34,13 @@ describe("criterionCheckbox", () => {
     globals.customElements = { get: (name: string) => name === "wz-checkbox" };
     try {
       const onChange = vi.fn();
-      const box = criterionCheckbox(
+      const row = criterionCheckbox(
         "Speed cameras",
+        "About this family",
         true,
         onChange,
       ) as unknown as FakeNode;
+      const box = row.children[0]!;
 
       expect(box.tagName).toBe("wz-checkbox");
       expect(box.checked).toBe(true);
@@ -54,6 +58,31 @@ describe("criterionCheckbox", () => {
   it("does not depend on WME's own components being defined", () => {
     const globals = globalThis as unknown as Record<string, unknown>;
     expect(globals.customElements).toBeUndefined();
-    expect(() => criterionCheckbox("Abandoned", false, () => {})).not.toThrow();
+    expect(() =>
+      criterionCheckbox("Abandoned", "About this family", false, () => {}),
+    ).not.toThrow();
+  });
+
+  it("puts the family's description behind an (i), outside the label", () => {
+    const onChange = vi.fn();
+    const row = criterionCheckbox(
+      "Speed cameras",
+      "Closes the speed-camera URs.",
+      true,
+      onChange,
+    ) as unknown as FakeNode;
+    const info = row.children[1]!;
+
+    expect(row.className).toBe("scu-criterion-row");
+    expect(info.className).toBe("scu-info");
+    expect(info.title).toBe("Closes the speed-camera URs.");
+    expect(info.getAttribute("aria-label")).toBe(
+      "Closes the speed-camera URs.",
+    );
+    expect(info.getAttribute("tabindex")).toBe("0");
+    expect(info.querySelector("i")?.className).toContain("w-icon-info");
+
+    info.dispatch("click");
+    expect(onChange).not.toHaveBeenCalled();
   });
 });

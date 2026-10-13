@@ -246,11 +246,11 @@
     "tabTitle": "House numbers"
   },
   "speedCameraUrs": {
-    "appName": "Closing speed-camera URs",
-    "tabName": "Speed-camera UR closer",
-    "tabNote": "Comments on and closes as Not identified the open URs on screen of type MISSING_STATIC_SPEED_CAMERA. Swiss law forbids showing fixed speed cameras in Waze: each reporter gets the official explanation in their language.",
-    "stateNone": "No speed-camera UR on screen. URs must be shown on the map to be found.",
-    "stateFound": "{{count}} speed-camera UR(s) on screen",
+    "appName": "Update request assistant",
+    "tabName": "UR assistant",
+    "tabNote": "Handles the open URs on screen, by the families ticked below. Nothing is saved automatically.",
+    "stateNone": "No UR to handle on screen. URs must be shown on the map to be found.",
+    "stateFound": "{{count}} UR(s) to handle on screen",
     "statePending": "checking {{count}}",
     "sectionReady": "To handle ({{count}})",
     "sectionConversation": "Already a conversation ({{count}})",
@@ -290,7 +290,6 @@
     "messageBody": "To comply with local regulations, Waze has disabled police reporting for users navigating in Switzerland and Liechtenstein.\n\nAll other navigation features, including hazard alerts, traffic information and road closures, remain fully functional.",
     "messageSignature": "Have a nice day and safe travels.\nThe volunteer editor community",
     "sectionTrafficLights": "Traffic lights reported on a freeway ({{count}})",
-    "trafficLightNote": "MISSING_TRAFFIC_LIGHT URs whose closest road is a freeway: often a speed camera reported as a traffic light. One by one only: open each UR and check it before closing. No message is sent.",
     "btnCloseTrafficLight": "Close",
     "dlgFactNoMessage": "No message is sent to the reporter.",
     "saveReminderNoMessage": "Save to record the closures.",
@@ -300,11 +299,10 @@
     "criterionTrafficLight": "Traffic lights on a freeway",
     "criterionStale": "Abandoned (over {{days}} days)",
     "sectionStale": "Abandoned ({{count}})",
-    "staleNote": "Open URs of any type reported more than {{days}} days ago, where nobody but Map_Team has written. Map Mate voice reports are left out. Closed as Not identified, without any message.",
     "btnCloseStale": "Close",
     "rowAgeDays": "{{count}} d",
-    "btnCloseSelected": "Close the {{count}} selected UR(s)",
-    "btnCloseSelectedCapped": "Close {{cap}} of the {{count}} selected UR(s)",
+    "btnCloseSelected": "Handle the {{count}} selected UR(s)",
+    "btnCloseSelectedCapped": "Handle {{cap}} of the {{count}} selected UR(s)",
     "dlgTitleSelected": "Handle {{count}} UR(s)",
     "dlgFactFamilySpeedCamera": "{{count}} speed camera(s): message sent now, then closed as Not identified",
     "dlgFactFamilyStale": "{{count}} abandoned: closed as Not identified, without any message",
@@ -332,6 +330,8 @@
     "askedReminder": "The questions are already sent; the URs stay open, nothing to save.",
     "mapMateInfo": "Map Mate voice reports get a question suited to their case (traffic light, route, speed limit, turn, general) in the reporter's language. The UR stays open for the answer. Nothing is sent once someone other than Map_Team has commented, and a traffic light whose closest road is a freeway is left to the freeway section.",
     "stateNoFamily": "No family ticked: tick at least one below.",
-    "speedCameraInfo": "Comments on and closes as Not identified the open URs on screen of type MISSING_STATIC_SPEED_CAMERA. Swiss law forbids showing fixed speed cameras in Waze: each reporter gets the official explanation in their language."
+    "speedCameraInfo": "Comments on and closes as Not identified the open URs on screen of type MISSING_STATIC_SPEED_CAMERA. Swiss law forbids showing fixed speed cameras in Waze: each reporter gets the official explanation in their language.",
+    "trafficLightInfo": "MISSING_TRAFFIC_LIGHT URs whose closest road is a freeway: often a speed camera reported as a traffic light. One by one only: open each UR and check it before closing. No message is sent.",
+    "staleInfo": "Open URs of any type reported more than {{days}} days ago, where nobody but Map_Team has written. Map Mate voice reports are left out. Closed as Not identified, without any message."
   }
 }

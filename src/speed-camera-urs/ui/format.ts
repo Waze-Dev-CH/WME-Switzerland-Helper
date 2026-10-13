@@ -1,7 +1,13 @@
 import { BATCH_CAP, type BatchRequest } from "../close";
 import { ageInDays } from "../detect";
 import { t, type LocaleCode } from "../i18n";
-import type { TrafficLightEntry, UrEntry } from "../scanner";
+import { kindLabel } from "../message";
+import type {
+  MapMateEntry,
+  ScanSnapshot,
+  TrafficLightEntry,
+  UrEntry,
+} from "../scanner";
 import type { Criteria } from "../settings";
 
 /** The tab's wording, kept free of DOM so it can be tested. */
@@ -20,13 +26,42 @@ export function splitEntries(entries: readonly UrEntry[]): Lists {
   };
 }
 
-export function formatStatus(entries: readonly UrEntry[]): string {
-  if (entries.length === 0) return t("stateNone");
-  const found = t("stateFound", { count: entries.length });
-  const pending = entries.filter((e) => e.triage === "pending").length;
+/** One flag per UR of a ticked family: true while its conversation is still being read. */
+export function formatStatus(
+  snapshot: ScanSnapshot,
+  criteria: Criteria,
+): string {
+  const anyFamily =
+    criteria.speedCamera ||
+    criteria.trafficLight ||
+    criteria.mapMate ||
+    criteria.stale;
+  if (!anyFamily) return t("stateNoFamily");
+
+  const pendingFlags = [
+    ...(criteria.speedCamera
+      ? snapshot.entries.map((e) => e.triage === "pending")
+      : []),
+    ...(criteria.trafficLight ? snapshot.trafficLights.map(() => false) : []),
+    ...(criteria.mapMate
+      ? snapshot.mapMate.map((e) => e.state === "pending")
+      : []),
+    ...(criteria.stale ? snapshot.stale.map((e) => e.state === "pending") : []),
+  ];
+  if (pendingFlags.length === 0) return t("stateNone");
+  const found = t("stateFound", { count: pendingFlags.length });
+  const pending = pendingFlags.filter(Boolean).length;
   return pending > 0
     ? `${found}, ${t("statePending", { count: pending })}`
     : found;
+}
+
+export function formatMapMateRowLabel(
+  entry: MapMateEntry,
+  locale: LocaleCode,
+): string {
+  const date = new Date(entry.reportedOn).toLocaleDateString(locale);
+  return `#${entry.id} · ${kindLabel(entry.kind)} · ${entry.lang.toUpperCase()} · ${date}`;
 }
 
 export function formatRowLabel(
@@ -52,13 +87,15 @@ export function formatStaleRowLabel(
  */
 export function selectedBatch(
   criteria: Criteria,
-  allowed: { speedCamera: boolean; stale: boolean },
+  allowed: { speedCamera: boolean; mapMate: boolean; stale: boolean },
   ready: BatchRequest,
 ): BatchRequest {
   const takeCameras = criteria.speedCamera && allowed.speedCamera;
+  const takeMapMate = criteria.mapMate && allowed.mapMate;
   const takeStale = criteria.stale && allowed.stale;
   return {
     speedCamera: takeCameras ? [...ready.speedCamera] : [],
+    mapMate: takeMapMate ? [...ready.mapMate] : [],
     stale: takeStale ? [...ready.stale] : [],
   };
 }

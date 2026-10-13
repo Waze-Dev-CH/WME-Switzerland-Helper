@@ -13,6 +13,8 @@ ${componentRules("scu")}
 .scu-criteria { display: flex; flex-direction: column; gap: 4px; }
 .scu-criteria-label { font-weight: 600; }
 .scu-criterion { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.scu-criterion-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.scu-info { display: inline-flex; color: var(--scu-muted); cursor: help; }
 /* The summary carries one problem per line. */
 .scu-warn { white-space: pre-line; }
 
