@@ -300,7 +300,7 @@
     "criterionTrafficLight": "Ampeln auf der Autobahn",
     "criterionStale": "Verwaist (über {{days}} Tage)",
     "sectionStale": "Verwaist ({{count}})",
-    "staleNote": "Offene URs jeden Typs, vor mehr als {{days}} Tagen gemeldet, in denen niemand ausser Map_Team geschrieben hat. Werden als «Nicht identifiziert» geschlossen, ohne Nachricht.",
+    "staleNote": "Offene URs jeden Typs, vor mehr als {{days}} Tagen gemeldet, in denen niemand ausser Map_Team geschrieben hat. Sprachmeldungen von Map Mate sind ausgenommen. Werden als «Nicht identifiziert» geschlossen, ohne Nachricht.",
     "btnCloseStale": "Schliessen",
     "rowAgeDays": "{{count}} T",
     "btnCloseSelected": "Die {{count}} ausgewählten URs schliessen",

@@ -419,6 +419,18 @@ describe("closeStale", () => {
     expect(calls).toEqual([]);
   });
 
+  it("refuses a Map Mate voice report", async () => {
+    const mapMate = makeUr(1, { ...road, source: "REPORTING_AGENT" });
+    const { sdk, calls } = makeSdk([mapMate]);
+
+    expect(await closeStale(sdk, 1, NOW)).toEqual({
+      id: 1,
+      result: "skipped",
+      reason: "skipGone",
+    });
+    expect(calls).toEqual([]);
+  });
+
   it("refuses a traffic light whose road is not loaded", async () => {
     const { sdk, calls } = makeSdk([makeTrafficLightUr(1)]);
 

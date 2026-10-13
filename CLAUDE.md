@@ -162,8 +162,9 @@ triage) → `TabUI`. `close.ts` is the only module that writes.
   appears. These are closed one by one, as not-identified and **without any message**.
 - Abandoned URs (`isStaleCandidate`, detect.ts): open, editable, reported more than
   `STALE_AGE_DAYS` (14) days ago, any type, and nobody but `Map_Team` in the conversation
-  (`hasDiscussion`, exact `userName` match; `null` counts as a person). Closed as
-  not-identified **without any message**. The scanner reads their conversations only when
+  (`hasDiscussion`, exact `userName` match; `null` counts as a person). Map Mate voice
+  reports (`source === "REPORTING_AGENT"`) never qualify: their description often carries
+  what the driver said. Closed as not-identified **without any message**. The scanner reads their conversations only when
   the "Abandoned" box is checked, after the speed cameras'.
 - Overlaps: a speed camera is never "abandoned", it always gets the message. A traffic light
   on a freeway is never "abandoned" either, or it would reach a batch through the back door.

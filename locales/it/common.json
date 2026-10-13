@@ -300,7 +300,7 @@
     "criterionTrafficLight": "Semafori in autostrada",
     "criterionStale": "Abbandonate (oltre {{days}} giorni)",
     "sectionStale": "Abbandonate ({{count}})",
-    "staleNote": "UR aperte di qualsiasi tipo, segnalate più di {{days}} giorni fa, in cui nessuno tranne Map_Team ha scritto. Chiuse come Non identificata, senza messaggio.",
+    "staleNote": "UR aperte di qualsiasi tipo, segnalate più di {{days}} giorni fa, in cui nessuno tranne Map_Team ha scritto. Le segnalazioni vocali Map Mate sono escluse. Chiuse come Non identificata, senza messaggio.",
     "btnCloseStale": "Chiudere",
     "rowAgeDays": "{{count}} g",
     "btnCloseSelected": "Chiudere le {{count}} UR selezionate",

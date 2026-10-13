@@ -148,6 +148,12 @@ describe("isStaleCandidate", () => {
     ).toBe(false);
   });
 
+  it("never takes a Map Mate voice report: its description often says more", () => {
+    const now = REPORTED + 30 * DAY;
+    const mapMate = makeUr(1, { ...road, source: "REPORTING_AGENT" });
+    expect(isStaleCandidate(mapMate, now)).toBe(false);
+  });
+
   it("rejects a UR reported in the future (clock skew)", () => {
     expect(isStaleCandidate(makeUr(1, road), REPORTED - DAY)).toBe(false);
   });

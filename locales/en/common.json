@@ -300,7 +300,7 @@
     "criterionTrafficLight": "Traffic lights on a freeway",
     "criterionStale": "Abandoned (over {{days}} days)",
     "sectionStale": "Abandoned ({{count}})",
-    "staleNote": "Open URs of any type reported more than {{days}} days ago, where nobody but Map_Team has written. Closed as Not identified, without any message.",
+    "staleNote": "Open URs of any type reported more than {{days}} days ago, where nobody but Map_Team has written. Map Mate voice reports are left out. Closed as Not identified, without any message.",
     "btnCloseStale": "Close",
     "rowAgeDays": "{{count}} d",
     "btnCloseSelected": "Close the {{count}} selected UR(s)",

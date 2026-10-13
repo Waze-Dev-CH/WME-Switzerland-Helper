@@ -300,7 +300,7 @@
     "criterionTrafficLight": "Feux sur autoroute",
     "criterionStale": "Abandonnés (plus de {{days}} jours)",
     "sectionStale": "Abandonnés ({{count}})",
-    "staleNote": "UR ouverts de tout type, signalés il y a plus de {{days}} jours, où personne d'autre que Map_Team n'a écrit. Fermés en Non identifié, sans message.",
+    "staleNote": "UR ouverts de tout type, signalés il y a plus de {{days}} jours, où personne d'autre que Map_Team n'a écrit. Les signalements vocaux Map Mate sont exclus. Fermés en Non identifié, sans message.",
     "btnCloseStale": "Fermer",
     "rowAgeDays": "{{count}} j",
     "btnCloseSelected": "Fermer les {{count}} UR sélectionnés",

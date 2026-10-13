@@ -133,7 +133,7 @@ et ce projet adhère au [Versionnage Sémantique](https://semver.org/spec/v2.0.0
 
 #### Ajouté
 
-- **UR abandonnés.** L'onglet **CH · URs radars closer** peut aussi fermer les UR ouverts de tout type, signalés il y a plus de 14 jours, où personne d'autre que Map_Team n'a écrit. Ils sont fermés en *Non identifié*, sans message. Trois cases choisissent les familles traitées (radars, feux sur autoroute, abandonnés ; la dernière est décochée par défaut), et un seul bouton ferme tout ce qui est coché : radars dès le niveau 3, abandonnés dès le niveau 4, 50 au plus.
+- **UR abandonnés.** L'onglet **CH · URs radars closer** peut aussi fermer les UR ouverts de tout type, signalés il y a plus de 14 jours, où personne d'autre que Map_Team n'a écrit, hors signalements vocaux Map Mate. Ils sont fermés en *Non identifié*, sans message. Trois cases choisissent les familles traitées (radars, feux sur autoroute, abandonnés ; la dernière est décochée par défaut), et un seul bouton ferme tout ce qui est coché : radars dès le niveau 3, abandonnés dès le niveau 4, 50 au plus.
 
 ### [1.6.1] - 2026-10-06
 

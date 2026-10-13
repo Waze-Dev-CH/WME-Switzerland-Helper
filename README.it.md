@@ -133,7 +133,7 @@ e questo progetto aderisce al [Versionamento Semantico](https://semver.org/spec/
 
 #### Aggiunto
 
-- **UR abbandonate.** La scheda **CH · UR autovelox closer** può ora chiudere anche le UR aperte di qualsiasi tipo, segnalate più di 14 giorni fa, in cui nessuno tranne Map_Team ha scritto. Vengono chiuse come *Non identificata*, senza messaggio. Tre caselle scelgono le famiglie trattate (autovelox, semafori in autostrada, abbandonate; l'ultima è disattivata per impostazione predefinita), e un solo pulsante chiude tutto ciò che è selezionato: autovelox dal livello 3, abbandonate dal livello 4, al massimo 50.
+- **UR abbandonate.** La scheda **CH · UR autovelox closer** può ora chiudere anche le UR aperte di qualsiasi tipo, segnalate più di 14 giorni fa, in cui nessuno tranne Map_Team ha scritto, escluse le segnalazioni vocali Map Mate. Vengono chiuse come *Non identificata*, senza messaggio. Tre caselle scelgono le famiglie trattate (autovelox, semafori in autostrada, abbandonate; l'ultima è disattivata per impostazione predefinita), e un solo pulsante chiude tutto ciò che è selezionato: autovelox dal livello 3, abbandonate dal livello 4, al massimo 50.
 
 ### [1.6.1] - 2026-10-06
 

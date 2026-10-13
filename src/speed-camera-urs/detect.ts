@@ -47,6 +47,13 @@ export const MAP_TEAM_USER = "Map_Team";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * Source of the URs created by Map Mate, Waze's voice reporting (observed in WME on a UR
+ * labelled "Map Mate (signalement vocal)"). Their description often carries what the driver
+ * actually said, so silence in the conversation does not make them abandoned.
+ */
+export const MAP_MATE_SOURCE = "REPORTING_AGENT";
+
 export function ageInDays(reportedOn: number, now: number): number {
   return Math.floor((now - reportedOn) / DAY_MS);
 }
@@ -59,13 +66,14 @@ export function ageInDays(reportedOn: number, now: number): number {
  * message, and must not slip into a family that closes without one.
  */
 export function isStaleCandidate(
-  ur: UrFields & Pick<MapUpdateRequest, "reportedOn">,
+  ur: UrFields & Pick<MapUpdateRequest, "reportedOn" | "source">,
   now: number,
 ): boolean {
   const description = ur.description ?? "";
   const oldEnough = now - ur.reportedOn > STALE_AGE_DAYS * DAY_MS;
   const speedCamera = description.startsWith(SPEED_CAMERA_PREFIX);
-  return ur.isOpen && ur.isEditable && oldEnough && !speedCamera;
+  const mapMate = ur.source === MAP_MATE_SOURCE;
+  return ur.isOpen && ur.isEditable && oldEnough && !speedCamera && !mapMate;
 }
 
 export function hasDiscussion(
