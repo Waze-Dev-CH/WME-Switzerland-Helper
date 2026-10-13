@@ -205,17 +205,8 @@ async function sendAndClose(
   options: { allowConversation: boolean },
 ): Promise<CloseOutcome> {
   const urs = sdk.DataModel.MapUpdateRequests;
-  let comments: ConversationElement[];
-  try {
-    const details = await urs.getUpdateRequestDetails({
-      mapUpdateRequestId: id,
-    });
-    if (!details) return { id, result: "failed", reason: "errDetails" };
-    comments = details.comments;
-  } catch (err) {
-    log.warn(`Could not read the conversation of UR ${id}`, err);
-    return { id, result: "failed", reason: "errDetails" };
-  }
+  const comments = await readConversation(urs, id);
+  if (!comments) return { id, result: "failed", reason: "errDetails" };
 
   const messagedBefore = alreadyMessaged(id, comments);
   const hasConversation = triage(comments, messagedBefore) === "conversation";
@@ -308,17 +299,8 @@ export async function closeStale(
   }
   inFlight.add(id);
   try {
-    let comments: ConversationElement[];
-    try {
-      const details = await urs.getUpdateRequestDetails({
-        mapUpdateRequestId: id,
-      });
-      if (!details) return { id, result: "failed", reason: "errDetails" };
-      comments = details.comments;
-    } catch (err) {
-      log.warn(`Could not read the conversation of UR ${id}`, err);
-      return { id, result: "failed", reason: "errDetails" };
-    }
+    const comments = await readConversation(urs, id);
+    if (!comments) return { id, result: "failed", reason: "errDetails" };
     const messaged = wasMessaged(id);
     const abandoned = isAbandoned(comments, ur.reportedOn, now);
     if (messaged || !abandoned) {
@@ -371,17 +353,8 @@ export async function askMapMate(
     return { id, result: "skipped", reason: "skipConversation" };
   inFlight.add(id);
   try {
-    let comments: ConversationElement[];
-    try {
-      const details = await urs.getUpdateRequestDetails({
-        mapUpdateRequestId: id,
-      });
-      if (!details) return { id, result: "failed", reason: "errDetails" };
-      comments = details.comments;
-    } catch (err) {
-      log.warn(`Could not read the conversation of UR ${id}`, err);
-      return { id, result: "failed", reason: "errDetails" };
-    }
+    const comments = await readConversation(urs, id);
+    if (!comments) return { id, result: "failed", reason: "errDetails" };
     if (wasMessaged(id) || !mayAskMapMate(comments))
       return { id, result: "skipped", reason: "skipConversation" };
 
@@ -473,6 +446,25 @@ export function summarizeBatch(
     (outcome) => outcome.result === "closed" && cameras.has(outcome.id),
   );
   return summarize(outcomes, { messagesSent });
+}
+
+/**
+ * The conversation every writer re-reads right before writing, or null when it cannot be
+ * read: absent details and a failed request both stop the write the same way.
+ */
+async function readConversation(
+  urs: WmeSDK["DataModel"]["MapUpdateRequests"],
+  id: number,
+): Promise<ConversationElement[] | null> {
+  try {
+    const details = await urs.getUpdateRequestDetails({
+      mapUpdateRequestId: id,
+    });
+    return details ? details.comments : null;
+  } catch (err) {
+    log.warn(`Could not read the conversation of UR ${id}`, err);
+    return null;
+  }
 }
 
 /** The raw value next to its date: a wrong type or unit shows at a glance. */
