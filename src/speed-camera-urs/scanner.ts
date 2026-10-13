@@ -101,6 +101,8 @@ export class Scanner {
   private mapMateCandidates: MapMateCandidate[] = [];
   /** Off by default, like readStale: each report costs a round trip, and it sends messages. */
   private readMapMate = false;
+  /** On by default, like its checkbox; off, the speed cameras are listed but not read. */
+  private readSpeedCamera = true;
   private listeners: Array<(snapshot: ScanSnapshot) => void> = [];
   /** Bumped by every rescan, so a slow one stops publishing once a newer one started. */
   private generation = 0;
@@ -120,6 +122,10 @@ export class Scanner {
 
   setReadMapMate(on: boolean): void {
     this.readMapMate = on;
+  }
+
+  setReadSpeedCamera(on: boolean): void {
+    this.readSpeedCamera = on;
   }
 
   start(): void {
@@ -218,7 +224,9 @@ export class Scanner {
       : [];
     this.publish(found);
 
-    for (const ur of found) {
+    // Unchecked, they would only delay the families the editor did ask for.
+    const camerasToRead = this.readSpeedCamera ? found : [];
+    for (const ur of camerasToRead) {
       if (this.triageCache.has(ur.id)) continue;
       const comments = await this.readConversation(ur.id, generation);
       if (comments)

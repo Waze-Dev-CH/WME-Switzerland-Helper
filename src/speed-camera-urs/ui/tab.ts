@@ -201,6 +201,7 @@ export class TabUI {
       criteria: { ...this.settings.criteria, [key]: checked },
     };
     saveSettings(this.settings);
+    this.scanner.setReadSpeedCamera(this.settings.criteria.speedCamera);
     this.scanner.setReadStale(this.settings.criteria.stale);
     this.scanner.setReadMapMate(this.settings.criteria.mapMate);
     this.scanner.schedule();

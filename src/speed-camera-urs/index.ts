@@ -32,6 +32,7 @@ export async function initSpeedCameraUrs(): Promise<void> {
 
   const settings = loadSettings();
   const scanner = new Scanner(sdk);
+  scanner.setReadSpeedCamera(settings.criteria.speedCamera);
   scanner.setReadStale(settings.criteria.stale);
   scanner.setReadMapMate(settings.criteria.mapMate);
   const highlight = new UrHighlight(sdk);

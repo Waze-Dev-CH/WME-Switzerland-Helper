@@ -451,3 +451,16 @@ describe("Scanner abandoned URs over a long session", () => {
     expect(calls).toEqual(["details:1"]);
   });
 });
+
+describe("Scanner speed cameras unchecked", () => {
+  it("reads no speed-camera conversation, and goes straight to the families asked for", async () => {
+    const { sdk, calls } = makeSdk([makeUr(1), makeUr(2, road)]);
+    const scanner = new Scanner(sdk, { now: () => NOW });
+    scanner.setReadSpeedCamera(false);
+    scanner.setReadStale(true);
+
+    await scanner.rescan();
+
+    expect(calls).toEqual(["details:2"]);
+  });
+});
