@@ -166,13 +166,17 @@ triage) → `TabUI`. `close.ts` is the only module that writes.
   name for an editor, and `null` or `"admin"` for the **reporter**, who has no editor
   account (`"admin"` has no editor profile; seen on UR 27179414, probably depending on how
   the reporter answered). WME does **not** always return the author: the same Map_Team
-  comment came back `"Map_Team"` to the scanner and `null` at closure. So Map_Team is also
-  recognised by its fixed text (`MAP_TEAM_QUESTIONS`, detect.ts), and `hasDiscussion`
-  ignores Map_Team only. A nameless comment with any other text is the reporter.
+  comment came back `"Map_Team"` to the scanner and `null` at closure. So a **nameless**
+  comment is also recognised as Map_Team by its fixed text (`MAP_TEAM_QUESTIONS`, one line
+  per language, detect.ts); a named one never is, since editors paste that question by
+  hand. `hasDiscussion` ignores Map_Team only. A nameless comment with any other text is
+  the reporter.
 - Abandoned URs (`isStaleCandidate` prefilter, `isAbandoned` verdict, detect.ts): open,
   editable, any type, **no activity for more than `STALE_AGE_DAYS` (14) days** (latest
   comment, or the report when there is none), and the reporter does **not** have the last
-  word. A question from Map_Team or an editor left unanswered is exactly what this family
+  word among the people (`reporterHasLastWord`: Map_Team is left out, its automatic question
+  can land after the reporter's reply). The scanner caches what the conversation said and
+  decides at each publish, so a UR crossing the 14 days shows up without a reload. A question from Map_Team or an editor left unanswered is exactly what this family
   closes; a UR whose reporter wrote last is never abandoned, someone owes them an answer.
   Map Mate voice reports (`source === "REPORTING_AGENT"`) never qualify. Closed as
   not-identified **without any message**. The scanner reads their conversations only when
@@ -211,8 +215,9 @@ triage) → `TabUI`. `close.ts` is the only module that writes.
   any of the four languages), which is what survives a reload when the closure was not saved.
   Closing it one by one closes it without re-sending, behind its own confirmation
   (`confirmCloseOnly`, button "Close").
-- Traffic lights have **no batch at all**, whatever the level: the prefix alone does not
-  make a speed camera. `closeTrafficLight` re-checks the prefix and `isOnFreeway` right
+- Traffic lights **on a freeway** have **no batch at all**, whatever the level: the prefix
+  alone does not make a speed camera. (A Map Mate light known to be off a freeway does reach
+  the batch, as a question.) `closeTrafficLight` re-checks the prefix and `isOnFreeway` right
   before writing. `closeMany` cannot reach them: the speed-camera family needs the speed-camera
   prefix, `askMapMate` and `closeStale` refuse a light not known to be off a freeway.
 - Every UR is re-read right before writing; one closed in the meantime is skipped. The UR's
