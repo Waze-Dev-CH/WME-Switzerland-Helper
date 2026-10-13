@@ -2,6 +2,7 @@ import type { ConversationElement, WmeSDK } from "wme-sdk-typings";
 import {
   ageInDays,
   hasDiscussion,
+  isKnownOffFreeway,
   isOnFreeway,
   isSpeedCameraUr,
   isStaleCandidate,
@@ -266,10 +267,12 @@ export async function closeStale(
   const ur = urs.getById({ mapUpdateRequestId: id });
   if (!ur || !isStaleCandidate(ur, now))
     return { id, result: "skipped", reason: "skipGone" };
-  // Never through this door: traffic lights on a freeway have no batch at all.
-  const freewayLight =
-    isTrafficLightUr(ur) && isOnFreeway(ur, sdk.DataModel.Segments.getAll());
-  if (freewayLight) return { id, result: "skipped", reason: "skipGone" };
+  // Never through this door: traffic lights on a freeway have no batch at all, and one
+  // whose road is not loaded may well be on a freeway.
+  const lightBlocked =
+    isTrafficLightUr(ur) &&
+    !isKnownOffFreeway(ur, sdk.DataModel.Segments.getAll());
+  if (lightBlocked) return { id, result: "skipped", reason: "skipGone" };
 
   if (inFlight.has(id))
     return { id, result: "skipped", reason: "skipConversation" };

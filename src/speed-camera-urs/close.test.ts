@@ -419,6 +419,17 @@ describe("closeStale", () => {
     expect(calls).toEqual([]);
   });
 
+  it("refuses a traffic light whose road is not loaded", async () => {
+    const { sdk, calls } = makeSdk([makeTrafficLightUr(1)]);
+
+    expect(await closeStale(sdk, 1, NOW)).toEqual({
+      id: 1,
+      result: "skipped",
+      reason: "skipGone",
+    });
+    expect(calls).toEqual([]);
+  });
+
   it("writes nothing when the conversation cannot be read", async () => {
     const { sdk, calls } = makeSdk([makeUr(1, road)], { failDetails: [1] });
 

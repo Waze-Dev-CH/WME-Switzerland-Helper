@@ -284,4 +284,15 @@ describe("Scanner abandoned URs", () => {
       [2, "stale"],
     ]);
   });
+
+  it("keeps a traffic light out while the road under it is not loaded", async () => {
+    const scanner = new Scanner(makeSdk([makeTrafficLightUr(1)]).sdk, {
+      now: () => NOW,
+    });
+    scanner.setReadStale(true);
+
+    await scanner.rescan();
+
+    expect(scanner.getSnapshot().stale).toEqual([]);
+  });
 });

@@ -105,19 +105,15 @@ function bboxNear(segment: SegmentFields, lon: number, lat: number): boolean {
 }
 
 /**
- * Whether the closest loaded segment is a freeway. The closest one decides, not any freeway
- * in range: ramps are excluded on purpose, real traffic lights stand at their far end, and
- * a UR next to one belongs to the ramp even when the freeway runs a few metres further.
- *
- * The SDK links a UR to no segment, hence the geometry. A UR whose segments are not loaded
- * yet is not on a freeway; the scanner looks again when they arrive.
+ * Road type of the closest loaded segment within FREEWAY_MAX_DISTANCE_M, or null when none
+ * is loaded there. The SDK links a UR to no segment, hence the geometry.
  */
-export function isOnFreeway(
+function closestRoadType(
   ur: Pick<MapUpdateRequest, "geometry">,
   segments: readonly SegmentFields[],
-): boolean {
+): number | null {
   const [lon, lat] = ur.geometry.coordinates;
-  if (lon === undefined || lat === undefined) return false;
+  if (lon === undefined || lat === undefined) return null;
   const where = point([lon, lat]);
   let closestType: number | null = null;
   let closestDistance = FREEWAY_MAX_DISTANCE_M;
@@ -130,7 +126,35 @@ export function isOnFreeway(
     closestDistance = distance;
     closestType = segment.roadType;
   }
-  return closestType === FREEWAY_ROAD_TYPE;
+  return closestType;
+}
+
+/**
+ * Whether the closest loaded segment is a freeway. The closest one decides, not any freeway
+ * in range: ramps are excluded on purpose, real traffic lights stand at their far end, and
+ * a UR next to one belongs to the ramp even when the freeway runs a few metres further.
+ *
+ * A UR whose segments are not loaded yet is not on a freeway; the scanner looks again when
+ * they arrive.
+ */
+export function isOnFreeway(
+  ur: Pick<MapUpdateRequest, "geometry">,
+  segments: readonly SegmentFields[],
+): boolean {
+  return closestRoadType(ur, segments) === FREEWAY_ROAD_TYPE;
+}
+
+/**
+ * Whether a traffic-light UR may be treated as abandoned: only once the road under it is
+ * loaded and is not a freeway. "Not loaded" must not count as "not a freeway" here, unlike
+ * in isOnFreeway: a freeway light would then reach a batch, which that family never does.
+ */
+export function isKnownOffFreeway(
+  ur: Pick<MapUpdateRequest, "geometry">,
+  segments: readonly SegmentFields[],
+): boolean {
+  const type = closestRoadType(ur, segments);
+  return type !== null && type !== FREEWAY_ROAD_TYPE;
 }
 
 /** `extent` is the map's GeoJSON bbox: [west, south, east, north]. */

@@ -7,6 +7,7 @@ import { alreadyMessaged, wasMessaged } from "./close";
 import {
   hasDiscussion,
   isInExtent,
+  isKnownOffFreeway,
   isOnFreeway,
   isSpeedCameraUr,
   isStaleCandidate,
@@ -173,13 +174,12 @@ export class Scanner {
     this.trafficLights = lights.map((ur) => this.basics(ur));
 
     // A traffic light on a freeway stays a traffic light: as "abandoned" it would reach a
-    // batch, which that family must never do.
-    const lightIds = new Set(lights.map((ur) => ur.id));
+    // batch, which that family must never do. One whose road is not loaded yet waits.
     const now = this.now();
+    const lightAllowed = (ur: MapUpdateRequest) =>
+      !isTrafficLightUr(ur) || isKnownOffFreeway(ur, segments);
     this.staleCandidates = this.readStale
-      ? onScreen.filter(
-          (ur) => isStaleCandidate(ur, now) && !lightIds.has(ur.id),
-        )
+      ? onScreen.filter((ur) => isStaleCandidate(ur, now) && lightAllowed(ur))
       : [];
     this.publish(found);
 
