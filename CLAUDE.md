@@ -133,11 +133,13 @@ excluded by default and runs with `WME_CH_INTEGRATION=1`.
 
 ### Speed-camera URs (`src/speed-camera-urs/`)
 
-Closes the URs that report a fixed speed camera, which Swiss law forbids showing in Waze.
-They are recognised by the `MISSING_STATIC_SPEED_CAMERA` prefix of their description; their
-type is always `INCORRECT_GENERAL_ERROR`, so the type cannot filter them. Entry point:
-`initSpeedCameraUrs()` (`index.ts`), called from `main.user.ts` after the importer, with its
-own scriptId for the same reason.
+The **CH · UR assistant** tab: it handles four families of open URs, each behind a checkbox.
+It started as the speed-camera closer, hence the folder, the i18n section `speedCameraUrs`,
+the scriptId and the settings key, all kept on purpose so saved choices and the tab's place
+survive. Speed cameras are recognised by the `MISSING_STATIC_SPEED_CAMERA` prefix of their
+description; their type is always `INCORRECT_GENERAL_ERROR`, so the type cannot filter
+them. Entry point: `initSpeedCameraUrs()` (`index.ts`), called from `main.user.ts` after the
+importer, with its own scriptId for the same reason.
 
 Pipeline: `Scanner` (scanner.ts: data-model events and map extent) → `detect.ts` (prefix,
 triage) → `TabUI`. `close.ts` is the only module that writes.
@@ -169,8 +171,19 @@ triage) → `TabUI`. `close.ts` is the only module that writes.
   the "Abandoned" box is checked, after the speed cameras'.
 - Overlaps: a speed camera is never "abandoned", it always gets the message. A traffic light
   on a freeway is never "abandoned" either, or it would reach a batch through the back door.
-- `settings.ts`: the three checkboxes, localStorage key `wme-ch-speed-camera-urs.settings`,
-  non-boolean values fall back to the defaults (speed cameras ☑, traffic lights ☑,
+- Map Mate reports (`mapMateKind`, detect.ts): `source === "REPORTING_AGENT"`, type
+  `INCORRECT_GENERAL_ERROR`, and the code before the first `:` of the description, matched
+  exactly through a `Map` (an object literal would answer `constructor`). Five codes, five
+  questions (`message.ts`, `askBody*`); any other code gets nothing. `askMapMate` only
+  comments: the UR **stays open** and the outcome is `"asked"`. A `MISSING_TRAFFIC_LIGHT`
+  is asked about only when `isKnownOffFreeway`; on a freeway it belongs to the
+  traffic-light family, on an unloaded road it waits.
+- Map Mate never gets a question once anyone but Map_Team has commented (`mayAskMapMate`),
+  with no override, and never twice: `wasMessaged`, plus `isMapMateQuestion` on the
+  conversation, because a comment may come back without a name and then `hasDiscussion`
+  does not see it.
+- `settings.ts`: the four checkboxes, localStorage key `wme-ch-speed-camera-urs.settings`,
+  non-boolean values fall back to the defaults (speed cameras ☑, traffic lights ☑, Map Mate ☐,
   abandoned ☐).
 - `addComment` sends **immediately** and cannot be withdrawn, while the closure goes to the
   edit stack. That is why the comment goes first and the closure only follows a successful
@@ -178,11 +191,12 @@ triage) → `TabUI`. `close.ts` is the only module that writes.
 
 **Safety rules:**
 
-- `BATCH_MIN_RANK` (level 3), `STALE_BATCH_MIN_RANK` (level 4) and `BATCH_CAP` (50, the
-  whole batch, speed cameras first) live in `close.ts` and are enforced in `closeMany`, not
-  only in the tab. One batch button covers what is ticked and allowed; it is hidden when
-  that is empty.
-- Any comment on a UR keeps it out of the batch. `wasMessaged` covers Ctrl+Z: the closure
+- `BATCH_MIN_RANK` (level 3, speed cameras and Map Mate), `STALE_BATCH_MIN_RANK` (level 4)
+  and `BATCH_CAP` (50, the whole batch: speed cameras, then Map Mate, then abandoned) live in
+  `close.ts` and are enforced in `closeMany`, not only in the tab. One batch button covers
+  what is ticked and allowed; it is hidden when that is empty.
+- Any comment keeps a speed camera out of the batch; for Map Mate and abandoned URs, any
+  comment but Map_Team's. `wasMessaged` covers Ctrl+Z: the closure
   is undone but the message is not, and WME's cached conversation may not show it yet.
 - A UR already messaged is never messaged again: `alreadyMessaged` is true when
   `wasMessaged(id)` (this session) or a comment contains the official text (`isOfficialMessage`,
@@ -191,7 +205,8 @@ triage) → `TabUI`. `close.ts` is the only module that writes.
   (`confirmCloseOnly`, button "Close").
 - Traffic lights have **no batch at all**, whatever the level: the prefix alone does not
   make a speed camera. `closeTrafficLight` re-checks the prefix and `isOnFreeway` right
-  before writing, and `closeMany` cannot reach them (it only takes speed-camera URs).
+  before writing. `closeMany` cannot reach them: the speed-camera family needs the speed-camera
+  prefix, `askMapMate` and `closeStale` refuse a light not known to be off a freeway.
 - Every UR is re-read right before writing; one closed in the meantime is skipped. The UR's
   state is live, but `getUpdateRequestDetails` may return the conversation already in WME's
   data model (the SDK offers no forced refresh), so a very recent comment can be missing.

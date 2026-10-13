@@ -75,8 +75,8 @@ Mit diesem Skript erhalten Sie:
 - **Prüfung der offiziellen Strassennamen**
   Vergleicht die Namen der sichtbaren Segmente mit dem offiziellen Schweizer Strassenverzeichnis (swisstopo) und hebt Abweichungen hervor, mit Korrektur per Klick. Ein eigener Reiter **CH · Strassennamen** listet die Befunde auf, gruppiert und farblich unterschieden, und das Segment-Bearbeitungsfenster zeigt das Urteil zum ausgewählten Segment.
 
-- **Radar-URs**  
-  Listet die offenen URs im Bildausschnitt, die ein fest installiertes Radar melden, das Waze nach Schweizer Recht nicht anzeigen darf, und schliesst sie mit der offiziellen Erklärung in der Sprache der meldenden Person. Ein eigener Reiter **CH · Radar-UR-Closer** enthält die Liste.
+- **UR-Assistent**  
+  Bearbeitet die offenen URs im Bildausschnitt in einem eigenen Reiter **CH · UR-Assistent**: Radar-URs (die Waze nach Schweizer Recht nicht anzeigen darf) erhalten die offizielle Erklärung in der Sprache der meldenden Person und werden geschlossen; auf der Autobahn gemeldete Ampeln und verwaiste URs werden ohne Nachricht geschlossen; Sprachmeldungen von Map Mate erhalten eine zum Fall passende Frage. Jede Gruppe hat ihr eigenes Kästchen.
 
 Alle Kartendaten stammen aus offiziellen Schweizer Quellen (swisstopo), so dass Sie auf ihre Genauigkeit vertrauen können.
 
@@ -134,6 +134,11 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 #### Hinzugefügt
 
 - **Verwaiste URs.** Der Reiter **CH · Radar-UR-Closer** kann jetzt auch offene URs jeden Typs schliessen, die vor mehr als 14 Tagen gemeldet wurden und in denen niemand ausser Map_Team geschrieben hat, Sprachmeldungen von Map Mate ausgenommen. Sie werden als *Nicht identifiziert* geschlossen, ohne Nachricht. Drei Kästchen wählen die bearbeiteten Gruppen (Radare, Ampeln auf der Autobahn, verwaist; das letzte ist standardmässig aus), und eine einzige Schaltfläche schliesst alles Angekreuzte: Radare ab Level 3, verwaiste URs ab Level 4, höchstens 50.
+- **Fragen an Map-Mate-Meldende.** Sprachmeldungen von Map Mate (Ampel, Strecke, Tempolimit, Abbiegen, allgemeine Kartenänderung) erhalten eine zum Fall passende Frage in der Sprache der meldenden Person: wo genau und was erwartet wurde; bei einer Ampel wird zudem empfohlen, eine Baustelle zu melden, falls sie provisorisch war. Die UR bleibt für die Antwort offen. Es wird nichts gesendet, sobald jemand anderes als Map_Team kommentiert hat, nie zweimal und nie an eine Ampel, deren nächste Strasse eine Autobahn ist. Einzeln für alle, gemeinsam ab Level 3. Standardmässig aus.
+
+#### Geändert
+
+- Der Reiter **CH · Radar-UR-Closer** heisst jetzt **CH · UR-Assistent**, da er alle UR-Gruppen bearbeitet. Die Beschreibung jeder Gruppe steht nun hinter einem (i) am Ende ihres Kästchens, und die Statuszeile zählt alle angekreuzten Gruppen. Bereits angekreuzte Kästchen bleiben erhalten.
 
 ### [1.6.1] - 2026-10-06
 

@@ -75,8 +75,8 @@ Con questo script, otterrete:
 - **Controllo dei nomi delle vie ufficiali**
   Confronta i nomi dei segmenti visibili con il registro ufficiale svizzero delle vie (swisstopo) ed evidenzia le differenze, con correzione in un clic. Una scheda dedicata **CH · Nomi delle vie** elenca le anomalie, raggruppate e distinte per colore, e il pannello di modifica del segmento mostra il verdetto per il segmento selezionato.
 
-- **UR autovelox**  
-  Elenca le UR aperte sullo schermo che segnalano un autovelox fisso, che la legge svizzera non permette a Waze di mostrare, e le chiude con la spiegazione ufficiale nella lingua di chi ha segnalato. Una scheda dedicata **CH · UR autovelox closer** contiene l'elenco.
+- **Assistente UR**  
+  Tratta le UR aperte sullo schermo in una scheda dedicata **CH · Assistente UR**: le UR autovelox (che la legge svizzera non permette a Waze di mostrare) ricevono la spiegazione ufficiale nella lingua di chi ha segnalato e vengono chiuse; i semafori segnalati in autostrada e le UR abbandonate vengono chiusi senza messaggio; le segnalazioni vocali Map Mate ricevono una domanda adatta al caso. Ogni famiglia ha la sua casella.
 
 Tutti i dati cartografici provengono da fonti ufficiali svizzere (swisstopo), quindi potete fidarvi della loro accuratezza.
 
@@ -134,6 +134,11 @@ e questo progetto aderisce al [Versionamento Semantico](https://semver.org/spec/
 #### Aggiunto
 
 - **UR abbandonate.** La scheda **CH · UR autovelox closer** può ora chiudere anche le UR aperte di qualsiasi tipo, segnalate più di 14 giorni fa, in cui nessuno tranne Map_Team ha scritto, escluse le segnalazioni vocali Map Mate. Vengono chiuse come *Non identificata*, senza messaggio. Tre caselle scelgono le famiglie trattate (autovelox, semafori in autostrada, abbandonate; l'ultima è disattivata per impostazione predefinita), e un solo pulsante chiude tutto ciò che è selezionato: autovelox dal livello 3, abbandonate dal livello 4, al massimo 50.
+- **Domande a chi segnala con Map Mate.** Le segnalazioni vocali Map Mate (semaforo, percorso, limite di velocità, svolta, modifica generale) ricevono una domanda adatta al caso nella lingua di chi ha segnalato: dove esattamente e cosa si aspettava; per un semaforo si suggerisce anche di segnalare dei lavori se era provvisorio. La UR resta aperta per la risposta. Non viene inviato nulla se qualcuno diverso da Map_Team ha commentato, mai due volte, né a un semaforo la cui strada più vicina è un'autostrada. Una per una per tutti, in blocco dal livello 3. Disattivato per impostazione predefinita.
+
+#### Modificato
+
+- La scheda **CH · UR autovelox closer** diventa **CH · Assistente UR**, poiché tratta tutte le famiglie di UR. La descrizione di ogni famiglia è ora dietro una (i) alla fine della sua casella, e la riga di stato conta tutte le famiglie selezionate. Le caselle già selezionate vengono conservate.
 
 ### [1.6.1] - 2026-10-06
 

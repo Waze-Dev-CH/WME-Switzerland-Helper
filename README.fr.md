@@ -75,8 +75,8 @@ Avec ce script, vous obtenez :
 - **Contrôle des noms de rue officiels**
   Compare le nom des segments que vous voyez avec le répertoire officiel suisse des rues (swisstopo) et met en évidence les écarts, avec correction en un clic. Un onglet dédié **CH · Nom des rues** liste les anomalies, groupées et distinguées par couleur, et le panneau d'édition du segment affiche le verdict pour le segment sélectionné.
 
-- **UR radar**  
-  Liste les UR ouverts à l'écran qui signalent un radar fixe, que la loi suisse interdit d'afficher dans Waze, et les ferme avec l'explication officielle dans la langue de l'utilisateur. Un onglet dédié **CH · URs radars closer** contient la liste.
+- **Assistant UR**  
+  Traite les UR ouverts à l'écran dans un onglet dédié **CH · Assistant UR** : les UR radar (que la loi suisse interdit d'afficher dans Waze) reçoivent l'explication officielle dans la langue de l'utilisateur et sont fermés ; les feux signalés sur autoroute et les UR abandonnés sont fermés sans message ; les signalements vocaux Map Mate reçoivent une question adaptée à leur cas. Chaque famille a sa case à cocher.
 
 Toutes les données cartographiques proviennent de sources officielles suisses (swisstopo), vous pouvez donc vous fier à leur exactitude.
 
@@ -134,6 +134,11 @@ et ce projet adhère au [Versionnage Sémantique](https://semver.org/spec/v2.0.0
 #### Ajouté
 
 - **UR abandonnés.** L'onglet **CH · URs radars closer** peut aussi fermer les UR ouverts de tout type, signalés il y a plus de 14 jours, où personne d'autre que Map_Team n'a écrit, hors signalements vocaux Map Mate. Ils sont fermés en *Non identifié*, sans message. Trois cases choisissent les familles traitées (radars, feux sur autoroute, abandonnés ; la dernière est décochée par défaut), et un seul bouton ferme tout ce qui est coché : radars dès le niveau 3, abandonnés dès le niveau 4, 50 au plus.
+- **Questions aux rapporteurs Map Mate.** Les signalements vocaux Map Mate (feu, itinéraire, limitation de vitesse, virage, modification générale) reçoivent une question adaptée à leur cas dans la langue du rapporteur : où exactement, et ce qu'il attendait ; pour un feu, la question suggère aussi de signaler des travaux s'il était provisoire. L'UR reste ouvert pour la réponse. Rien n'est envoyé dès qu'une autre personne que Map_Team a commenté, jamais deux fois, ni à un feu dont la route la plus proche est une autoroute. Un par un pour tous, en lot dès le niveau 3. Décoché par défaut.
+
+#### Modifié
+
+- L'onglet **CH · URs radars closer** devient **CH · Assistant UR**, puisqu'il traite toutes les familles d'UR. La description de chaque famille passe derrière un (i) au bout de sa case, et la ligne d'état compte toutes les familles cochées. Les cases déjà cochées sont conservées.
 
 ### [1.6.1] - 2026-10-06
 
