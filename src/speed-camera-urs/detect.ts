@@ -35,6 +35,45 @@ export function isTrafficLightUr(ur: UrFields): boolean {
   );
 }
 
+/** Past this age with nobody but Map_Team in the conversation, the reporter is not coming back. */
+export const STALE_AGE_DAYS = 14;
+
+/**
+ * Author of the automatic comments WME adds to a UR. They are not a conversation: nobody
+ * is waiting for an answer to them. Exact match on purpose: any other spelling is treated
+ * as a person, which keeps the UR out of the batch rather than in it.
+ */
+export const MAP_TEAM_USER = "Map_Team";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export function ageInDays(reportedOn: number, now: number): number {
+  return Math.floor((now - reportedOn) / DAY_MS);
+}
+
+/**
+ * An open UR old enough to be abandoned, read from the data model alone. The final verdict
+ * also needs the conversation (hasDiscussion), which costs a server round trip.
+ *
+ * Speed cameras are excluded here rather than by the caller: they always get the official
+ * message, and must not slip into a family that closes without one.
+ */
+export function isStaleCandidate(
+  ur: UrFields & Pick<MapUpdateRequest, "reportedOn">,
+  now: number,
+): boolean {
+  const description = ur.description ?? "";
+  const oldEnough = now - ur.reportedOn > STALE_AGE_DAYS * DAY_MS;
+  const speedCamera = description.startsWith(SPEED_CAMERA_PREFIX);
+  return ur.isOpen && ur.isEditable && oldEnough && !speedCamera;
+}
+
+export function hasDiscussion(
+  comments: readonly ConversationElement[],
+): boolean {
+  return comments.some((comment) => comment.userName !== MAP_TEAM_USER);
+}
+
 /** ROAD_TYPE.FREEWAY in the SDK; the typings declare the constant but ship no runtime value. */
 const FREEWAY_ROAD_TYPE = 3;
 

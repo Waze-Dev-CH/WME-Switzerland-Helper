@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  ageInDays,
+  hasDiscussion,
   isInExtent,
   isOnFreeway,
   isSpeedCameraUr,
+  isStaleCandidate,
   isTrafficLightUr,
+  MAP_TEAM_USER,
+  STALE_AGE_DAYS,
   triage,
 } from "./detect";
 import { makeSegment, makeTrafficLightUr, makeUr } from "./fake-sdk";
@@ -109,5 +114,66 @@ describe("isOnFreeway", () => {
 
   it("is false when no segment is loaded", () => {
     expect(isOnFreeway(ur, [])).toBe(false);
+  });
+});
+
+const DAY = 24 * 60 * 60 * 1000;
+/** makeUr's default reportedOn. */
+const REPORTED = 1_760_000_000_000;
+const road = { description: "Missing road" };
+
+describe("isStaleCandidate", () => {
+  it("needs strictly more than 14 days", () => {
+    const ur = makeUr(1, road);
+    expect(isStaleCandidate(ur, REPORTED + STALE_AGE_DAYS * DAY)).toBe(false);
+    expect(isStaleCandidate(ur, REPORTED + STALE_AGE_DAYS * DAY + 1)).toBe(
+      true,
+    );
+  });
+
+  it("takes any type, a missing description included, but never a speed camera", () => {
+    const now = REPORTED + 30 * DAY;
+    expect(isStaleCandidate(makeTrafficLightUr(1), now)).toBe(true);
+    expect(isStaleCandidate(makeUr(2, { description: null }), now)).toBe(true);
+    expect(isStaleCandidate(makeUr(3), now)).toBe(false);
+  });
+
+  it("rejects a closed UR and one the editor cannot edit", () => {
+    const now = REPORTED + 30 * DAY;
+    expect(isStaleCandidate(makeUr(1, { ...road, isOpen: false }), now)).toBe(
+      false,
+    );
+    expect(
+      isStaleCandidate(makeUr(1, { ...road, isEditable: false }), now),
+    ).toBe(false);
+  });
+
+  it("rejects a UR reported in the future (clock skew)", () => {
+    expect(isStaleCandidate(makeUr(1, road), REPORTED - DAY)).toBe(false);
+  });
+});
+
+describe("hasDiscussion", () => {
+  const mapTeam = { createdOn: 0, text: "auto", userName: MAP_TEAM_USER };
+  const someone = { createdOn: 0, text: "hi", userName: "editor" };
+
+  it("is false without comments, and with Map_Team's alone", () => {
+    expect(hasDiscussion([])).toBe(false);
+    expect(hasDiscussion([mapTeam, mapTeam])).toBe(false);
+  });
+
+  it("is true as soon as anyone else wrote", () => {
+    expect(hasDiscussion([mapTeam, someone])).toBe(true);
+  });
+
+  it("counts an anonymous or differently-cased author as a discussion", () => {
+    expect(hasDiscussion([{ ...mapTeam, userName: null }])).toBe(true);
+    expect(hasDiscussion([{ ...mapTeam, userName: "map_team" }])).toBe(true);
+  });
+});
+
+describe("ageInDays", () => {
+  it("counts whole days", () => {
+    expect(ageInDays(REPORTED, REPORTED + 15 * DAY + 5)).toBe(15);
   });
 });
