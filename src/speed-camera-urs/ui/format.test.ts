@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { BATCH_CAP } from "../close";
 import type { UrEntry } from "../scanner";
+import { DEFAULT_CRITERIA } from "../settings";
 import {
-  formatCloseAllButton,
+  formatCloseSelectedButton,
   formatRowLabel,
+  formatStaleRowLabel,
   formatStatus,
-  shouldShowCloseAll,
+  selectedBatch,
+  shouldShowCloseSelected,
   splitEntries,
 } from "./format";
 
@@ -55,19 +58,61 @@ describe("formatRowLabel", () => {
   });
 });
 
-describe("formatCloseAllButton", () => {
+describe("selectedBatch", () => {
+  const ready = { speedCamera: [1, 2], stale: [10] };
+  const everyone = { speedCamera: true, stale: true };
+
+  it("takes the speed cameras by default, not the abandoned URs", () => {
+    expect(selectedBatch(DEFAULT_CRITERIA, everyone, ready)).toEqual({
+      speedCamera: [1, 2],
+      stale: [],
+    });
+  });
+
+  it("takes both families when both are checked and allowed", () => {
+    const criteria = { ...DEFAULT_CRITERIA, stale: true };
+    expect(selectedBatch(criteria, everyone, ready)).toEqual(ready);
+  });
+
+  it("drops a family that is unchecked", () => {
+    const criteria = { speedCamera: false, trafficLight: true, stale: true };
+    expect(selectedBatch(criteria, everyone, ready)).toEqual({
+      speedCamera: [],
+      stale: [10],
+    });
+  });
+
+  it("drops the abandoned URs at level 3 and everything below it", () => {
+    const criteria = { ...DEFAULT_CRITERIA, stale: true };
+    expect(
+      selectedBatch(criteria, { speedCamera: true, stale: false }, ready),
+    ).toEqual({ speedCamera: [1, 2], stale: [] });
+    expect(
+      selectedBatch(criteria, { speedCamera: false, stale: false }, ready),
+    ).toEqual({ speedCamera: [], stale: [] });
+  });
+});
+
+describe("formatCloseSelectedButton", () => {
   it("names the count, and the cap when there are more", () => {
-    expect(formatCloseAllButton(12)).toBe("Handle all (12)");
-    expect(formatCloseAllButton(BATCH_CAP + 5)).toBe(
-      `Handle ${BATCH_CAP} of ${BATCH_CAP + 5}`,
+    expect(formatCloseSelectedButton(12)).toBe("Close the 12 selected UR(s)");
+    expect(formatCloseSelectedButton(BATCH_CAP + 5)).toBe(
+      `Close ${BATCH_CAP} of the ${BATCH_CAP + 5} selected UR(s)`,
     );
   });
 });
 
-describe("shouldShowCloseAll", () => {
-  it("hides the batch below the level and when there is nothing to do", () => {
-    expect(shouldShowCloseAll(true, 3)).toBe(true);
-    expect(shouldShowCloseAll(false, 3)).toBe(false);
-    expect(shouldShowCloseAll(true, 0)).toBe(false);
+describe("shouldShowCloseSelected", () => {
+  it("hides the button when nothing is selected", () => {
+    expect(shouldShowCloseSelected(3)).toBe(true);
+    expect(shouldShowCloseSelected(0)).toBe(false);
+  });
+});
+
+describe("formatStaleRowLabel", () => {
+  it("adds the age in days to the usual label", () => {
+    const now = Date.UTC(2026, 9, 1) + 20 * 24 * 60 * 60 * 1000;
+    const label = formatStaleRowLabel(entry(5, "ready"), "en", now);
+    expect(label).toMatch(/^#5 · DE · .* · 20 d$/);
   });
 });

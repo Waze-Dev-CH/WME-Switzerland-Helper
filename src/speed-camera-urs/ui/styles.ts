@@ -10,6 +10,9 @@ ${componentRules("scu")}
 .scu-list { display: flex; flex-direction: column; gap: 4px; }
 .scu-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .scu-row-label { font-variant-numeric: tabular-nums; }
+.scu-criteria { display: flex; flex-direction: column; gap: 4px; }
+.scu-criteria-label { font-weight: 600; }
+.scu-criterion { display: flex; align-items: center; gap: 6px; cursor: pointer; }
 /* The summary carries one problem per line. */
 .scu-warn { white-space: pre-line; }
 

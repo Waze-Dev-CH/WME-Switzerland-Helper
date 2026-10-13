@@ -258,8 +258,6 @@
     "rowTitle": "Zoom to this UR, then click its marker to open it",
     "rowPending": "checking",
     "btnCloseOne": "Close with message",
-    "btnCloseAll": "Handle all ({{count}})",
-    "btnCloseAllCapped": "Handle {{cap}} of {{count}}",
     "confirmCloseOnly": "The official message is already in this UR's conversation. Close the UR as Not identified without sending it again?",
     "dlgTitleOne": "Close UR #{{id}}",
     "dlgFactSendOne": "The message below goes to the reporter now.",

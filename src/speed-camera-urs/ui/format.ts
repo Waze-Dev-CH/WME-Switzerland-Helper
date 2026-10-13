@@ -1,6 +1,8 @@
-import { BATCH_CAP } from "../close";
+import { BATCH_CAP, type BatchRequest } from "../close";
+import { ageInDays } from "../detect";
 import { t, type LocaleCode } from "../i18n";
 import type { TrafficLightEntry, UrEntry } from "../scanner";
+import type { Criteria } from "../settings";
 
 /** The tab's wording, kept free of DOM so it can be tested. */
 
@@ -35,16 +37,42 @@ export function formatRowLabel(
   return `#${entry.id} · ${entry.lang.toUpperCase()} · ${date}`;
 }
 
-export function formatCloseAllButton(readyCount: number): string {
-  if (readyCount > BATCH_CAP)
-    return t("btnCloseAllCapped", { cap: BATCH_CAP, count: readyCount });
-  return t("btnCloseAll", { count: readyCount });
+export function formatStaleRowLabel(
+  entry: TrafficLightEntry,
+  locale: LocaleCode,
+  now: number,
+): string {
+  const age = t("rowAgeDays", { count: ageInDays(entry.reportedOn, now) });
+  return `${formatRowLabel(entry, locale)} · ${age}`;
 }
 
-/** Hidden, not greyed, below the level: a greyed button still invites the click. */
-export function shouldShowCloseAll(
-  allowed: boolean,
-  readyCount: number,
-): boolean {
-  return allowed && readyCount > 0;
+/**
+ * What the single batch button covers: each family only when its box is ticked AND the
+ * editor has its level. Traffic lights on a freeway have no place here, whatever is ticked.
+ */
+export function selectedBatch(
+  criteria: Criteria,
+  allowed: { speedCamera: boolean; stale: boolean },
+  ready: BatchRequest,
+): BatchRequest {
+  const takeCameras = criteria.speedCamera && allowed.speedCamera;
+  const takeStale = criteria.stale && allowed.stale;
+  return {
+    speedCamera: takeCameras ? [...ready.speedCamera] : [],
+    stale: takeStale ? [...ready.stale] : [],
+  };
+}
+
+export function formatCloseSelectedButton(total: number): string {
+  if (total > BATCH_CAP)
+    return t("btnCloseSelectedCapped", { cap: BATCH_CAP, count: total });
+  return t("btnCloseSelected", { count: total });
+}
+
+/**
+ * Hidden, not greyed, when empty. The level is already folded into the total by
+ * selectedBatch: a greyed button still invites the click.
+ */
+export function shouldShowCloseSelected(total: number): boolean {
+  return total > 0;
 }

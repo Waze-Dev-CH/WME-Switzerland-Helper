@@ -258,8 +258,6 @@
     "rowTitle": "Auf diese UR zoomen, dann auf ihre Markierung klicken, um sie zu öffnen",
     "rowPending": "in Prüfung",
     "btnCloseOne": "Mit Nachricht schliessen",
-    "btnCloseAll": "Alle bearbeiten ({{count}})",
-    "btnCloseAllCapped": "{{cap}} von {{count}} bearbeiten",
     "confirmCloseOnly": "Die offizielle Nachricht steht bereits in der Unterhaltung dieser UR. Die UR als «Nicht identifiziert» schliessen, ohne sie erneut zu senden?",
     "dlgTitleOne": "UR Nr. {{id}} schliessen",
     "dlgFactSendOne": "Die folgende Nachricht geht jetzt an die meldende Person.",

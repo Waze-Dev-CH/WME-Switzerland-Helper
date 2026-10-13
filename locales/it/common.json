@@ -258,8 +258,6 @@
     "rowTitle": "Zoomare su questa UR, poi cliccate sul suo indicatore per aprirla",
     "rowPending": "in verifica",
     "btnCloseOne": "Chiudi con messaggio",
-    "btnCloseAll": "Tratta tutte ({{count}})",
-    "btnCloseAllCapped": "Tratta {{cap}} su {{count}}",
     "confirmCloseOnly": "Il messaggio ufficiale è già nella conversazione di questa UR. Chiudere la UR come Non identificata senza inviarlo di nuovo?",
     "dlgTitleOne": "Chiudere la UR n. {{id}}",
     "dlgFactSendOne": "Il messaggio qui sotto parte ora verso chi ha segnalato.",
