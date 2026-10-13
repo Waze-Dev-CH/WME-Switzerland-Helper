@@ -26,8 +26,25 @@ pour qu'il puisse répondre.
 | Déjà questionné | Jamais deux fois. Reconnu par le texte dans la conversation (quatre langues) ou par l'ensemble `messaged` de la session. Un UR déjà questionné sort de la liste : il attend la réponse |
 | Conversation existante | Tout commentaire d'une autre personne que `Map_Team` exclut l'UR du lot. Il reste possible de l'envoyer depuis sa ligne, et la confirmation montre alors le dernier commentaire |
 | Case à cocher | 4ᵉ case, « Feux Map Mate hors autoroute », **décochée par défaut** puisqu'elle envoie des messages |
-| Feu Map Mate sur autoroute | Inchangé : il reste dans « Feux sur autoroute », fermé un par un sans message |
-| Route pas encore chargée | L'UR attend, il n'est pas listé. Même règle que pour les abandonnés |
+| Feu Map Mate sur autoroute | **Jamais de question** : c'est probablement un radar. Il reste dans « Feux sur autoroute », fermé un par un sans message |
+| Route pas encore chargée | L'UR attend, il n'est listé nulle part. Même règle que pour les abandonnés |
+| Source | Seulement Map Mate. Un feu signalé à la main dans l'app, hors autoroute, n'est pas concerné |
+
+### 2.1 Partage avec les feux sur autoroute
+
+Les deux familles se partagent les feux Map Mate selon **une seule règle**, la route la plus
+proche dans un rayon de `FREEWAY_MAX_DISTANCE_M` (`closestRoadType`, detect.ts) :
+
+| Route la plus proche | Famille |
+| --- | --- |
+| Autoroute | « Feux sur autoroute » : fermé sans message, aucune question |
+| Chargée, autre qu'une autoroute (bretelle comprise) | « Feux Map Mate hors autoroute » : question |
+| Aucune route chargée | Aucune des deux, en attente |
+
+La famille « question » est donc exactement le reste de ce que traite le cas autoroute. Un
+UR ne peut pas être dans les deux, et un feu dont on ne connaît pas encore la route ne reçoit
+jamais la question, puisque ce pourrait être un radar. `askLight` refait ce test juste avant
+d'envoyer : une route reclassée en autoroute entre-temps bloque l'envoi (`skipGone`).
 
 ## 3. Le message
 
