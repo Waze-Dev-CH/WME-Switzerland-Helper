@@ -334,6 +334,7 @@
     "trafficLightInfo": "MISSING_TRAFFIC_LIGHT URs whose closest road is a freeway: often a speed camera reported as a traffic light. One by one only: open each UR and check it before closing. No message is sent.",
     "staleInfo": "Open URs of any type with no activity for more than {{days}} days, where the reporter does not have the last word: nobody wrote, or Map_Team or an editor asked and got no answer. Map Mate voice reports are left out. Closed as Not identified, without any message.",
     "askBodyRailroadCrossing": "In Switzerland, level crossings are not shown on the map by default, unless they are really dangerous.\n\nIf this one is, please do tell us by replying here: where exactly is it, and what makes it dangerous?",
-    "kindRailroadCrossing": "Level crossing"
+    "kindRailroadCrossing": "Level crossing",
+    "skipRoadUnknown": "its road is not loaded, or is a freeway"
   }
 }

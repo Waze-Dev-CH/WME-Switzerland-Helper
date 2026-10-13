@@ -450,7 +450,7 @@ describe("closeStale", () => {
     expect(await closeStale(sdk, 1, NOW)).toEqual({
       id: 1,
       result: "skipped",
-      reason: "skipGone",
+      reason: "skipRoadUnknown",
     });
     expect(calls).toEqual([]);
   });
@@ -473,7 +473,7 @@ describe("closeStale", () => {
     expect(await closeStale(sdk, 1, NOW)).toEqual({
       id: 1,
       result: "skipped",
-      reason: "skipGone",
+      reason: "skipRoadUnknown",
     });
     expect(calls).toEqual([]);
   });
@@ -667,7 +667,7 @@ describe("askMapMate", () => {
       expect(await askMapMate(sdk, 2)).toEqual({
         id: 2,
         result: "skipped",
-        reason: "skipGone",
+        reason: "skipRoadUnknown",
       });
       expect(calls).toEqual([]);
     }
@@ -781,5 +781,15 @@ describe("summarize with questions", () => {
       { id: 2, result: "closed" },
     ]);
     expect(text).toContain("Save to record the closures.");
+  });
+});
+
+describe("summarize a traffic light refused for its road", () => {
+  it("says why, rather than claiming the UR is closed", () => {
+    const text = summarize([
+      { id: 7, result: "skipped", reason: "skipRoadUnknown" },
+    ]);
+    expect(text).toContain("its road is not loaded, or is a freeway");
+    expect(text).not.toContain("already closed");
   });
 });

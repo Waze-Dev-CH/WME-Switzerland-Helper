@@ -334,6 +334,7 @@
     "trafficLightInfo": "UR di tipo MISSING_TRAFFIC_LIGHT la cui strada più vicina è un'autostrada: spesso un autovelox segnalato come semaforo. Solo una per una: aprite ogni UR e verificatela prima di chiuderla. Nessun messaggio viene inviato.",
     "staleInfo": "UR aperte di qualsiasi tipo senza attività da più di {{days}} giorni, in cui chi ha segnalato non ha l'ultima parola: nessuno ha scritto, oppure Map_Team o un editor ha sollecitato senza risposta. Le segnalazioni vocali Map Mate sono escluse. Chiuse come Non identificata, senza messaggio.",
     "askBodyRailroadCrossing": "In Svizzera i passaggi a livello non sono indicati sulla mappa per impostazione predefinita, a meno che non siano davvero pericolosi.\n\nSe è il caso di questo, non esiti a dircelo rispondendo qui: dove si trova esattamente e che cosa lo rende pericoloso?",
-    "kindRailroadCrossing": "Passaggio a livello"
+    "kindRailroadCrossing": "Passaggio a livello",
+    "skipRoadUnknown": "la sua strada non è caricata, o è un'autostrada"
   }
 }

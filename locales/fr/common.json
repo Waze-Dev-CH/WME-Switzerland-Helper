@@ -334,6 +334,7 @@
     "trafficLightInfo": "UR MISSING_TRAFFIC_LIGHT dont la route la plus proche est une autoroute : souvent un radar signalé comme feu. Traitement un par un uniquement : ouvrez chaque UR et vérifiez-le avant de le fermer. Aucun message n'est envoyé.",
     "staleInfo": "UR ouverts de tout type sans activité depuis plus de {{days}} jours, où le rapporteur n'a pas le dernier mot : personne n'a écrit, ou Map_Team ou un éditeur a relancé sans réponse. Les signalements vocaux Map Mate sont exclus. Fermés en Non identifié, sans message.",
     "askBodyRailroadCrossing": "En Suisse, les passages à niveau ne sont pas indiqués sur la carte par défaut, sauf s'ils sont vraiment dangereux.\n\nSi c'est le cas de celui-ci, n'hésitez pas à nous le dire en répondant ici : où se trouve-t-il exactement, et qu'est-ce qui le rend dangereux ?",
-    "kindRailroadCrossing": "Passage à niveau"
+    "kindRailroadCrossing": "Passage à niveau",
+    "skipRoadUnknown": "sa route n'est pas chargée, ou c'est une autoroute"
   }
 }

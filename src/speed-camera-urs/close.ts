@@ -54,7 +54,12 @@ export const BATCH_CAP = 50;
  */
 export const STALE_BATCH_MIN_RANK = 3;
 
-export type SkipReason = "skipGone" | "skipConversation" | "skipNotFreeway";
+export type SkipReason =
+  | "skipGone"
+  | "skipConversation"
+  | "skipNotFreeway"
+  /** A traffic light whose road is not loaded, or turned out to be a freeway. */
+  | "skipRoadUnknown";
 export type FailReason =
   | "errNotAllowed"
   | "errDetails"
@@ -295,7 +300,7 @@ export async function closeStale(
   const lightBlocked =
     isTrafficLightUr(ur) &&
     !isKnownOffFreeway(ur, sdk.DataModel.Segments.getAll());
-  if (lightBlocked) return { id, result: "skipped", reason: "skipGone" };
+  if (lightBlocked) return { id, result: "skipped", reason: "skipRoadUnknown" };
 
   if (inFlight.has(id)) {
     log.warn(`Abandoned UR ${id} skipped: already being handled`);
@@ -359,7 +364,8 @@ export async function askMapMate(
   const lightOnUnknownRoad =
     kind === "trafficLight" &&
     !isKnownOffFreeway(ur, sdk.DataModel.Segments.getAll());
-  if (lightOnUnknownRoad) return { id, result: "skipped", reason: "skipGone" };
+  if (lightOnUnknownRoad)
+    return { id, result: "skipped", reason: "skipRoadUnknown" };
 
   if (inFlight.has(id))
     return { id, result: "skipped", reason: "skipConversation" };
