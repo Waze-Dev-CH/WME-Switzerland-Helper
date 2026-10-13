@@ -186,7 +186,7 @@ describe("runCloseSelected", () => {
     expect(
       await runCloseSelected(
         sdk,
-        { speedCamera: [1], stale: [] },
+        { speedCamera: [1], mapMate: [], stale: [] },
         { confirm, notify },
       ),
     ).toBeNull();
@@ -207,7 +207,7 @@ describe("runCloseSelected", () => {
 
     const outcomes = await runCloseSelected(
       sdk,
-      { speedCamera: [1, 2, 3], stale: [] },
+      { speedCamera: [1, 2, 3], mapMate: [], stale: [] },
       { confirm, notify },
     );
 
@@ -241,7 +241,7 @@ describe("runCloseSelected", () => {
     expect(
       await runCloseSelected(
         sdk,
-        { speedCamera: [1], stale: [] },
+        { speedCamera: [1], mapMate: [], stale: [] },
         { confirm, notify },
       ),
     ).toBeNull();
@@ -256,7 +256,7 @@ describe("runCloseSelected", () => {
     expect(
       await runCloseSelected(
         sdk,
-        { speedCamera: [1], stale: [] },
+        { speedCamera: [1], mapMate: [], stale: [] },
         { confirm: decline(), notify: silent() },
       ),
     ).toBeNull();
@@ -277,7 +277,7 @@ describe("runCloseSelected", () => {
     expect(isCloseInFlight()).toBe(true);
     const second = await runCloseSelected(
       sdk,
-      { speedCamera: [2], stale: [] },
+      { speedCamera: [2], mapMate: [], stale: [] },
       {
         confirm: accept(),
         notify: silent(),
@@ -300,7 +300,7 @@ describe("runCloseSelected", () => {
     expect(
       await runCloseSelected(
         sdk,
-        { speedCamera: [], stale: [1] },
+        { speedCamera: [], mapMate: [], stale: [1] },
         { confirm, notify },
         NOW,
       ),
@@ -316,7 +316,7 @@ describe("runCloseSelected", () => {
 
     await runCloseSelected(
       sdk,
-      { speedCamera: [1], stale: [2] },
+      { speedCamera: [1], mapMate: [], stale: [2] },
       { confirm, notify: silent() },
       NOW,
     );
@@ -332,7 +332,7 @@ describe("runCloseSelected", () => {
 
     const outcomes = await runCloseSelected(
       sdk,
-      { speedCamera: [1], stale: [2] },
+      { speedCamera: [1], mapMate: [], stale: [2] },
       { confirm, notify },
       NOW,
     );
@@ -352,7 +352,7 @@ describe("runCloseSelected", () => {
 
     await runCloseSelected(
       sdk,
-      { speedCamera: [], stale: [1] },
+      { speedCamera: [], mapMate: [], stale: [1] },
       { confirm, notify },
       NOW,
     );

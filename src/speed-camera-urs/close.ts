@@ -7,6 +7,7 @@ import {
   isSpeedCameraUr,
   isStaleCandidate,
   isTrafficLightUr,
+  mapMateKind,
   triage,
 } from "./detect";
 import { getLocale, t } from "./i18n";
@@ -18,7 +19,13 @@ import {
   closeStaleSpec,
   closeTrafficLightSpec,
 } from "./confirm-spec";
-import { buildMessage, isOfficialMessage, messageLanguage } from "./message";
+import {
+  buildMapMateQuestion,
+  buildMessage,
+  isOfficialMessage,
+  mayAskMapMate,
+  messageLanguage,
+} from "./message";
 import {
   confirmDialog,
   notifyDialog,
@@ -54,6 +61,8 @@ export type FailReason =
 
 export type CloseOutcome =
   | { id: number; result: "closed" }
+  /** A Map Mate report was asked for details; nothing was closed. */
+  | { id: number; result: "asked" }
   | { id: number; result: "skipped"; reason: SkipReason }
   | { id: number; result: "failed"; reason: FailReason };
 
@@ -115,22 +124,34 @@ export function canBatchStale(sdk: WmeSDK): boolean {
 
 export interface BatchRequest {
   speedCamera: readonly number[];
+  mapMate: readonly number[];
   stale: readonly number[];
 }
 
-/** Each family the editor lacks the rank for is emptied, the other one goes through. */
+/** Each family the editor lacks the rank for is emptied, the others go through. */
 export function allowedBatch(sdk: WmeSDK, request: BatchRequest): BatchRequest {
+  const level3 = canBatch(sdk);
   return {
-    speedCamera: canBatch(sdk) ? request.speedCamera : [],
+    speedCamera: level3 ? request.speedCamera : [],
+    mapMate: level3 ? request.mapMate : [],
     stale: canBatchStale(sdk) ? request.stale : [],
   };
 }
 
-/** Speed cameras first: their reporters are waiting for an explanation. */
+/** Speed cameras first, then the reporters we ask; abandoned URs can wait. */
 export function capBatch(request: BatchRequest): BatchRequest {
   const speedCamera = request.speedCamera.slice(0, BATCH_CAP);
-  const stale = request.stale.slice(0, BATCH_CAP - speedCamera.length);
-  return { speedCamera, stale };
+  let room = BATCH_CAP - speedCamera.length;
+  const mapMate = request.mapMate.slice(0, room);
+  room -= mapMate.length;
+  const stale = request.stale.slice(0, room);
+  return { speedCamera, mapMate, stale };
+}
+
+function batchSize(request: BatchRequest): number {
+  return (
+    request.speedCamera.length + request.mapMate.length + request.stale.length
+  );
 }
 
 /**
@@ -298,6 +319,66 @@ export async function closeStale(
 }
 
 /**
+ * Ask a Map Mate reporter for details: one comment, and the UR stays open for the answer.
+ * updateResolutionState is never called here.
+ *
+ * Everything is re-read right before sending, as in closeOne: the comment cannot be
+ * withdrawn. There is no way to force it: once anyone but Map_Team has written, a canned
+ * question would talk over them.
+ */
+export async function askMapMate(
+  sdk: WmeSDK,
+  id: number,
+): Promise<CloseOutcome> {
+  if (!sdk.Editing.isEditingAllowed())
+    return { id, result: "failed", reason: "errNotAllowed" };
+
+  const urs = sdk.DataModel.MapUpdateRequests;
+  const ur = urs.getById({ mapUpdateRequestId: id });
+  const kind = ur ? mapMateKind(ur) : null;
+  if (!ur || !kind) return { id, result: "skipped", reason: "skipGone" };
+  // On a freeway it is likely a speed camera; on an unloaded road it may be one.
+  const lightOnUnknownRoad =
+    kind === "trafficLight" &&
+    !isKnownOffFreeway(ur, sdk.DataModel.Segments.getAll());
+  if (lightOnUnknownRoad) return { id, result: "skipped", reason: "skipGone" };
+
+  if (inFlight.has(id))
+    return { id, result: "skipped", reason: "skipConversation" };
+  inFlight.add(id);
+  try {
+    let comments: ConversationElement[];
+    try {
+      const details = await urs.getUpdateRequestDetails({
+        mapUpdateRequestId: id,
+      });
+      if (!details) return { id, result: "failed", reason: "errDetails" };
+      comments = details.comments;
+    } catch (err) {
+      log.warn(`Could not read the conversation of UR ${id}`, err);
+      return { id, result: "failed", reason: "errDetails" };
+    }
+    if (wasMessaged(id) || !mayAskMapMate(comments))
+      return { id, result: "skipped", reason: "skipConversation" };
+
+    const lang = messageLanguage(ur.userPreferences?.language);
+    try {
+      await urs.addComment({
+        mapUpdateRequestId: id,
+        text: buildMapMateQuestion(kind, lang),
+      });
+    } catch (err) {
+      log.warn(`Could not send the question to UR ${id}`, err);
+      return { id, result: "failed", reason: "errComment" };
+    }
+    noteMessaged(id);
+    return { id, result: "asked" };
+  } finally {
+    inFlight.delete(id);
+  }
+}
+
+/**
  * The batch. Re-checks both ranks itself: a gate enforced only where the button is drawn
  * would be one missed check away from being gone. null when the editor has the rank for
  * none of the families asked for.
@@ -308,15 +389,16 @@ export async function closeMany(
   now = Date.now(),
 ): Promise<CloseOutcome[] | null> {
   const allowed = allowedBatch(sdk, request);
-  const asked = request.speedCamera.length + request.stale.length;
-  const kept = allowed.speedCamera.length + allowed.stale.length;
-  if (asked > 0 && kept === 0) return null;
+  if (batchSize(request) > 0 && batchSize(allowed) === 0) return null;
 
   const batch = capBatch(allowed);
   const outcomes: CloseOutcome[] = [];
   // One at a time: gentler on the server, and a failure costs one UR rather than a burst.
   for (const id of batch.speedCamera) {
     outcomes.push(await closeOne(sdk, id, { allowConversation: false }));
+  }
+  for (const id of batch.mapMate) {
+    outcomes.push(await askMapMate(sdk, id));
   }
   for (const id of batch.stale) {
     outcomes.push(await closeStale(sdk, id, now));
@@ -341,12 +423,16 @@ export function summarize(
       failed: count("failed"),
     }),
   ];
+  if (count("asked") > 0)
+    lines.push(t("summaryAsked", { count: count("asked") }));
   for (const outcome of outcomes) {
-    if (outcome.result === "closed") continue;
+    if (outcome.result === "closed" || outcome.result === "asked") continue;
     lines.push(t("summaryLine", { id: outcome.id, reason: t(outcome.reason) }));
   }
+  // A question alone leaves nothing in the edit stack: there is nothing to save.
   const reminder = messagesSent ? "saveReminder" : "saveReminderNoMessage";
   if (count("closed") > 0) lines.push("", t(reminder));
+  else if (count("asked") > 0) lines.push("", t("askedReminder"));
   return lines.join("\n");
 }
 
@@ -541,16 +627,14 @@ export async function runCloseSelected(
   const confirm = prompts.confirm ?? confirmDialog;
   const notify = prompts.notify ?? notifyDialog;
   const allowed = allowedBatch(sdk, request);
-  const asked = request.speedCamera.length + request.stale.length;
-  const kept = allowed.speedCamera.length + allowed.stale.length;
-  if (asked > 0 && kept === 0) {
-    const minRank =
-      request.speedCamera.length > 0 ? BATCH_MIN_RANK : STALE_BATCH_MIN_RANK;
+  if (batchSize(request) > 0 && batchSize(allowed) === 0) {
+    const level3Asked = request.speedCamera.length + request.mapMate.length > 0;
+    const minRank = level3Asked ? BATCH_MIN_RANK : STALE_BATCH_MIN_RANK;
     await notify(t("errBatchRank", { level: minRank + 1 }));
     return null;
   }
   const batch = capBatch(allowed);
-  if (batch.speedCamera.length + batch.stale.length === 0) return [];
+  if (batchSize(batch) === 0) return [];
   // Each closure checks again, but asking the editor to confirm a batch that can only
   // fail is a worse experience than saying so up front.
   if (!sdk.Editing.isEditingAllowed()) {

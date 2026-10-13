@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   allowedBatch,
+  askMapMate,
   BATCH_CAP,
   canBatch,
   canBatchStale,
@@ -14,8 +15,14 @@ import {
   summarize,
   wasMessaged,
 } from "./close";
-import { makeSdk, makeSegment, makeTrafficLightUr, makeUr } from "./fake-sdk";
-import { buildMessage } from "./message";
+import {
+  makeMapMateUr,
+  makeSdk,
+  makeSegment,
+  makeTrafficLightUr,
+  makeUr,
+} from "./fake-sdk";
+import { buildMapMateQuestion, buildMessage } from "./message";
 
 const comment = { createdOn: 0, text: "is it fixed?", userName: "editor" };
 
@@ -181,7 +188,11 @@ describe("a conversation that already holds our message", () => {
   it("is skipped by the batch", async () => {
     const { sdk, sent } = makeSdk([makeUr(1)], { comments: { 1: [official] } });
 
-    const outcomes = await closeMany(sdk, { speedCamera: [1], stale: [] });
+    const outcomes = await closeMany(sdk, {
+      speedCamera: [1],
+      mapMate: [],
+      stale: [],
+    });
 
     expect(outcomes).toEqual([
       { id: 1, result: "skipped", reason: "skipConversation" },
@@ -219,7 +230,9 @@ describe("closeMany", () => {
   it("refuses below level 3, whatever the caller", async () => {
     const { sdk, calls } = makeSdk([makeUr(1)], { rank: 1 });
 
-    expect(await closeMany(sdk, { speedCamera: [1], stale: [] })).toBeNull();
+    expect(
+      await closeMany(sdk, { speedCamera: [1], mapMate: [], stale: [] }),
+    ).toBeNull();
     expect(calls).toEqual([]);
   });
 
@@ -229,6 +242,7 @@ describe("closeMany", () => {
 
     const outcomes = await closeMany(sdk, {
       speedCamera: urs.map((ur) => ur.id),
+      mapMate: [],
       stale: [],
     });
 
@@ -244,6 +258,7 @@ describe("closeMany", () => {
 
     const outcomes = await closeMany(sdk, {
       speedCamera: [1, 2, 3],
+      mapMate: [],
       stale: [],
     });
 
@@ -347,7 +362,11 @@ describe("closeTrafficLight", () => {
       segments: freeway,
     });
 
-    const outcomes = await closeMany(sdk, { speedCamera: [1], stale: [] });
+    const outcomes = await closeMany(sdk, {
+      speedCamera: [1],
+      mapMate: [],
+      stale: [],
+    });
 
     expect(outcomes).toEqual([
       { id: 1, result: "skipped", reason: "skipGone" },
@@ -488,9 +507,10 @@ describe("canBatchStale", () => {
     expect(
       allowedBatch(makeSdk([], { rank: null }).sdk, {
         speedCamera: [1],
+        mapMate: [],
         stale: [2],
       }),
-    ).toEqual({ speedCamera: [], stale: [] });
+    ).toEqual({ speedCamera: [], mapMate: [], stale: [] });
   });
 });
 
@@ -499,7 +519,7 @@ describe("capBatch", () => {
     const speedCamera = Array.from({ length: 40 }, (_, i) => i + 1);
     const stale = Array.from({ length: 20 }, (_, i) => i + 101);
 
-    const capped = capBatch({ speedCamera, stale });
+    const capped = capBatch({ speedCamera, mapMate: [], stale });
 
     expect(capped.speedCamera).toHaveLength(40);
     expect(capped.stale).toEqual(stale.slice(0, BATCH_CAP - 40));
@@ -512,7 +532,7 @@ describe("closeMany with abandoned URs", () => {
 
     const outcomes = await closeMany(
       sdk,
-      { speedCamera: [1], stale: [2] },
+      { speedCamera: [1], mapMate: [], stale: [2] },
       NOW,
     );
 
@@ -524,7 +544,7 @@ describe("closeMany with abandoned URs", () => {
     const { sdk, calls } = makeSdk([makeUr(1, road)], { rank: 2 });
 
     expect(
-      await closeMany(sdk, { speedCamera: [], stale: [1] }, NOW),
+      await closeMany(sdk, { speedCamera: [], mapMate: [], stale: [1] }, NOW),
     ).toBeNull();
     expect(calls).toEqual([]);
   });
@@ -536,7 +556,11 @@ describe("closeMany with abandoned URs", () => {
 
     const outcomes = await closeMany(
       sdk,
-      { speedCamera: cameras.map((u) => u.id), stale: old.map((u) => u.id) },
+      {
+        speedCamera: cameras.map((u) => u.id),
+        mapMate: [],
+        stale: old.map((u) => u.id),
+      },
       NOW,
     );
 
@@ -546,5 +570,190 @@ describe("closeMany with abandoned URs", () => {
     );
     expect(outcomes?.every((o) => o.result === "closed")).toBe(true);
     expect(sent.map((s) => s.id)).toEqual(cameras.map((u) => u.id));
+  });
+});
+
+describe("askMapMate", () => {
+  it("sends the case's question in the reporter's language and leaves the UR open", async () => {
+    const ur = makeMapMateUr(1, "INCORRECT_ROUTE", {
+      userPreferences: { language: "deutsch" } as never,
+    });
+    const { sdk, calls, sent } = makeSdk([ur]);
+
+    expect(await askMapMate(sdk, 1)).toEqual({ id: 1, result: "asked" });
+    expect(calls).toEqual(["details:1", "comment:1"]);
+    expect(sent).toEqual([
+      { id: 1, text: buildMapMateQuestion("route", "de") },
+    ]);
+    expect(ur.isOpen).toBe(true);
+    expect(wasMessaged(1)).toBe(true);
+  });
+
+  it("goes ahead with Map_Team's comments, nameless ones included", async () => {
+    const nameless = { ...mapTeam, userName: null };
+    const { sdk } = makeSdk([makeMapMateUr(1, "INCORRECT_TURN")], {
+      comments: { 1: [mapTeam, nameless] },
+    });
+
+    expect(await askMapMate(sdk, 1)).toEqual({ id: 1, result: "asked" });
+  });
+
+  it("sends nothing once someone else has commented", async () => {
+    const { sdk, sent } = makeSdk([makeMapMateUr(1, "INCORRECT_TURN")], {
+      comments: { 1: [{ ...comment, userName: "reporter" }] },
+    });
+
+    expect(await askMapMate(sdk, 1)).toEqual({
+      id: 1,
+      result: "skipped",
+      reason: "skipConversation",
+    });
+    expect(sent).toEqual([]);
+  });
+
+  it("never asks twice: not in this session, not after a reload", async () => {
+    const { sdk, sent } = makeSdk([makeMapMateUr(1, "INCORRECT_ROUTE")]);
+    await askMapMate(sdk, 1);
+    expect((await askMapMate(sdk, 1)).result).toBe("skipped");
+    expect(sent).toHaveLength(1);
+
+    resetMessagedForTests();
+    const ours = {
+      createdOn: 0,
+      text: buildMapMateQuestion("route", "fr"),
+      userName: null,
+    };
+    const reloaded = makeSdk([makeMapMateUr(2, "INCORRECT_ROUTE")], {
+      comments: { 2: [ours] },
+    });
+    expect((await askMapMate(reloaded.sdk, 2)).result).toBe("skipped");
+    expect(reloaded.sent).toEqual([]);
+  });
+
+  it("asks about a traffic light only on a known road that is not a freeway", async () => {
+    const street = makeSdk([makeMapMateUr(1)], {
+      segments: [makeSegment(1, 46.5001)],
+    });
+    expect((await askMapMate(street.sdk, 1)).result).toBe("asked");
+
+    for (const segments of [[], [makeSegment(3, 46.5001)]]) {
+      const { sdk, calls } = makeSdk([makeMapMateUr(2)], { segments });
+      expect(await askMapMate(sdk, 2)).toEqual({
+        id: 2,
+        result: "skipped",
+        reason: "skipGone",
+      });
+      expect(calls).toEqual([]);
+    }
+  });
+
+  it("skips, reading nothing, a UR that is not a Map Mate case any more", async () => {
+    const urs = [
+      makeMapMateUr(1, "INCORRECT_ROUTE", { isOpen: false }),
+      makeUr(2, road),
+    ];
+    const { sdk, calls } = makeSdk(urs);
+
+    for (const id of [1, 2, 3]) {
+      expect(await askMapMate(sdk, id)).toEqual({
+        id,
+        result: "skipped",
+        reason: "skipGone",
+      });
+    }
+    expect(calls).toEqual([]);
+  });
+
+  it("writes nothing when editing is not allowed, and reports a failed send", async () => {
+    const locked = makeSdk([makeMapMateUr(1, "INCORRECT_ROUTE")], {
+      editingAllowed: false,
+    });
+    expect((await askMapMate(locked.sdk, 1)).result).toBe("failed");
+    expect(locked.calls).toEqual([]);
+
+    const failing = makeSdk([makeMapMateUr(1, "INCORRECT_ROUTE")], {
+      failComment: [1],
+    });
+    expect(await askMapMate(failing.sdk, 1)).toEqual({
+      id: 1,
+      result: "failed",
+      reason: "errComment",
+    });
+    expect(wasMessaged(1)).toBe(false);
+  });
+});
+
+describe("closeMany with Map Mate reports", () => {
+  it("asks at level 3, between speed cameras and abandoned URs", async () => {
+    const urs = [
+      makeUr(1),
+      makeMapMateUr(2, "INCORRECT_ROUTE"),
+      makeUr(3, road),
+    ];
+    const { sdk } = makeSdk(urs, { rank: 3 });
+
+    const outcomes = await closeMany(
+      sdk,
+      { speedCamera: [1], mapMate: [2], stale: [3] },
+      NOW,
+    );
+
+    expect(outcomes?.map((o) => [o.id, o.result])).toEqual([
+      [1, "closed"],
+      [2, "asked"],
+      [3, "closed"],
+    ]);
+  });
+
+  it("refuses a Map Mate batch below level 3", async () => {
+    const { sdk, calls } = makeSdk([makeMapMateUr(1, "INCORRECT_ROUTE")], {
+      rank: 1,
+    });
+
+    expect(
+      await closeMany(sdk, { speedCamera: [], mapMate: [1], stale: [] }, NOW),
+    ).toBeNull();
+    expect(calls).toEqual([]);
+  });
+
+  it("shares the cap: speed cameras, then Map Mate, then abandoned", async () => {
+    const cameras = Array.from({ length: 45 }, (_, i) => makeUr(i + 1));
+    const reports = Array.from({ length: 10 }, (_, i) =>
+      makeMapMateUr(i + 101, "INCORRECT_ROUTE"),
+    );
+    const old = [makeUr(201, road)];
+    const { sdk } = makeSdk([...cameras, ...reports, ...old], { rank: 3 });
+
+    const outcomes = await closeMany(
+      sdk,
+      {
+        speedCamera: cameras.map((u) => u.id),
+        mapMate: reports.map((u) => u.id),
+        stale: [201],
+      },
+      NOW,
+    );
+
+    expect(outcomes).toHaveLength(BATCH_CAP);
+    expect(outcomes?.slice(45).map((o) => o.id)).toEqual([
+      101, 102, 103, 104, 105,
+    ]);
+  });
+});
+
+describe("summarize with questions", () => {
+  it("counts the questions and says there is nothing to save", () => {
+    const text = summarize([{ id: 1, result: "asked" }]);
+    expect(text).toContain("1 question(s) sent.");
+    expect(text).toContain("nothing to save");
+    expect(text).not.toContain("UR #1");
+  });
+
+  it("still asks to save when something was also closed", () => {
+    const text = summarize([
+      { id: 1, result: "asked" },
+      { id: 2, result: "closed" },
+    ]);
+    expect(text).toContain("Save to record the closures.");
   });
 });
