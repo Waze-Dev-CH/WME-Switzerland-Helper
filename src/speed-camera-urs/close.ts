@@ -13,6 +13,7 @@ import {
 import { getLocale, t } from "./i18n";
 import { log } from "./log";
 import {
+  askMapMateSpec,
   closeOneSpec,
   closeOnlySpec,
   closeSelectedSpec,
@@ -614,6 +615,35 @@ export function runCloseStale(
 }
 
 /**
+ * One Map Mate report, from the tab. Open to every level. The conversation is not read
+ * first: a report with comments is not listed, and askMapMate checks again after the
+ * confirmation, so a comment arriving while the dialog is open still stops the send.
+ */
+export function runAskMapMate(
+  sdk: WmeSDK,
+  id: number,
+  prompts: Prompts = {},
+): Promise<CloseOutcome | null> {
+  const confirm = prompts.confirm ?? confirmDialog;
+  const notify = prompts.notify ?? notifyDialog;
+  return withCloseLock(async () => {
+    const ur = sdk.DataModel.MapUpdateRequests.getById({
+      mapUpdateRequestId: id,
+    });
+    const kind = ur ? mapMateKind(ur) : null;
+    if (!ur || !kind) return null;
+
+    const lang = messageLanguage(ur.userPreferences?.language);
+    const accepted = await confirm(askMapMateSpec(id, kind, lang));
+    if (!accepted) return null;
+
+    const outcome = await askMapMate(sdk, id);
+    if (outcome.result !== "asked") await notify(summarize([outcome]));
+    return outcome;
+  });
+}
+
+/**
  * Everything the editor ticked, at once. Each family is filtered by its own rank before
  * anything is asked, and closeMany checks again. When nothing is left, the editor is told
  * which level the request needed.
@@ -643,14 +673,23 @@ export async function runCloseSelected(
   }
 
   return withCloseLock(async () => {
-    const langs = batch.speedCamera.map((id) =>
+    const urs = sdk.DataModel.MapUpdateRequests;
+    const langOf = (id: number) =>
       messageLanguage(
-        sdk.DataModel.MapUpdateRequests.getById({ mapUpdateRequestId: id })
-          ?.userPreferences?.language,
-      ),
-    );
+        urs.getById({ mapUpdateRequestId: id })?.userPreferences?.language,
+      );
+    const mapMate = batch.mapMate.flatMap((id) => {
+      const ur = urs.getById({ mapUpdateRequestId: id });
+      const kind = ur ? mapMateKind(ur) : null;
+      return kind ? [{ kind, lang: langOf(id) }] : [];
+    });
     const accepted = await confirm(
-      closeSelectedSpec(langs, batch.stale.length, getLocale()),
+      closeSelectedSpec(
+        batch.speedCamera.map(langOf),
+        mapMate,
+        batch.stale.length,
+        getLocale(),
+      ),
     );
     if (!accepted) return null;
 

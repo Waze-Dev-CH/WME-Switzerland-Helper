@@ -4,14 +4,21 @@ import {
   closeOne,
   isCloseInFlight,
   resetMessagedForTests,
+  runAskMapMate,
+  runCloseOne,
   runCloseSelected,
   runCloseStale,
-  runCloseOne,
   runCloseTrafficLight,
 } from "./close";
 import type { ConfirmSpec } from "./confirm-spec";
-import { makeSdk, makeSegment, makeTrafficLightUr, makeUr } from "./fake-sdk";
-import { buildMessage } from "./message";
+import {
+  makeMapMateUr,
+  makeSdk,
+  makeSegment,
+  makeTrafficLightUr,
+  makeUr,
+} from "./fake-sdk";
+import { buildMapMateQuestion, buildMessage } from "./message";
 
 const official = {
   createdOn: 0,
@@ -49,7 +56,7 @@ describe("runCloseOne", () => {
 
     expect(outcome).toEqual({ id: 1, result: "closed" });
     const spec = specOf(confirm);
-    expect(spec.quotes?.options).toEqual([
+    expect(spec.quotes?.[0]?.options).toEqual([
       { lang: "it", text: buildMessage("it") },
     ]);
     expect(spec.warning).toContain("cannot be withdrawn");
@@ -216,7 +223,7 @@ describe("runCloseSelected", () => {
       "3 speed camera(s): message sent now, then closed as Not identified",
     ]);
     expect(
-      spec.quotes?.options.map(({ lang, count }) => ({ lang, count })),
+      spec.quotes?.[0]?.options.map(({ lang, count }) => ({ lang, count })),
     ).toEqual([
       { lang: "fr", count: 2 },
       { lang: "de", count: 1 },
@@ -498,5 +505,83 @@ describe("runCloseStale", () => {
       ),
     ).toBeNull();
     expect(calls).toEqual([]);
+  });
+});
+
+describe("runAskMapMate", () => {
+  it("shows the exact question, sends it and leaves the UR open", async () => {
+    const ur = makeMapMateUr(1, "INCORRECT_SPEED_LIMIT");
+    const { sdk, sent } = makeSdk([ur]);
+    const confirm = accept();
+
+    const outcome = await runAskMapMate(sdk, 1, { confirm, notify: silent() });
+
+    expect(outcome).toEqual({ id: 1, result: "asked" });
+    expect(specOf(confirm).quotes?.[0]?.options[0]?.text).toBe(
+      buildMapMateQuestion("speedLimit", "fr"),
+    );
+    expect(sent.map((s) => s.text)).toEqual([
+      buildMapMateQuestion("speedLimit", "fr"),
+    ]);
+    expect(ur.isOpen).toBe(true);
+  });
+
+  it("sends nothing when someone comments while the dialog is open", async () => {
+    const comments: Record<number, ConversationElement[]> = {};
+    const { sdk, sent } = makeSdk([makeMapMateUr(1, "INCORRECT_TURN")], {
+      comments,
+    });
+    const confirm = vi.fn(async () => {
+      comments[1] = [{ ...comment, userName: "reporter" }];
+      return true;
+    });
+    const notify = silent();
+
+    const outcome = await runAskMapMate(sdk, 1, { confirm, notify });
+
+    expect(outcome).toEqual({
+      id: 1,
+      result: "skipped",
+      reason: "skipConversation",
+    });
+    expect(sent).toEqual([]);
+    expect(notify).toHaveBeenCalledOnce();
+  });
+
+  it("does nothing when the editor declines, or for a UR that is no Map Mate case", async () => {
+    const { sdk, calls } = makeSdk([
+      makeMapMateUr(1, "INCORRECT_ROUTE"),
+      makeUr(2),
+    ]);
+
+    expect(
+      await runAskMapMate(sdk, 1, { confirm: decline(), notify: silent() }),
+    ).toBeNull();
+    expect(
+      await runAskMapMate(sdk, 2, { confirm: accept(), notify: silent() }),
+    ).toBeNull();
+    expect(calls).toEqual([]);
+  });
+});
+
+describe("runCloseSelected with Map Mate", () => {
+  it("quotes the question and reports it in the summary", async () => {
+    const { sdk, sent } = makeSdk([
+      makeUr(1),
+      makeMapMateUr(2, "INCORRECT_ROUTE"),
+    ]);
+    const confirm = accept();
+    const notify = silent();
+
+    await runCloseSelected(
+      sdk,
+      { speedCamera: [1], mapMate: [2], stale: [] },
+      { confirm, notify },
+      NOW,
+    );
+
+    expect(specOf(confirm).quotes).toHaveLength(2);
+    expect(sent.map((s) => s.id)).toEqual([1, 2]);
+    expect(notify.mock.calls[0]?.[0]).toContain("1 question(s) sent.");
   });
 });

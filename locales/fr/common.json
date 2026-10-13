@@ -305,7 +305,7 @@
     "rowAgeDays": "{{count}} j",
     "btnCloseSelected": "Fermer les {{count}} UR sélectionnés",
     "btnCloseSelectedCapped": "Fermer {{cap}} des {{count}} UR sélectionnés",
-    "dlgTitleSelected": "Fermer {{count}} UR",
+    "dlgTitleSelected": "Traiter {{count}} UR",
     "dlgFactFamilySpeedCamera": "{{count}} radar(s) : message envoyé maintenant, puis fermeture en Non identifié",
     "dlgFactFamilyStale": "{{count}} abandonné(s) : fermeture en Non identifié, sans message",
     "dlgFactAge": "Signalé il y a {{count}} jours.",

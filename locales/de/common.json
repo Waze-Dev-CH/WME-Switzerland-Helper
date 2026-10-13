@@ -305,7 +305,7 @@
     "rowAgeDays": "{{count}} T",
     "btnCloseSelected": "Die {{count}} ausgewählten URs schliessen",
     "btnCloseSelectedCapped": "{{cap}} der {{count}} ausgewählten URs schliessen",
-    "dlgTitleSelected": "{{count}} URs schliessen",
+    "dlgTitleSelected": "{{count}} URs bearbeiten",
     "dlgFactFamilySpeedCamera": "{{count}} Radar(e): Nachricht wird jetzt gesendet, dann als «Nicht identifiziert» geschlossen",
     "dlgFactFamilyStale": "{{count}} verwaist: als «Nicht identifiziert» geschlossen, ohne Nachricht",
     "dlgFactAge": "Vor {{count}} Tagen gemeldet.",

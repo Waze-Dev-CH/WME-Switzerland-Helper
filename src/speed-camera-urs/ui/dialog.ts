@@ -1,5 +1,5 @@
 import { button, el, icon } from "../../ui/dom";
-import type { ConfirmSpec, QuoteOption } from "../confirm-spec";
+import type { ConfirmSpec, QuoteBlock, QuoteOption } from "../confirm-spec";
 import { t, type LocaleCode, type StringKey } from "../i18n";
 import { FLAG_SRC } from "./flags";
 import { injectStyles } from "./styles";
@@ -42,9 +42,7 @@ function flag(lang: LocaleCode): HTMLImageElement {
  * One chip per language. With several, they switch the quoted text; with one, the chip
  * only says which language the reporter will read.
  */
-function quoteSection(
-  quotes: NonNullable<ConfirmSpec["quotes"]>,
-): HTMLElement[] {
+function quoteSection(quotes: QuoteBlock): HTMLElement[] {
   const first = quotes.options[0];
   if (!first) return [];
   const quote = el("blockquote", "scu-quote", first.text);
@@ -140,7 +138,7 @@ export function showConfirm(
       el("blockquote", "scu-quote scu-quote-muted", spec.previousComment.text),
     );
   }
-  if (spec.quotes) content.push(...quoteSection(spec.quotes));
+  for (const block of spec.quotes ?? []) content.push(...quoteSection(block));
   if (spec.warning) {
     const warning = el("div", "scu-warn scu-dialog-warning");
     warning.append(icon("warning"), el("span", "", spec.warning));
