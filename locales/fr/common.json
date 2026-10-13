@@ -297,7 +297,7 @@
     "criteriaLabel": "Afficher",
     "criterionSpeedCamera": "Radars",
     "criterionTrafficLight": "Feux sur autoroute",
-    "criterionStale": "Abandonnés (plus de {{days}} jours)",
+    "criterionStale": "Abandonnés (sans activité depuis plus de {{days}} jours)",
     "sectionStale": "Abandonnés ({{count}})",
     "btnCloseStale": "Fermer",
     "rowAgeDays": "{{count}} j",
@@ -306,7 +306,7 @@
     "dlgTitleSelected": "Traiter {{count}} UR",
     "dlgFactFamilySpeedCamera": "{{count}} radar(s) : message envoyé maintenant, puis fermeture en Non identifié",
     "dlgFactFamilyStale": "{{count}} abandonné(s) : fermeture en Non identifié, sans message",
-    "dlgFactAge": "Signalé il y a {{count}} jours.",
+    "dlgFactAge": "Sans activité depuis {{count}} jours.",
     "askIntro": "Bonjour,\n\nMerci pour votre signalement.",
     "askBodyTrafficLight": "Pourriez-vous nous en dire plus sur ce feu ? Où se trouve-t-il exactement (carrefour, rue, sens de circulation), et s'agit-il d'un feu permanent ?\n\nS'il s'agissait d'un feu de chantier provisoire, il vaut mieux signaler des travaux dans l'application Waze : les autres conducteurs en sont avertis tout de suite.",
     "askBodyRoute": "Pourriez-vous nous en dire plus sur ce trajet ? D'où veniez-vous et où alliez-vous, où vous trouviez-vous quand le problème est survenu, quel itinéraire attendiez-vous et lequel Waze vous a-t-il proposé ?",
@@ -332,7 +332,7 @@
     "stateNoFamily": "Aucune famille cochée : cochez-en au moins une ci-dessous.",
     "speedCameraInfo": "Commente et ferme en Non identifié les UR de type MISSING_STATIC_SPEED_CAMERA ouverts à l'écran. La loi suisse interdit d'afficher les radars fixes dans Waze : chaque utilisateur reçoit l'explication officielle dans sa langue.",
     "trafficLightInfo": "UR MISSING_TRAFFIC_LIGHT dont la route la plus proche est une autoroute : souvent un radar signalé comme feu. Traitement un par un uniquement : ouvrez chaque UR et vérifiez-le avant de le fermer. Aucun message n'est envoyé.",
-    "staleInfo": "UR ouverts de tout type, signalés il y a plus de {{days}} jours, où personne d'autre que Map_Team n'a écrit. Les signalements vocaux Map Mate sont exclus. Fermés en Non identifié, sans message.",
+    "staleInfo": "UR ouverts de tout type sans activité depuis plus de {{days}} jours, où le rapporteur n'a pas le dernier mot : personne n'a écrit, ou Map_Team ou un éditeur a relancé sans réponse. Les signalements vocaux Map Mate sont exclus. Fermés en Non identifié, sans message.",
     "askBodyRailroadCrossing": "En Suisse, les passages à niveau ne sont pas indiqués sur la carte par défaut, sauf s'ils sont vraiment dangereux.\n\nSi c'est le cas de celui-ci, n'hésitez pas à nous le dire en répondant ici : où se trouve-t-il exactement, et qu'est-ce qui le rend dangereux ?",
     "kindRailroadCrossing": "Passage à niveau"
   }

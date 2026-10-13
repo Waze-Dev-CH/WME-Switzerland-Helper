@@ -112,7 +112,7 @@ export function ageInDays(reportedOn: number, now: number): number {
 
 /**
  * An open UR old enough to be abandoned, read from the data model alone. The final verdict
- * also needs the conversation (hasDiscussion), which costs a server round trip.
+ * also needs the conversation (isAbandoned), which costs a server round trip.
  *
  * Speed cameras are excluded here rather than by the caller: they always get the official
  * message, and must not slip into a family that closes without one.
@@ -129,18 +129,43 @@ export function isStaleCandidate(
 }
 
 /**
- * shortcut: a null author is assumed to be Map_Team, whose automatic messages (the Swiss
- * community's "what was the problem?") came back with userName null in WME. If a
- * reporter's reply also comes back null, an answered UR would pass; then match the
- * automatic message by its text instead.
+ * Who wrote a comment, as observed in WME: the automatic messages carry "Map_Team", an
+ * editor carries their name, and the reporter, who has no editor account, comes back with
+ * userName null.
  */
+function isReporter(comment: ConversationElement): boolean {
+  return comment.userName === null;
+}
+
+/** Anyone but Map_Team, the reporter included. */
 export function hasDiscussion(
   comments: readonly ConversationElement[],
 ): boolean {
-  return comments.some(
-    (comment) =>
-      comment.userName !== null && comment.userName !== MAP_TEAM_USER,
-  );
+  return comments.some((comment) => comment.userName !== MAP_TEAM_USER);
+}
+
+/** The latest comment by date, or the report itself when nobody wrote. */
+export function lastActivity(
+  reportedOn: number,
+  comments: readonly ConversationElement[],
+): number {
+  return Math.max(reportedOn, ...comments.map((comment) => comment.createdOn));
+}
+
+/**
+ * The final verdict on a stale candidate, once its conversation is read: nothing has
+ * happened for STALE_AGE_DAYS, and the reporter does not have the last word. When they
+ * do, someone owes them an answer. A question from Map_Team or an editor left unanswered
+ * is exactly what this family closes.
+ */
+export function isAbandoned(
+  comments: readonly ConversationElement[],
+  reportedOn: number,
+  now: number,
+): boolean {
+  const latest = [...comments].sort((a, b) => a.createdOn - b.createdOn).pop();
+  if (latest && isReporter(latest)) return false;
+  return now - lastActivity(reportedOn, comments) > STALE_AGE_DAYS * DAY_MS;
 }
 
 /** ROAD_TYPE.FREEWAY in the SDK; the typings declare the constant but ship no runtime value. */

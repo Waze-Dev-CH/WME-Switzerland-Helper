@@ -195,7 +195,11 @@ describe("mayAskMapMate", () => {
 
   it("allows an empty conversation, or Map_Team's alone", () => {
     expect(mayAskMapMate([])).toBe(true);
-    expect(mayAskMapMate([mapTeam, nameless])).toBe(true);
+    expect(mayAskMapMate([mapTeam, mapTeam])).toBe(true);
+  });
+
+  it("refuses once the reporter, who has no name, has replied", () => {
+    expect(mayAskMapMate([mapTeam, nameless])).toBe(false);
   });
 
   it("refuses once someone else wrote", () => {

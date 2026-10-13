@@ -164,10 +164,16 @@ describe("shouldShowCloseSelected", () => {
 });
 
 describe("formatStaleRowLabel", () => {
-  it("adds the age in days to the usual label", () => {
-    const now = Date.UTC(2026, 9, 1) + 20 * 24 * 60 * 60 * 1000;
-    const label = formatStaleRowLabel(entry(5, "ready"), "en", now);
-    expect(label).toMatch(/^#5 · DE · .* · 20 d$/);
+  it("adds the days since the last activity to the usual label", () => {
+    const day = 24 * 60 * 60 * 1000;
+    const reportedOn = Date.UTC(2026, 9, 1);
+    const stale = {
+      ...entry(5, "ready"),
+      state: "stale" as const,
+      lastActivity: reportedOn + 5 * day,
+    };
+    const label = formatStaleRowLabel(stale, "en", reportedOn + 20 * day);
+    expect(label).toMatch(/^#5 · DE · .* · 15 d$/);
   });
 });
 

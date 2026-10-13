@@ -49,7 +49,7 @@ describe("closeStaleSpec", () => {
     expect(spec.facts).toEqual([
       "The UR is closed as Not identified.",
       "No message is sent to the reporter.",
-      "Reported 32 days ago.",
+      "No activity for 32 days.",
     ]);
     expect(spec.quotes).toBeUndefined();
     expect(spec.warning).toBeUndefined();

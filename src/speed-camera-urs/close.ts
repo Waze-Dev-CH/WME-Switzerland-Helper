@@ -1,7 +1,8 @@
 import type { ConversationElement, WmeSDK } from "wme-sdk-typings";
 import {
   ageInDays,
-  hasDiscussion,
+  isAbandoned,
+  lastActivity,
   isKnownOffFreeway,
   isOnFreeway,
   isSpeedCameraUr,
@@ -311,7 +312,7 @@ export async function closeStale(
       log.warn(`Could not read the conversation of UR ${id}`, err);
       return { id, result: "failed", reason: "errDetails" };
     }
-    if (hasDiscussion(comments) || wasMessaged(id))
+    if (wasMessaged(id) || !isAbandoned(comments, ur.reportedOn, now))
       return { id, result: "skipped", reason: "skipConversation" };
     return closeWithoutMessage(urs, id);
   } finally {
@@ -597,14 +598,21 @@ export function runCloseStale(
   const confirm = prompts.confirm ?? confirmDialog;
   const notify = prompts.notify ?? notifyDialog;
   return withCloseLock(async () => {
-    const ur = sdk.DataModel.MapUpdateRequests.getById({
-      mapUpdateRequestId: id,
-    });
+    const urs = sdk.DataModel.MapUpdateRequests;
+    const ur = urs.getById({ mapUpdateRequestId: id });
     if (!ur) return null;
 
-    const accepted = await confirm(
-      closeStaleSpec(id, ageInDays(ur.reportedOn, now)),
-    );
+    // Read only to show how long nothing has happened; closeStale reads it again.
+    let comments: ConversationElement[] = [];
+    try {
+      comments =
+        (await urs.getUpdateRequestDetails({ mapUpdateRequestId: id }))
+          ?.comments ?? [];
+    } catch (err) {
+      log.warn(`Could not read the conversation of UR ${id}`, err);
+    }
+    const idleDays = ageInDays(lastActivity(ur.reportedOn, comments), now);
+    const accepted = await confirm(closeStaleSpec(id, idleDays));
     if (!accepted) return null;
 
     const outcome = await closeStale(sdk, id, now);

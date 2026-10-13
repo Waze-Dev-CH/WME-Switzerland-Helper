@@ -5,13 +5,14 @@ import type {
 } from "wme-sdk-typings";
 import { alreadyMessaged, wasMessaged } from "./close";
 import {
-  hasDiscussion,
+  isAbandoned,
   isInExtent,
   isKnownOffFreeway,
   isOnFreeway,
   isSpeedCameraUr,
   isStaleCandidate,
   isTrafficLightUr,
+  lastActivity,
   mapMateKind,
   triage,
   type MapMateKind,
@@ -34,9 +35,11 @@ export interface UrEntry {
 /** No triage: traffic lights are handled one by one, their conversation is read on click. */
 export type TrafficLightEntry = Omit<UrEntry, "triage">;
 
-/** "pending" until the conversation is read; a UR found to have one leaves the list. */
+/** "pending" until the conversation is read; a UR found not abandoned leaves the list. */
 export interface StaleEntry extends TrafficLightEntry {
   state: "pending" | "stale";
+  /** Latest comment or the report; the report's date while pending. */
+  lastActivity: number;
 }
 
 /** A Map Mate report and its case. Once someone wrote, or we asked, it leaves the list. */
@@ -69,8 +72,8 @@ const SEGMENTS = "segments";
  */
 export class Scanner {
   private triageCache = new Map<number, Triage>();
-  /** true = abandoned, false = someone wrote. Kept when the box is unchecked. */
-  private staleCache = new Map<number, boolean>();
+  /** Last activity when abandoned, false when not. Kept when the box is unchecked. */
+  private staleCache = new Map<number, number | false>();
   /** true = nobody but Map_Team wrote and we did not ask yet. */
   private mapMateCache = new Map<number, boolean>();
   /** Bumped by forget(), so a read that was in flight when the UR changed is not cached. */
@@ -233,7 +236,11 @@ export class Scanner {
     for (const ur of this.staleCandidates) {
       if (this.staleCache.has(ur.id)) continue;
       const comments = await this.readConversation(ur.id, generation);
-      if (comments) this.staleCache.set(ur.id, !hasDiscussion(comments));
+      if (comments) {
+        const abandoned = isAbandoned(comments, ur.reportedOn, now);
+        const since = lastActivity(ur.reportedOn, comments);
+        this.staleCache.set(ur.id, abandoned ? since : false);
+      }
       if (generation !== this.generation) return;
       this.publish(found);
     }
@@ -295,12 +302,15 @@ export class Scanner {
     return [{ ...this.basics(ur), kind, state }];
   }
 
-  /** Empty when someone wrote: the UR is not abandoned and has nothing to do here. */
+  /** Empty when the UR turned out not to be abandoned: it has nothing to do here. */
   private toStaleEntry(ur: MapUpdateRequest): StaleEntry[] {
     const verdict = this.staleCache.get(ur.id);
     if (verdict === false || wasMessaged(ur.id)) return [];
-    const state = verdict === true ? "stale" : "pending";
-    return [{ ...this.basics(ur), state }];
+    if (verdict === undefined)
+      return [
+        { ...this.basics(ur), state: "pending", lastActivity: ur.reportedOn },
+      ];
+    return [{ ...this.basics(ur), state: "stale", lastActivity: verdict }];
   }
 
   private toEntry(ur: MapUpdateRequest): UrEntry {

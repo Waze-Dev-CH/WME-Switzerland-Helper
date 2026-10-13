@@ -19,7 +19,7 @@ compte, pour que le lot ferme exactement ce que l'éditeur a choisi.
 
 | Question | Décision |
 | --- | --- |
-| Critère « abandonné » | UR ouvert, éditable, `reportedOn` il y a plus de 14 jours, et aucun commentaire sauf ceux de `Map_Team` |
+| Critère « abandonné » | UR ouvert, éditable, **aucune activité depuis plus de 14 jours** (dernier commentaire, ou signalement sans commentaire), et le dernier mot n'est pas au rapporteur (`userName === null`). *Révisé le 2026-10-13 : la version initiale exigeait « aucun commentaire sauf Map_Team », ce qui excluait les relances d'éditeurs restées sans réponse.* |
 | Types concernés | Tous les types d'UR |
 | Reconnaissance de `Map_Team` | `comment.userName === "Map_Team"`, égalité exacte. Un `userName` `null` compte comme une discussion (prudence) |
 | Fermeture | `not-identified`, **sans message** |

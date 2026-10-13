@@ -297,7 +297,7 @@
     "criteriaLabel": "Show",
     "criterionSpeedCamera": "Speed cameras",
     "criterionTrafficLight": "Traffic lights on a freeway",
-    "criterionStale": "Abandoned (over {{days}} days)",
+    "criterionStale": "Abandoned (no activity for over {{days}} days)",
     "sectionStale": "Abandoned ({{count}})",
     "btnCloseStale": "Close",
     "rowAgeDays": "{{count}} d",
@@ -306,7 +306,7 @@
     "dlgTitleSelected": "Handle {{count}} UR(s)",
     "dlgFactFamilySpeedCamera": "{{count}} speed camera(s): message sent now, then closed as Not identified",
     "dlgFactFamilyStale": "{{count}} abandoned: closed as Not identified, without any message",
-    "dlgFactAge": "Reported {{count}} days ago.",
+    "dlgFactAge": "No activity for {{count}} days.",
     "askIntro": "Hello,\n\nThank you for your report.",
     "askBodyTrafficLight": "Could you tell us more about this traffic light? Where exactly is it (junction, street, direction of travel), and is it a permanent one?\n\nIf it was a temporary roadworks light, it is better to report roadworks in the Waze app: other drivers are warned right away.",
     "askBodyRoute": "Could you tell us more about this trip? Where were you coming from and going to, where were you when the problem happened, which route did you expect and which one did Waze suggest?",
@@ -332,7 +332,7 @@
     "stateNoFamily": "No family ticked: tick at least one below.",
     "speedCameraInfo": "Comments on and closes as Not identified the open URs on screen of type MISSING_STATIC_SPEED_CAMERA. Swiss law forbids showing fixed speed cameras in Waze: each reporter gets the official explanation in their language.",
     "trafficLightInfo": "MISSING_TRAFFIC_LIGHT URs whose closest road is a freeway: often a speed camera reported as a traffic light. One by one only: open each UR and check it before closing. No message is sent.",
-    "staleInfo": "Open URs of any type reported more than {{days}} days ago, where nobody but Map_Team has written. Map Mate voice reports are left out. Closed as Not identified, without any message.",
+    "staleInfo": "Open URs of any type with no activity for more than {{days}} days, where the reporter does not have the last word: nobody wrote, or Map_Team or an editor asked and got no answer. Map Mate voice reports are left out. Closed as Not identified, without any message.",
     "askBodyRailroadCrossing": "In Switzerland, level crossings are not shown on the map by default, unless they are really dangerous.\n\nIf this one is, please do tell us by replying here: where exactly is it, and what makes it dangerous?",
     "kindRailroadCrossing": "Level crossing"
   }

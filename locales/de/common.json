@@ -297,7 +297,7 @@
     "criteriaLabel": "Anzeigen",
     "criterionSpeedCamera": "Radare",
     "criterionTrafficLight": "Ampeln auf der Autobahn",
-    "criterionStale": "Verwaist (über {{days}} Tage)",
+    "criterionStale": "Verwaist (seit über {{days}} Tagen inaktiv)",
     "sectionStale": "Verwaist ({{count}})",
     "btnCloseStale": "Schliessen",
     "rowAgeDays": "{{count}} T",
@@ -306,7 +306,7 @@
     "dlgTitleSelected": "{{count}} URs bearbeiten",
     "dlgFactFamilySpeedCamera": "{{count}} Radar(e): Nachricht wird jetzt gesendet, dann als «Nicht identifiziert» geschlossen",
     "dlgFactFamilyStale": "{{count}} verwaist: als «Nicht identifiziert» geschlossen, ohne Nachricht",
-    "dlgFactAge": "Vor {{count}} Tagen gemeldet.",
+    "dlgFactAge": "Seit {{count}} Tagen keine Aktivität.",
     "askIntro": "Guten Tag,\n\nDanke für Ihre Meldung.",
     "askBodyTrafficLight": "Können Sie uns mehr über diese Ampel sagen? Wo genau steht sie (Kreuzung, Strasse, Fahrtrichtung), und ist sie dauerhaft?\n\nFalls es sich um eine provisorische Baustellenampel handelte, melden Sie besser eine Baustelle in der Waze-App: So werden andere Fahrer sofort gewarnt.",
     "askBodyRoute": "Können Sie uns mehr über diese Fahrt sagen? Woher kamen Sie und wohin wollten Sie, wo befanden Sie sich, als das Problem auftrat, welche Route haben Sie erwartet und welche hat Waze Ihnen vorgeschlagen?",
@@ -332,7 +332,7 @@
     "stateNoFamily": "Keine Gruppe angekreuzt: Kreuzen Sie unten mindestens eine an.",
     "speedCameraInfo": "Kommentiert die offenen URs vom Typ MISSING_STATIC_SPEED_CAMERA im Bildausschnitt und schliesst sie als «Nicht identifiziert». Das Schweizer Recht verbietet, fest installierte Radare in Waze anzuzeigen: Jede meldende Person erhält die offizielle Erklärung in ihrer Sprache.",
     "trafficLightInfo": "URs vom Typ MISSING_TRAFFIC_LIGHT, deren nächste Strasse eine Autobahn ist: oft ein als Ampel gemeldeter Radar. Nur einzeln: Öffnen Sie jede UR und prüfen Sie sie vor dem Schliessen. Es wird keine Nachricht gesendet.",
-    "staleInfo": "Offene URs jeden Typs, vor mehr als {{days}} Tagen gemeldet, in denen niemand ausser Map_Team geschrieben hat. Sprachmeldungen von Map Mate sind ausgenommen. Werden als «Nicht identifiziert» geschlossen, ohne Nachricht.",
+    "staleInfo": "Offene URs jeden Typs, seit mehr als {{days}} Tagen inaktiv, bei denen die meldende Person nicht das letzte Wort hat: Niemand hat geschrieben, oder Map_Team oder ein Editor hat nachgefragt und keine Antwort erhalten. Sprachmeldungen von Map Mate sind ausgenommen. Werden als «Nicht identifiziert» geschlossen, ohne Nachricht.",
     "askBodyRailroadCrossing": "In der Schweiz werden Bahnübergänge standardmässig nicht auf der Karte angezeigt, ausser sie sind wirklich gefährlich.\n\nFalls das bei diesem der Fall ist, sagen Sie es uns bitte, indem Sie hier antworten: Wo genau befindet er sich, und was macht ihn gefährlich?",
     "kindRailroadCrossing": "Bahnübergang"
   }

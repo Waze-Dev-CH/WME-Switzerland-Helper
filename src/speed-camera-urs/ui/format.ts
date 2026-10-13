@@ -5,6 +5,7 @@ import { kindLabel } from "../message";
 import type {
   MapMateEntry,
   ScanSnapshot,
+  StaleEntry,
   TrafficLightEntry,
   UrEntry,
 } from "../scanner";
@@ -72,12 +73,13 @@ export function formatRowLabel(
   return `#${entry.id} · ${entry.lang.toUpperCase()} · ${date}`;
 }
 
+/** The days counted are those without any activity, not the report's age. */
 export function formatStaleRowLabel(
-  entry: TrafficLightEntry,
+  entry: StaleEntry,
   locale: LocaleCode,
   now: number,
 ): string {
-  const age = t("rowAgeDays", { count: ageInDays(entry.reportedOn, now) });
+  const age = t("rowAgeDays", { count: ageInDays(entry.lastActivity, now) });
   return `${formatRowLabel(entry, locale)} · ${age}`;
 }
 

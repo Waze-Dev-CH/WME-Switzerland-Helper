@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ConversationElement } from "wme-sdk-typings";
 import { noteMessaged, resetMessagedForTests } from "./close";
 import {
   makeMapMateUr,
@@ -195,7 +196,7 @@ describe("Scanner abandoned URs", () => {
       makeUr(3, { ...road, reportedOn: NOW - DAY }),
     ];
     const { sdk } = makeSdk(urs, {
-      comments: { 1: [mapTeam], 2: [mapTeam, comment] },
+      comments: { 1: [mapTeam], 2: [mapTeam, { ...comment, userName: null }] },
     });
     const scanner = new Scanner(sdk, { now: () => NOW });
     scanner.setReadStale(true);
@@ -253,15 +254,30 @@ describe("Scanner abandoned URs", () => {
     expect(stateOf(scanner.getSnapshot())).toEqual([[2, "stale"]]);
   });
 
+  it("lists one Map_Team or an editor asked about, unanswered for 14 days", async () => {
+    const asked = { ...comment, userName: "editor", createdOn: NOW - 20 * DAY };
+    const recent = { ...mapTeam, createdOn: NOW - 3 * DAY };
+    const { sdk } = makeSdk([makeUr(1, road), makeUr(2, road)], {
+      comments: { 1: [mapTeam, asked], 2: [recent] },
+    });
+    const scanner = new Scanner(sdk, { now: () => NOW });
+    scanner.setReadStale(true);
+
+    await scanner.rescan();
+
+    expect(stateOf(scanner.getSnapshot())).toEqual([[1, "stale"]]);
+    expect(scanner.getSnapshot().stale[0]?.lastActivity).toBe(NOW - 20 * DAY);
+  });
+
   it("drops a candidate that gains a comment", async () => {
-    const comments: Record<number, Array<typeof comment>> = {};
+    const comments: Record<number, ConversationElement[]> = {};
     const { sdk } = makeSdk([makeUr(1, road)], { comments });
     const scanner = new Scanner(sdk, { now: () => NOW });
     scanner.setReadStale(true);
     await scanner.rescan();
     expect(stateOf(scanner.getSnapshot())).toEqual([[1, "stale"]]);
 
-    comments[1] = [comment];
+    comments[1] = [{ ...comment, userName: null, createdOn: NOW - DAY }];
     scanner.forget([1]);
     await scanner.rescan();
 

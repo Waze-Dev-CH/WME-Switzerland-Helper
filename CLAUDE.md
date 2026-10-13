@@ -162,13 +162,17 @@ triage) → `TabUI`. `close.ts` is the only module that writes.
   purpose, real lights stand at their end. The SDK links a UR to no segment, hence the
   geometry, and the scanner tracks `segments` events so a UR drawn before its road still
   appears. These are closed one by one, as not-identified and **without any message**.
-- Abandoned URs (`isStaleCandidate`, detect.ts): open, editable, reported more than
-  `STALE_AGE_DAYS` (14) days ago, any type, and nobody but `Map_Team` in the conversation
-  (`hasDiscussion`, exact `userName` match; `null` counts as Map_Team, whose automatic
-  messages come back without a name, `""` still counts as a person). Map Mate voice
-  reports (`source === "REPORTING_AGENT"`) never qualify: their description often carries
-  what the driver said. Closed as not-identified **without any message**. The scanner reads their conversations only when
-  the "Abandoned" box is checked, after the speed cameras'.
+- Comment authors, as observed in WME: `"Map_Team"` for the automatic messages, the editor's
+  name for an editor, and `null` for the **reporter**, who has no editor account.
+  `hasDiscussion` ignores only `"Map_Team"`; a nameless comment is the reporter.
+- Abandoned URs (`isStaleCandidate` prefilter, `isAbandoned` verdict, detect.ts): open,
+  editable, any type, **no activity for more than `STALE_AGE_DAYS` (14) days** (latest
+  comment, or the report when there is none), and the reporter does **not** have the last
+  word. A question from Map_Team or an editor left unanswered is exactly what this family
+  closes; a UR whose reporter wrote last is never abandoned, someone owes them an answer.
+  Map Mate voice reports (`source === "REPORTING_AGENT"`) never qualify. Closed as
+  not-identified **without any message**. The scanner reads their conversations only when
+  the "Abandoned" box is checked, after the speed cameras' and Map Mate's.
 - Overlaps: a speed camera is never "abandoned", it always gets the message. A traffic light
   on a freeway is never "abandoned" either, or it would reach a batch through the back door.
 - Map Mate reports (`mapMateKind`, detect.ts): `source === "REPORTING_AGENT"`, type
@@ -181,8 +185,7 @@ triage) → `TabUI`. `close.ts` is the only module that writes.
   traffic-light family, on an unloaded road it waits.
 - Map Mate never gets a question once anyone but Map_Team has commented (`mayAskMapMate`),
   with no override, and never twice: `wasMessaged`, plus `isMapMateQuestion` on the
-  conversation, because a comment may come back without a name and then `hasDiscussion`
-  does not see it.
+  conversation, as a second check behind `hasDiscussion`.
 - `settings.ts`: the four checkboxes, localStorage key `wme-ch-speed-camera-urs.settings`,
   non-boolean values fall back to the defaults (speed cameras ☑, traffic lights ☑, Map Mate ☐,
   abandoned ☐).
@@ -196,8 +199,8 @@ triage) → `TabUI`. `close.ts` is the only module that writes.
   and `BATCH_CAP` (50, the whole batch: speed cameras, then Map Mate, then abandoned) live in
   `close.ts` and are enforced in `closeMany`, not only in the tab. One batch button covers
   what is ticked and allowed; it is hidden when that is empty.
-- Any comment keeps a speed camera out of the batch; for Map Mate and abandoned URs, any
-  comment but Map_Team's. `wasMessaged` covers Ctrl+Z: the closure
+- Any comment keeps a speed camera out of the batch, and any comment but Map_Team's keeps
+  a Map Mate report out; abandoned URs follow their own rule (`isAbandoned`). `wasMessaged` covers Ctrl+Z: the closure
   is undone but the message is not, and WME's cached conversation may not show it yet.
 - A UR already messaged is never messaged again: `alreadyMessaged` is true when
   `wasMessaged(id)` (this session) or a comment contains the official text (`isOfficialMessage`,

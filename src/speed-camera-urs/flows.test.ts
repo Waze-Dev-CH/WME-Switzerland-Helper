@@ -449,9 +449,19 @@ describe("runCloseStale", () => {
     );
 
     expect(outcome).toEqual({ id: 1, result: "closed" });
-    expect(specOf(confirm).facts).toContain("Reported 30 days ago.");
+    expect(specOf(confirm).facts).toContain("No activity for 30 days.");
     expect(sent).toEqual([]);
-    expect(calls).toEqual(["details:1", "close:1:not-identified"]);
+    expect(calls).toEqual(["details:1", "details:1", "close:1:not-identified"]);
+  });
+
+  it("counts the days since the last comment, not since the report", async () => {
+    const asked = { ...comment, createdOn: NOW - 20 * DAY };
+    const { sdk } = makeSdk([makeUr(1, road)], { comments: { 1: [asked] } });
+    const confirm = accept();
+
+    await runCloseStale(sdk, 1, { confirm, notify: silent() }, NOW);
+
+    expect(specOf(confirm).facts).toContain("No activity for 20 days.");
   });
 
   it("writes nothing when the UR is closed while the dialog is open", async () => {
@@ -466,7 +476,7 @@ describe("runCloseStale", () => {
     const outcome = await runCloseStale(sdk, 1, { confirm, notify }, NOW);
 
     expect(outcome).toEqual({ id: 1, result: "skipped", reason: "skipGone" });
-    expect(calls).toEqual([]);
+    expect(calls).toEqual(["details:1"]);
     expect(notify).toHaveBeenCalledOnce();
   });
 
@@ -474,7 +484,7 @@ describe("runCloseStale", () => {
     const comments: Record<number, ConversationElement[]> = {};
     const { sdk, calls } = makeSdk([makeUr(1, road)], { comments });
     const confirm = vi.fn(async () => {
-      comments[1] = [comment];
+      comments[1] = [{ ...comment, userName: null, createdOn: NOW }];
       return true;
     });
 
@@ -490,7 +500,7 @@ describe("runCloseStale", () => {
       result: "skipped",
       reason: "skipConversation",
     });
-    expect(calls).toEqual(["details:1"]);
+    expect(calls).toEqual(["details:1", "details:1"]);
   });
 
   it("does nothing when the editor declines", async () => {
@@ -504,7 +514,7 @@ describe("runCloseStale", () => {
         NOW,
       ),
     ).toBeNull();
-    expect(calls).toEqual([]);
+    expect(calls).toEqual(["details:1"]);
   });
 });
 

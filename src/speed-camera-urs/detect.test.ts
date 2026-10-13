@@ -3,7 +3,9 @@ import {
   ageInDays,
   descriptionCode,
   hasDiscussion,
+  isAbandoned,
   isInExtent,
+  lastActivity,
   isOnFreeway,
   isSpeedCameraUr,
   isStaleCandidate,
@@ -184,8 +186,8 @@ describe("hasDiscussion", () => {
     expect(hasDiscussion([{ ...mapTeam, userName: "" }])).toBe(true);
   });
 
-  it("takes a null author for Map_Team", () => {
-    expect(hasDiscussion([{ ...mapTeam, userName: null }])).toBe(false);
+  it("counts the reporter, who comes back without a name, as a discussion", () => {
+    expect(hasDiscussion([{ ...mapTeam, userName: null }])).toBe(true);
   });
 });
 
@@ -255,5 +257,61 @@ describe("mapMateKind", () => {
     expect(
       mapMateKind(makeMapMateUr(1, code, { isEditable: false })),
     ).toBeNull();
+  });
+});
+
+describe("isAbandoned", () => {
+  const now = REPORTED + 30 * DAY;
+  const at = (daysAgo: number, userName: string | null) => ({
+    createdOn: now - daysAgo * DAY,
+    text: "…",
+    userName,
+  });
+
+  it("takes an old UR nobody wrote on", () => {
+    expect(isAbandoned([], REPORTED, now)).toBe(true);
+  });
+
+  it("takes one where Map_Team or an editor asked and got no answer for 14 days", () => {
+    expect(isAbandoned([at(20, MAP_TEAM_USER)], REPORTED, now)).toBe(true);
+    expect(
+      isAbandoned([at(25, MAP_TEAM_USER), at(15, "editor")], REPORTED, now),
+    ).toBe(true);
+  });
+
+  it("never takes one where the reporter has the last word", () => {
+    expect(isAbandoned([at(25, "editor"), at(20, null)], REPORTED, now)).toBe(
+      false,
+    );
+  });
+
+  it("waits 14 days after the last comment, whoever wrote it", () => {
+    expect(isAbandoned([at(14, "editor")], REPORTED, now)).toBe(false);
+    expect(isAbandoned([at(3, MAP_TEAM_USER)], REPORTED, now)).toBe(false);
+  });
+
+  it("reads the latest comment by date, whatever the order they came in", () => {
+    expect(isAbandoned([at(20, null), at(16, "editor")], REPORTED, now)).toBe(
+      true,
+    );
+    expect(isAbandoned([at(16, "editor"), at(20, null)], REPORTED, now)).toBe(
+      true,
+    );
+  });
+
+  it("needs 14 days since the report too", () => {
+    expect(isAbandoned([], now - 10 * DAY, now)).toBe(false);
+  });
+});
+
+describe("lastActivity", () => {
+  it("is the latest comment, or the report without one", () => {
+    expect(lastActivity(REPORTED, [])).toBe(REPORTED);
+    expect(
+      lastActivity(REPORTED, [
+        { createdOn: REPORTED + 5, text: "", userName: null },
+        { createdOn: REPORTED + 2, text: "", userName: "editor" },
+      ]),
+    ).toBe(REPORTED + 5);
   });
 });

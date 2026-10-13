@@ -394,9 +394,26 @@ describe("closeStale", () => {
     expect(sdk.DataModel.MapUpdateRequests.addComment).not.toHaveBeenCalled();
   });
 
-  it("re-reads the conversation and skips a UR someone wrote on meanwhile", async () => {
+  it("closes one an editor asked about, unanswered for 14 days", async () => {
+    const asked = { ...comment, createdOn: NOW - 20 * DAY };
+    const { sdk } = makeSdk([makeUr(1, road)], {
+      comments: { 1: [mapTeam, asked] },
+    });
+
+    expect(await closeStale(sdk, 1, NOW)).toEqual({ id: 1, result: "closed" });
+  });
+
+  it("skips one asked about only 3 days ago", async () => {
+    const recent = { ...mapTeam, createdOn: NOW - 3 * DAY };
+    const { sdk } = makeSdk([makeUr(1, road)], { comments: { 1: [recent] } });
+
+    expect((await closeStale(sdk, 1, NOW)).result).toBe("skipped");
+  });
+
+  it("re-reads the conversation and skips a UR whose reporter replied meanwhile", async () => {
+    const reply = { ...comment, userName: null, createdOn: NOW - DAY };
     const { sdk, calls } = makeSdk([makeUr(1, road)], {
-      comments: { 1: [mapTeam, comment] },
+      comments: { 1: [mapTeam, reply] },
     });
 
     expect(await closeStale(sdk, 1, NOW)).toEqual({
@@ -589,13 +606,22 @@ describe("askMapMate", () => {
     expect(wasMessaged(1)).toBe(true);
   });
 
-  it("goes ahead with Map_Team's comments, nameless ones included", async () => {
-    const nameless = { ...mapTeam, userName: null };
+  it("goes ahead with Map_Team's comments alone", async () => {
     const { sdk } = makeSdk([makeMapMateUr(1, "INCORRECT_TURN")], {
-      comments: { 1: [mapTeam, nameless] },
+      comments: { 1: [mapTeam, mapTeam] },
     });
 
     expect(await askMapMate(sdk, 1)).toEqual({ id: 1, result: "asked" });
+  });
+
+  it("sends nothing once the reporter, who has no name, has replied", async () => {
+    const reply = { ...mapTeam, text: "C'est au carrefour", userName: null };
+    const { sdk, sent } = makeSdk([makeMapMateUr(1, "INCORRECT_TURN")], {
+      comments: { 1: [mapTeam, reply] },
+    });
+
+    expect((await askMapMate(sdk, 1)).result).toBe("skipped");
+    expect(sent).toEqual([]);
   });
 
   it("sends nothing once someone else has commented", async () => {

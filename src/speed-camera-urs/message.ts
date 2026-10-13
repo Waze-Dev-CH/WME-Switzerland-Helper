@@ -101,8 +101,8 @@ export function buildMapMateQuestion(
 
 /**
  * Whether a comment holds one of our questions, any case, any language. The body is
- * matched, as in isOfficialMessage. It matters because hasDiscussion does not see a comment
- * that comes back without a name, and ours might.
+ * matched, as in isOfficialMessage. Our comment carries the editor's name, so hasDiscussion
+ * already sees it; this is the second check, should a stored comment ever lose its author.
  */
 export function isMapMateQuestion(text: string): boolean {
   const comment = collapseSpaces(text);
