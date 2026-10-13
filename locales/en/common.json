@@ -299,6 +299,20 @@
     "btnCloseTrafficLight": "Close",
     "dlgFactNoMessage": "No message is sent to the reporter.",
     "saveReminderNoMessage": "Save to record the closures.",
-    "skipNotFreeway": "no longer next to a freeway"
+    "skipNotFreeway": "no longer next to a freeway",
+    "criteriaLabel": "Show",
+    "criterionSpeedCamera": "Speed cameras",
+    "criterionTrafficLight": "Traffic lights on a freeway",
+    "criterionStale": "Abandoned (over {{days}} days)",
+    "sectionStale": "Abandoned ({{count}})",
+    "staleNote": "Open URs of any type reported more than {{days}} days ago, where nobody but Map_Team has written. Closed as Not identified, without any message.",
+    "btnCloseStale": "Close",
+    "rowAgeDays": "{{count}} d",
+    "btnCloseSelected": "Close the {{count}} selected UR(s)",
+    "btnCloseSelectedCapped": "Close {{cap}} of the {{count}} selected UR(s)",
+    "dlgTitleSelected": "Close {{count}} UR(s)",
+    "dlgFactFamilySpeedCamera": "{{count}} speed camera(s): message sent now, then closed as Not identified",
+    "dlgFactFamilyStale": "{{count}} abandoned: closed as Not identified, without any message",
+    "dlgFactAge": "Reported {{count}} days ago."
   }
 }

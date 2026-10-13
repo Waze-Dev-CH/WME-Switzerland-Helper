@@ -299,6 +299,20 @@
     "btnCloseTrafficLight": "Schliessen",
     "dlgFactNoMessage": "Die meldende Person erhält keine Nachricht.",
     "saveReminderNoMessage": "Speichern Sie, um die Schliessungen zu übernehmen.",
-    "skipNotFreeway": "liegt nicht mehr an einer Autobahn"
+    "skipNotFreeway": "liegt nicht mehr an einer Autobahn",
+    "criteriaLabel": "Anzeigen",
+    "criterionSpeedCamera": "Radare",
+    "criterionTrafficLight": "Ampeln auf der Autobahn",
+    "criterionStale": "Verwaist (über {{days}} Tage)",
+    "sectionStale": "Verwaist ({{count}})",
+    "staleNote": "Offene URs jeden Typs, vor mehr als {{days}} Tagen gemeldet, in denen niemand ausser Map_Team geschrieben hat. Werden als «Nicht identifiziert» geschlossen, ohne Nachricht.",
+    "btnCloseStale": "Schliessen",
+    "rowAgeDays": "{{count}} T",
+    "btnCloseSelected": "Die {{count}} ausgewählten URs schliessen",
+    "btnCloseSelectedCapped": "{{cap}} der {{count}} ausgewählten URs schliessen",
+    "dlgTitleSelected": "{{count}} URs schliessen",
+    "dlgFactFamilySpeedCamera": "{{count}} Radar(e): Nachricht wird jetzt gesendet, dann als «Nicht identifiziert» geschlossen",
+    "dlgFactFamilyStale": "{{count}} verwaist: als «Nicht identifiziert» geschlossen, ohne Nachricht",
+    "dlgFactAge": "Vor {{count}} Tagen gemeldet."
   }
 }

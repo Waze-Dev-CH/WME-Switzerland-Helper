@@ -299,6 +299,20 @@
     "btnCloseTrafficLight": "Fermer",
     "dlgFactNoMessage": "Aucun message n'est envoyé à l'utilisateur.",
     "saveReminderNoMessage": "Sauvegardez pour enregistrer les fermetures.",
-    "skipNotFreeway": "n'est plus à côté d'une autoroute"
+    "skipNotFreeway": "n'est plus à côté d'une autoroute",
+    "criteriaLabel": "Afficher",
+    "criterionSpeedCamera": "Radars",
+    "criterionTrafficLight": "Feux sur autoroute",
+    "criterionStale": "Abandonnés (plus de {{days}} jours)",
+    "sectionStale": "Abandonnés ({{count}})",
+    "staleNote": "UR ouverts de tout type, signalés il y a plus de {{days}} jours, où personne d'autre que Map_Team n'a écrit. Fermés en Non identifié, sans message.",
+    "btnCloseStale": "Fermer",
+    "rowAgeDays": "{{count}} j",
+    "btnCloseSelected": "Fermer les {{count}} UR sélectionnés",
+    "btnCloseSelectedCapped": "Fermer {{cap}} des {{count}} UR sélectionnés",
+    "dlgTitleSelected": "Fermer {{count}} UR",
+    "dlgFactFamilySpeedCamera": "{{count}} radar(s) : message envoyé maintenant, puis fermeture en Non identifié",
+    "dlgFactFamilyStale": "{{count}} abandonné(s) : fermeture en Non identifié, sans message",
+    "dlgFactAge": "Signalé il y a {{count}} jours."
   }
 }

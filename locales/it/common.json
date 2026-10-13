@@ -299,6 +299,20 @@
     "btnCloseTrafficLight": "Chiudere",
     "dlgFactNoMessage": "Chi ha segnalato non riceve alcun messaggio.",
     "saveReminderNoMessage": "Salvate per registrare le chiusure.",
-    "skipNotFreeway": "non è più accanto a un'autostrada"
+    "skipNotFreeway": "non è più accanto a un'autostrada",
+    "criteriaLabel": "Mostrare",
+    "criterionSpeedCamera": "Autovelox",
+    "criterionTrafficLight": "Semafori in autostrada",
+    "criterionStale": "Abbandonate (oltre {{days}} giorni)",
+    "sectionStale": "Abbandonate ({{count}})",
+    "staleNote": "UR aperte di qualsiasi tipo, segnalate più di {{days}} giorni fa, in cui nessuno tranne Map_Team ha scritto. Chiuse come Non identificata, senza messaggio.",
+    "btnCloseStale": "Chiudere",
+    "rowAgeDays": "{{count}} g",
+    "btnCloseSelected": "Chiudere le {{count}} UR selezionate",
+    "btnCloseSelectedCapped": "Chiudere {{cap}} delle {{count}} UR selezionate",
+    "dlgTitleSelected": "Chiudere {{count}} UR",
+    "dlgFactFamilySpeedCamera": "{{count}} autovelox: messaggio inviato ora, poi chiusura come Non identificata",
+    "dlgFactFamilyStale": "{{count}} abbandonate: chiusura come Non identificata, senza messaggio",
+    "dlgFactAge": "Segnalata {{count}} giorni fa."
   }
 }
