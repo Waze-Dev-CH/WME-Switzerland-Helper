@@ -2,7 +2,7 @@
 
 Date : 2026-10-13
 Branche : `feat/stale-urs` (suite directe des UR abandonnés)
-Périmètre : `src/speed-camera-urs/`, `locales/*/common.json`, les quatre README, `CLAUDE.md`
+Périmètre : `src/speed-camera-urs/` (dont le nom et le contenu de l'onglet), `locales/*/common.json`, les quatre README, `CLAUDE.md`
 
 ## 1. Pourquoi
 
@@ -182,6 +182,41 @@ et dit que l'UR reste ouvert. Chaque ligne affiche le cas : `#id · Feu · FR ·
 lignes `pending` n'ont pas de bouton. Il n'y a pas de lignes « conversation » : un UR
 commenté n'est pas listé.
 
+### 4.5 L'onglet change de nom et de contenu
+
+L'onglet n'est plus seulement celui des radars : il traite désormais quatre familles d'UR.
+Son nom, son titre, sa note et sa bannière le disent.
+
+| Clé | FR | DE | IT | EN |
+| --- | --- | --- | --- | --- |
+| `tabName` (préfixé `CH · `) | Assistant UR | UR-Assistent | Assistente UR | UR assistant |
+| `appName` (titre dans l'onglet) | Assistant des UR | Assistent für URs | Assistente per le UR | Update request assistant |
+
+**`tabNote`**
+- FR : Traite les UR ouverts à l'écran, par familles à cocher ci-dessous : radars (message officiel, puis fermeture), feux signalés sur autoroute (fermeture sans message), signalements Map Mate (question au rapporteur, l'UR reste ouvert) et UR abandonnés (fermeture sans message). Rien n'est sauvegardé automatiquement.
+- DE : Bearbeitet die offenen URs im Bildausschnitt, nach den unten angekreuzten Gruppen: Radare (offizielle Nachricht, dann Schliessen), auf der Autobahn gemeldete Ampeln (Schliessen ohne Nachricht), Map-Mate-Meldungen (Frage an die meldende Person, die UR bleibt offen) und verwaiste URs (Schliessen ohne Nachricht). Nichts wird automatisch gespeichert.
+- IT : Tratta le UR aperte sullo schermo, secondo le famiglie selezionate qui sotto: autovelox (messaggio ufficiale, poi chiusura), semafori segnalati in autostrada (chiusura senza messaggio), segnalazioni Map Mate (domanda a chi ha segnalato, la UR resta aperta) e UR abbandonate (chiusura senza messaggio). Nulla viene salvato automaticamente.
+- EN : Handles the open URs on screen, by the families ticked below: speed cameras (official message, then closure), traffic lights reported on a freeway (closed without a message), Map Mate reports (a question to the reporter, the UR stays open) and abandoned URs (closed without a message). Nothing is saved automatically.
+
+La note du radar, qui explique la loi suisse, passe dans une note propre à la section des
+radars (`speedCameraNote`), comme `trafficLightNote` et `staleNote` pour leurs sections.
+
+**Bannière.** Elle compte toutes les familles cochées, plus seulement les radars :
+« N UR à traiter à l'écran, M en vérification ». Sans aucune famille cochée, elle invite à
+en cocher une. Sans UR, elle garde le rappel actuel : les UR doivent être affichés sur la
+carte pour être trouvés. Les clés `stateNone`, `stateFound` et `statePending` changent de
+texte dans les quatre langues, et `stateNoFamily` s'ajoute.
+
+**Ce qui ne change pas, exprès :**
+- le dossier `src/speed-camera-urs/` et la section i18n `speedCameraUrs` : les renommer
+  toucherait tout le code sans rien apporter à l'éditeur ;
+- le `scriptId` `wme-ch-speed-camera-urs` et la clé de regroupement des onglets
+  (`groupScriptTab`) : c'est ce qui relie l'onglet à sa place parmi nos onglets ;
+- la clé `localStorage` `wme-ch-speed-camera-urs.settings`, pour que les cases déjà
+  cochées survivent à la mise à jour.
+
+`SCRIPT_NAME` devient « WME CH UR Assistant ».
+
 ## 5. Erreurs
 
 Les mêmes raisons qu'aujourd'hui. Un échec d'envoi (`errComment`) ne laisse rien derrière
@@ -214,7 +249,8 @@ lui, puisque rien d'autre n'est écrit.
   - rang et plafond partagés, ordre dans le lot.
 - `confirm-spec.test.ts` / `flows.test.ts` / `ui/dialog.test.ts` : citations multiples, lot
   mixte, résumé avec « asked ».
-- `ui/format.test.ts` : bouton selon la case et le niveau, libellé de ligne avec le cas.
+- `ui/format.test.ts` : bouton selon la case et le niveau, libellé de ligne avec le cas,
+  bannière selon les familles cochées (aucune, sans UR, avec UR en vérification).
 
 ## 7. À vérifier dans WME
 
@@ -231,7 +267,11 @@ lui, puisque rien d'autre n'est écrit.
   - l'UR qui reste ouvert, et aucune question dès qu'il y a eu un commentaire (hors `Map_Team`) ;
   - le partage des feux avec l'autoroute ;
   - le lot au niveau 3 et l'anti-doublon.
-- Les quatre README : compléter l'entrée *Added* de la version en cours.
+- Les quatre README :
+  - compléter l'entrée *Added* de la version en cours ;
+  - ajouter une entrée *Changed* pour le nouveau nom de l'onglet ;
+  - mettre à jour la description de la fonctionnalité dans la liste *Features*, qui
+    nomme l'onglet.
 
 ## 9. Hors périmètre
 
