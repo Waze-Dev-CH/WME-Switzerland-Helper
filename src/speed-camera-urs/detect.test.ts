@@ -292,6 +292,37 @@ describe("isAbandoned", () => {
     expect(hasDiscussion(nameless)).toBe(false);
   });
 
+  it("recognises the Italian line of Map_Team's question too", () => {
+    const italian = [
+      {
+        createdOn: 1789363681420,
+        text: "Ciao, qual è stato il problema, per favore?",
+        userName: null,
+      },
+    ];
+    expect(hasDiscussion(italian)).toBe(false);
+  });
+
+  it("trusts the text only when WME gives no name: an editor may paste the question", () => {
+    const pasted = [
+      {
+        createdOn: 1789363681420,
+        text: "Bonjour, quel a été le problème SVP?",
+        userName: "editor",
+      },
+    ];
+    expect(hasDiscussion(pasted)).toBe(true);
+  });
+
+  it("does not let Map_Team take the last word from the reporter", () => {
+    const now = REPORTED + 40 * DAY;
+    const conversation = [
+      { createdOn: now - 20 * DAY, text: "C'est à la gare", userName: null },
+      { createdOn: now - 16 * DAY, text: "auto", userName: MAP_TEAM_USER },
+    ];
+    expect(isAbandoned(conversation, REPORTED, now)).toBe(false);
+  });
+
   it("still takes a nameless comment with any other text for the reporter", () => {
     const reply = [
       { createdOn: 1789363681420, text: "Merci, c'est réglé", userName: null },

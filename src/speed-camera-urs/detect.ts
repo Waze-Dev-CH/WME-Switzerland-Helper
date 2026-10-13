@@ -137,17 +137,20 @@ export function isStaleCandidate(
 const REPORTER_NAMES: ReadonlyArray<string | null> = [null, "admin"];
 
 /**
- * The Swiss community's automatic question, in two of its languages. WME does not always
+ * The Swiss community's automatic question, one line per language. WME does not always
  * return its author: the same comment read "Map_Team" when the list was built and null
- * when it was read again at closure, so the text has to vouch for it.
+ * when it was read again at closure, so the text has to vouch for it then. Only then:
+ * editors paste this question by hand, under their own name.
  */
 const MAP_TEAM_QUESTIONS = [
   "Hallo, was war das Problem bitte?",
   "Bonjour, quel a été le problème SVP?",
+  "Ciao, qual è stato il problema, per favore?",
 ];
 
 function isMapTeam(comment: ConversationElement): boolean {
   if (comment.userName === MAP_TEAM_USER) return true;
+  if (comment.userName !== null) return false;
   return MAP_TEAM_QUESTIONS.some((question) => comment.text.includes(question));
 }
 
@@ -181,9 +184,27 @@ export function isAbandoned(
   reportedOn: number,
   now: number,
 ): boolean {
-  const latest = [...comments].sort((a, b) => a.createdOn - b.createdOn).pop();
-  if (latest && isReporter(latest)) return false;
-  return now - lastActivity(reportedOn, comments) > STALE_AGE_DAYS * DAY_MS;
+  if (reporterHasLastWord(comments)) return false;
+  return isIdle(lastActivity(reportedOn, comments), now);
+}
+
+/**
+ * Whether the reporter spoke last among the people in the conversation. Map_Team is left
+ * out: its automatic question can land after the reporter's reply, and the reporter would
+ * still be the one waiting.
+ */
+export function reporterHasLastWord(
+  comments: readonly ConversationElement[],
+): boolean {
+  const latest = comments
+    .filter((comment) => !isMapTeam(comment))
+    .sort((a, b) => a.createdOn - b.createdOn)
+    .pop();
+  return latest !== undefined && isReporter(latest);
+}
+
+export function isIdle(lastActivityOn: number, now: number): boolean {
+  return now - lastActivityOn > STALE_AGE_DAYS * DAY_MS;
 }
 
 /** ROAD_TYPE.FREEWAY in the SDK; the typings declare the constant but ship no runtime value. */
