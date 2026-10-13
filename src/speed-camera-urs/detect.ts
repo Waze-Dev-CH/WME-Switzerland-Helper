@@ -131,10 +131,13 @@ export function isStaleCandidate(
 /**
  * Who wrote a comment, as observed in WME: the automatic messages carry "Map_Team", an
  * editor carries their name, and the reporter, who has no editor account, comes back with
- * userName null.
+ * userName null or "admin" (UR 27179414), probably depending on how they answered. "admin"
+ * has no editor profile, so it cannot be an editor.
  */
+const REPORTER_NAMES: ReadonlyArray<string | null> = [null, "admin"];
+
 function isReporter(comment: ConversationElement): boolean {
-  return comment.userName === null;
+  return REPORTER_NAMES.includes(comment.userName);
 }
 
 /** Anyone but Map_Team, the reporter included. */

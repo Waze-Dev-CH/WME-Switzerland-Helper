@@ -279,6 +279,24 @@ describe("isAbandoned", () => {
     ).toBe(true);
   });
 
+  it("knows the reporter also as admin (UR 27179414)", () => {
+    const conversation = [
+      {
+        createdOn: Date.parse("2026-09-23T06:54:58.981Z"),
+        text: "Hallo, was war das Problem bitte?",
+        userName: MAP_TEAM_USER,
+      },
+      {
+        createdOn: Date.parse("2026-09-23T07:43:41.845Z"),
+        text: "Bonjour, la route que le GPs demande d'emprunter est fermée",
+        userName: "admin",
+      },
+    ];
+    const reportedOn = Date.parse("2026-09-22T12:00:00Z");
+    const now = Date.parse("2026-10-13T12:00:00Z");
+    expect(isAbandoned(conversation, reportedOn, now)).toBe(false);
+  });
+
   it("never takes one where the reporter has the last word", () => {
     expect(isAbandoned([at(25, "editor"), at(20, null)], REPORTED, now)).toBe(
       false,

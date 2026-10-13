@@ -163,8 +163,9 @@ triage) → `TabUI`. `close.ts` is the only module that writes.
   geometry, and the scanner tracks `segments` events so a UR drawn before its road still
   appears. These are closed one by one, as not-identified and **without any message**.
 - Comment authors, as observed in WME: `"Map_Team"` for the automatic messages, the editor's
-  name for an editor, and `null` for the **reporter**, who has no editor account.
-  `hasDiscussion` ignores only `"Map_Team"`; a nameless comment is the reporter.
+  name for an editor, and `null` or `"admin"` for the **reporter**, who has no editor
+  account (`"admin"` has no editor profile; seen on UR 27179414, probably depending on how
+  the reporter answered). `hasDiscussion` ignores only `"Map_Team"`.
 - Abandoned URs (`isStaleCandidate` prefilter, `isAbandoned` verdict, detect.ts): open,
   editable, any type, **no activity for more than `STALE_AGE_DAYS` (14) days** (latest
   comment, or the report when there is none), and the reporter does **not** have the last
