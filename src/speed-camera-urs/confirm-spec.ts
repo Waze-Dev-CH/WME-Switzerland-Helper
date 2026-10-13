@@ -171,10 +171,13 @@ export function closeSelectedSpec(
   if (staleCount > 0)
     facts.push(t("dlgFactFamilyStale", { count: staleCount }));
 
+  // The button names both halves of the change whenever something is sent and closed.
+  const sends = cameraCount + mapMate.length > 0;
+  const closes = cameraCount + staleCount > 0;
   const confirmKey =
-    cameraCount > 0
+    sends && closes
       ? "dialogConfirm"
-      : mapMate.length > 0
+      : sends
         ? "dialogSend"
         : "dialogCloseOnly";
   const spec: ConfirmSpec = {

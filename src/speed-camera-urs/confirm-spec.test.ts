@@ -165,6 +165,12 @@ describe("closeSelectedSpec with Map Mate", () => {
     expect(spec.warning).toContain("cannot be withdrawn");
   });
 
+  it("says Send and close when questions go with closures", () => {
+    const spec = closeSelectedSpec([], [{ kind: "turn", lang: "it" }], 3, "fr");
+
+    expect(spec.confirmLabel).toBe("Send and close");
+  });
+
   it("labels the button Send when only questions go", () => {
     const spec = closeSelectedSpec([], [{ kind: "turn", lang: "it" }], 0, "fr");
 
