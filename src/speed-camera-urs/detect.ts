@@ -136,15 +136,30 @@ export function isStaleCandidate(
  */
 const REPORTER_NAMES: ReadonlyArray<string | null> = [null, "admin"];
 
+/**
+ * The Swiss community's automatic question, in two of its languages. WME does not always
+ * return its author: the same comment read "Map_Team" when the list was built and null
+ * when it was read again at closure, so the text has to vouch for it.
+ */
+const MAP_TEAM_QUESTIONS = [
+  "Hallo, was war das Problem bitte?",
+  "Bonjour, quel a été le problème SVP?",
+];
+
+function isMapTeam(comment: ConversationElement): boolean {
+  if (comment.userName === MAP_TEAM_USER) return true;
+  return MAP_TEAM_QUESTIONS.some((question) => comment.text.includes(question));
+}
+
 function isReporter(comment: ConversationElement): boolean {
-  return REPORTER_NAMES.includes(comment.userName);
+  return !isMapTeam(comment) && REPORTER_NAMES.includes(comment.userName);
 }
 
 /** Anyone but Map_Team, the reporter included. */
 export function hasDiscussion(
   comments: readonly ConversationElement[],
 ): boolean {
-  return comments.some((comment) => comment.userName !== MAP_TEAM_USER);
+  return comments.some((comment) => !isMapTeam(comment));
 }
 
 /** The latest comment by date, or the report itself when nobody wrote. */

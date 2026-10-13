@@ -279,6 +279,27 @@ describe("isAbandoned", () => {
     ).toBe(true);
   });
 
+  it("recognises Map_Team by its text when WME drops the name", () => {
+    // Logged in WME: the comment the list read as "Map_Team" came back nameless at closure.
+    const nameless = [
+      {
+        createdOn: 1789363681420,
+        text: "Hallo, was war das Problem bitte? \n Bonjour, quel a été le problème SVP? \n Ciao,",
+        userName: null,
+      },
+    ];
+    expect(isAbandoned(nameless, 1789361173000, 1791893552858)).toBe(true);
+    expect(hasDiscussion(nameless)).toBe(false);
+  });
+
+  it("still takes a nameless comment with any other text for the reporter", () => {
+    const reply = [
+      { createdOn: 1789363681420, text: "Merci, c'est réglé", userName: null },
+    ];
+    expect(isAbandoned(reply, 1789361173000, 1791893552858)).toBe(false);
+    expect(hasDiscussion(reply)).toBe(true);
+  });
+
   it("knows the reporter also as admin (UR 27179414)", () => {
     const conversation = [
       {
