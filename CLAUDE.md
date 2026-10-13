@@ -160,14 +160,26 @@ triage) → `TabUI`. `close.ts` is the only module that writes.
   purpose, real lights stand at their end. The SDK links a UR to no segment, hence the
   geometry, and the scanner tracks `segments` events so a UR drawn before its road still
   appears. These are closed one by one, as not-identified and **without any message**.
+- Abandoned URs (`isStaleCandidate`, detect.ts): open, editable, reported more than
+  `STALE_AGE_DAYS` (14) days ago, any type, and nobody but `Map_Team` in the conversation
+  (`hasDiscussion`, exact `userName` match; `null` counts as a person). Closed as
+  not-identified **without any message**. The scanner reads their conversations only when
+  the "Abandoned" box is checked, after the speed cameras'.
+- Overlaps: a speed camera is never "abandoned", it always gets the message. A traffic light
+  on a freeway is never "abandoned" either, or it would reach a batch through the back door.
+- `settings.ts`: the three checkboxes, localStorage key `wme-ch-speed-camera-urs.settings`,
+  non-boolean values fall back to the defaults (speed cameras ☑, traffic lights ☑,
+  abandoned ☐).
 - `addComment` sends **immediately** and cannot be withdrawn, while the closure goes to the
   edit stack. That is why the comment goes first and the closure only follows a successful
   send.
 
 **Safety rules:**
 
-- `BATCH_MIN_RANK` (level 3) and `BATCH_CAP` (50) live in `close.ts` and are enforced in
-  `closeMany`, not only in the tab. The batch button is hidden below the level.
+- `BATCH_MIN_RANK` (level 3), `STALE_BATCH_MIN_RANK` (level 4) and `BATCH_CAP` (50, the
+  whole batch, speed cameras first) live in `close.ts` and are enforced in `closeMany`, not
+  only in the tab. One batch button covers what is ticked and allowed; it is hidden when
+  that is empty.
 - Any comment on a UR keeps it out of the batch. `wasMessaged` covers Ctrl+Z: the closure
   is undone but the message is not, and WME's cached conversation may not show it yet.
 - A UR already messaged is never messaged again: `alreadyMessaged` is true when

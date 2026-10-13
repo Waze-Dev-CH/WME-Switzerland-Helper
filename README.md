@@ -131,6 +131,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### [Unreleased]
 
+#### Added
+
+- **Abandoned URs.** The **CH · Speed-camera UR closer** tab can now also close open URs of any type reported more than 14 days ago where nobody but Map_Team has written. They are closed as *Not identified*, without any message. Three checkboxes choose which families the tab handles (speed cameras, traffic lights on a freeway, abandoned; the last one is off by default), and a single button closes everything ticked: speed cameras from level 3, abandoned URs from level 4, 50 at most.
+
 ### [1.6.1] - 2026-10-06
 
 #### Added

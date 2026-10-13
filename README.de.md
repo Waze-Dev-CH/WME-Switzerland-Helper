@@ -131,6 +131,10 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### [Unveröffentlicht]
 
+#### Hinzugefügt
+
+- **Verwaiste URs.** Der Reiter **CH · Radar-UR-Closer** kann jetzt auch offene URs jeden Typs schliessen, die vor mehr als 14 Tagen gemeldet wurden und in denen niemand ausser Map_Team geschrieben hat. Sie werden als *Nicht identifiziert* geschlossen, ohne Nachricht. Drei Kästchen wählen die bearbeiteten Gruppen (Radare, Ampeln auf der Autobahn, verwaist; das letzte ist standardmässig aus), und eine einzige Schaltfläche schliesst alles Angekreuzte: Radare ab Level 3, verwaiste URs ab Level 4, höchstens 50.
+
 ### [1.6.1] - 2026-10-06
 
 #### Hinzugefügt
