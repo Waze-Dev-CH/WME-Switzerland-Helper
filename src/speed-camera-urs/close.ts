@@ -1,5 +1,6 @@
 import type { ConversationElement, WmeSDK } from "wme-sdk-typings";
 import {
+  ageInDays,
   hasDiscussion,
   isOnFreeway,
   isSpeedCameraUr,
@@ -10,9 +11,10 @@ import {
 import { getLocale, t } from "./i18n";
 import { log } from "./log";
 import {
-  closeAllSpec,
   closeOneSpec,
   closeOnlySpec,
+  closeSelectedSpec,
+  closeStaleSpec,
   closeTrafficLightSpec,
 } from "./confirm-spec";
 import { buildMessage, isOfficialMessage, messageLanguage } from "./message";
@@ -345,6 +347,21 @@ export function summarize(
   return lines.join("\n");
 }
 
+/**
+ * The batch's summary. It claims messages were sent only when a speed camera was actually
+ * closed: a batch of abandoned URs sends nothing.
+ */
+export function summarizeBatch(
+  outcomes: readonly CloseOutcome[],
+  speedCameraIds: readonly number[],
+): string {
+  const cameras = new Set(speedCameraIds);
+  const messagesSent = outcomes.some(
+    (outcome) => outcome.result === "closed" && cameras.has(outcome.id),
+  );
+  return summarize(outcomes, { messagesSent });
+}
+
 function closeWithoutMessage(
   urs: WmeSDK["DataModel"]["MapUpdateRequests"],
   id: number,
@@ -480,21 +497,58 @@ export function runCloseTrafficLight(
   });
 }
 
-/** Every ready UR at once, level 3 and up. The rank is checked before anything is asked. */
-export async function runCloseAll(
+/** One abandoned UR, from the tab. Open to every level, like the other single closures. */
+export function runCloseStale(
   sdk: WmeSDK,
-  ids: readonly number[],
+  id: number,
   prompts: Prompts = {},
+  now = Date.now(),
+): Promise<CloseOutcome | null> {
+  const confirm = prompts.confirm ?? confirmDialog;
+  const notify = prompts.notify ?? notifyDialog;
+  return withCloseLock(async () => {
+    const ur = sdk.DataModel.MapUpdateRequests.getById({
+      mapUpdateRequestId: id,
+    });
+    if (!ur) return null;
+
+    const accepted = await confirm(
+      closeStaleSpec(id, ageInDays(ur.reportedOn, now)),
+    );
+    if (!accepted) return null;
+
+    const outcome = await closeStale(sdk, id, now);
+    if (outcome.result !== "closed")
+      await notify(summarize([outcome], { messagesSent: false }));
+    return outcome;
+  });
+}
+
+/**
+ * Everything the editor ticked, at once. Each family is filtered by its own rank before
+ * anything is asked, and closeMany checks again. When nothing is left, the editor is told
+ * which level the request needed.
+ */
+export async function runCloseSelected(
+  sdk: WmeSDK,
+  request: BatchRequest,
+  prompts: Prompts = {},
+  now = Date.now(),
 ): Promise<CloseOutcome[] | null> {
   const confirm = prompts.confirm ?? confirmDialog;
   const notify = prompts.notify ?? notifyDialog;
-  if (!canBatch(sdk)) {
-    await notify(t("errBatchRank", { level: BATCH_MIN_RANK + 1 }));
+  const allowed = allowedBatch(sdk, request);
+  const asked = request.speedCamera.length + request.stale.length;
+  const kept = allowed.speedCamera.length + allowed.stale.length;
+  if (asked > 0 && kept === 0) {
+    const minRank =
+      request.speedCamera.length > 0 ? BATCH_MIN_RANK : STALE_BATCH_MIN_RANK;
+    await notify(t("errBatchRank", { level: minRank + 1 }));
     return null;
   }
-  const batch = ids.slice(0, BATCH_CAP);
-  if (batch.length === 0) return [];
-  // closeOne checks again per UR, but asking the editor to confirm a batch that can only
+  const batch = capBatch(allowed);
+  if (batch.speedCamera.length + batch.stale.length === 0) return [];
+  // Each closure checks again, but asking the editor to confirm a batch that can only
   // fail is a worse experience than saying so up front.
   if (!sdk.Editing.isEditingAllowed()) {
     await notify(t("errNotAllowedBatch"));
@@ -502,17 +556,19 @@ export async function runCloseAll(
   }
 
   return withCloseLock(async () => {
-    const langs = batch.map((id) =>
+    const langs = batch.speedCamera.map((id) =>
       messageLanguage(
         sdk.DataModel.MapUpdateRequests.getById({ mapUpdateRequestId: id })
           ?.userPreferences?.language,
       ),
     );
-    const accepted = await confirm(closeAllSpec(langs, getLocale()));
+    const accepted = await confirm(
+      closeSelectedSpec(langs, batch.stale.length, getLocale()),
+    );
     if (!accepted) return null;
 
-    const outcomes = await closeMany(sdk, { speedCamera: batch, stale: [] });
-    if (outcomes) await notify(summarize(outcomes));
+    const outcomes = await closeMany(sdk, batch, now);
+    if (outcomes) await notify(summarizeBatch(outcomes, batch.speedCamera));
     return outcomes;
   });
 }

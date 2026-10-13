@@ -94,15 +94,53 @@ export function closeTrafficLightSpec(
 }
 
 /**
+ * An abandoned UR: closed without a word, like a traffic light. Nothing leaves the editor's
+ * machine and the closure goes to the undo stack, so no warning. The age is shown because
+ * it is the whole reason for closing.
+ */
+export function closeStaleSpec(id: number, ageDays: number): ConfirmSpec {
+  return {
+    title: t("dlgTitleOne", { id }),
+    facts: [
+      t("dlgFactCloseOne"),
+      t("dlgFactNoMessage"),
+      t("dlgFactAge", { count: ageDays }),
+    ],
+    confirmLabel: t("dialogCloseOnly"),
+    cancelLabel: t("dialogCancel"),
+  };
+}
+
+/**
+ * The single batch: one line per family, so the editor reads what happens to each, not
+ * just a total. The quote and the warning only appear when speed cameras are in it, since
+ * they alone send something that cannot be withdrawn.
+ *
  * Every language of the batch is offered, not only the editor's: the German or Italian
  * text is what those reporters will read, and the editor should be able to see it before
  * sending it to them.
  */
-export function closeAllSpec(
-  langs: readonly LocaleCode[],
+export function closeSelectedSpec(
+  speedCameraLangs: readonly LocaleCode[],
+  staleCount: number,
   editorLang: LocaleCode,
 ): ConfirmSpec {
-  const counts = languageCounts(langs);
+  const cameraCount = speedCameraLangs.length;
+  const facts: string[] = [];
+  if (cameraCount > 0)
+    facts.push(t("dlgFactFamilySpeedCamera", { count: cameraCount }));
+  if (staleCount > 0)
+    facts.push(t("dlgFactFamilyStale", { count: staleCount }));
+
+  const spec: ConfirmSpec = {
+    title: t("dlgTitleSelected", { count: cameraCount + staleCount }),
+    facts,
+    confirmLabel: t(cameraCount > 0 ? "dialogConfirm" : "dialogCloseOnly"),
+    cancelLabel: t("dialogCancel"),
+  };
+  if (cameraCount === 0) return spec;
+
+  const counts = languageCounts(speedCameraLangs);
   // The editor's own language first when the batch has it: it is the one they can proofread.
   const ordered = [
     ...counts.filter((entry) => entry.lang === editorLang),
@@ -113,19 +151,11 @@ export function closeAllSpec(
     count: entry.count,
     text: buildMessage(entry.lang),
   }));
-  return {
-    title: t("dlgTitleAll", { count: langs.length }),
-    facts: [
-      t("dlgFactSendAll", { count: langs.length }),
-      t("dlgFactCloseAll", { count: langs.length }),
-    ],
-    quotes: {
-      label: t("dlgQuoteLabel"),
-      hint: options.length > 1 ? t("dlgQuoteHint") : undefined,
-      options,
-    },
-    warning: t("dlgWarningAll"),
-    confirmLabel: t("dialogConfirm"),
-    cancelLabel: t("dialogCancel"),
+  spec.quotes = {
+    label: t("dlgQuoteLabel"),
+    hint: options.length > 1 ? t("dlgQuoteHint") : undefined,
+    options,
   };
+  spec.warning = t("dlgWarningAll");
+  return spec;
 }

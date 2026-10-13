@@ -4,7 +4,8 @@ import {
   closeOne,
   isCloseInFlight,
   resetMessagedForTests,
-  runCloseAll,
+  runCloseSelected,
+  runCloseStale,
   runCloseOne,
   runCloseTrafficLight,
 } from "./close";
@@ -18,6 +19,10 @@ const official = {
   userName: "editor",
 };
 const comment = { createdOn: 0, text: "still there", userName: null };
+const DAY = 24 * 60 * 60 * 1000;
+/** 30 days after makeUr's default reportedOn. */
+const NOW = 1_760_000_000_000 + 30 * DAY;
+const road = { description: "Missing road" };
 const accept = () =>
   vi.fn<(spec: ConfirmSpec) => Promise<boolean>>(async () => true);
 const decline = () =>
@@ -172,13 +177,19 @@ describe("runCloseOne", () => {
   });
 });
 
-describe("runCloseAll", () => {
+describe("runCloseSelected", () => {
   it("refuses below level 3 without asking anything", async () => {
     const { sdk, calls } = makeSdk([makeUr(1)], { rank: 1 });
     const confirm = accept();
     const notify = silent();
 
-    expect(await runCloseAll(sdk, [1], { confirm, notify })).toBeNull();
+    expect(
+      await runCloseSelected(
+        sdk,
+        { speedCamera: [1], stale: [] },
+        { confirm, notify },
+      ),
+    ).toBeNull();
     expect(confirm).not.toHaveBeenCalled();
     expect(notify.mock.calls[0]?.[0]).toContain("level 3");
     expect(calls).toEqual([]);
@@ -194,10 +205,16 @@ describe("runCloseAll", () => {
     const confirm = accept();
     const notify = silent();
 
-    const outcomes = await runCloseAll(sdk, [1, 2, 3], { confirm, notify });
+    const outcomes = await runCloseSelected(
+      sdk,
+      { speedCamera: [1, 2, 3], stale: [] },
+      { confirm, notify },
+    );
 
     const spec = specOf(confirm);
-    expect(spec.facts).toContain("Messages sent now: 3");
+    expect(spec.facts).toEqual([
+      "3 speed camera(s): message sent now, then closed as Not identified",
+    ]);
     expect(
       spec.quotes?.options.map(({ lang, count }) => ({ lang, count })),
     ).toEqual([
@@ -211,6 +228,9 @@ describe("runCloseAll", () => {
       "3 closed, 0 skipped, 0 failed.",
     );
     expect(notify.mock.calls[0]?.[0]).toContain("Save to record the closures.");
+    expect(notify.mock.calls[0]?.[0]).toContain(
+      "The messages are already sent.",
+    );
   });
 
   it("refuses before asking anything when editing is not allowed", async () => {
@@ -218,7 +238,13 @@ describe("runCloseAll", () => {
     const confirm = accept();
     const notify = silent();
 
-    expect(await runCloseAll(sdk, [1], { confirm, notify })).toBeNull();
+    expect(
+      await runCloseSelected(
+        sdk,
+        { speedCamera: [1], stale: [] },
+        { confirm, notify },
+      ),
+    ).toBeNull();
     expect(confirm).not.toHaveBeenCalled();
     expect(notify.mock.calls[0]?.[0]).toContain("nothing was sent");
     expect(sent).toEqual([]);
@@ -228,7 +254,11 @@ describe("runCloseAll", () => {
     const { sdk, sent } = makeSdk([makeUr(1)]);
 
     expect(
-      await runCloseAll(sdk, [1], { confirm: decline(), notify: silent() }),
+      await runCloseSelected(
+        sdk,
+        { speedCamera: [1], stale: [] },
+        { confirm: decline(), notify: silent() },
+      ),
     ).toBeNull();
     expect(sent).toEqual([]);
   });
@@ -245,10 +275,14 @@ describe("runCloseAll", () => {
       notify: silent(),
     });
     expect(isCloseInFlight()).toBe(true);
-    const second = await runCloseAll(sdk, [2], {
-      confirm: accept(),
-      notify: silent(),
-    });
+    const second = await runCloseSelected(
+      sdk,
+      { speedCamera: [2], stale: [] },
+      {
+        confirm: accept(),
+        notify: silent(),
+      },
+    );
     // `release` is only assigned once the first flow reaches its dialog.
     await vi.waitFor(() => expect(slowConfirm).toHaveBeenCalled());
     release(true);
@@ -257,6 +291,78 @@ describe("runCloseAll", () => {
     expect(second).toBeNull();
     expect(sent.map((s) => s.id)).toEqual([1]);
     expect(isCloseInFlight()).toBe(false);
+  });
+  it("asks for level 4 when only abandoned URs are requested", async () => {
+    const { sdk, calls } = makeSdk([makeUr(1, road)], { rank: 2 });
+    const confirm = accept();
+    const notify = silent();
+
+    expect(
+      await runCloseSelected(
+        sdk,
+        { speedCamera: [], stale: [1] },
+        { confirm, notify },
+        NOW,
+      ),
+    ).toBeNull();
+    expect(confirm).not.toHaveBeenCalled();
+    expect(notify.mock.calls[0]?.[0]).toContain("level 4");
+    expect(calls).toEqual([]);
+  });
+
+  it("drops the abandoned URs at level 3 and still handles the speed cameras", async () => {
+    const { sdk, calls } = makeSdk([makeUr(1), makeUr(2, road)], { rank: 2 });
+    const confirm = accept();
+
+    await runCloseSelected(
+      sdk,
+      { speedCamera: [1], stale: [2] },
+      { confirm, notify: silent() },
+      NOW,
+    );
+
+    expect(specOf(confirm).facts).toHaveLength(1);
+    expect(calls).not.toContain("details:2");
+  });
+
+  it("describes a mixed batch and messages only the speed cameras", async () => {
+    const { sdk, sent } = makeSdk([makeUr(1), makeUr(2, road)], { rank: 3 });
+    const confirm = accept();
+    const notify = silent();
+
+    const outcomes = await runCloseSelected(
+      sdk,
+      { speedCamera: [1], stale: [2] },
+      { confirm, notify },
+      NOW,
+    );
+
+    expect(specOf(confirm).facts).toHaveLength(2);
+    expect(outcomes?.map((o) => o.result)).toEqual(["closed", "closed"]);
+    expect(sent.map((s) => s.id)).toEqual([1]);
+    expect(notify.mock.calls[0]?.[0]).toContain(
+      "The messages are already sent.",
+    );
+  });
+
+  it("an abandoned-only batch quotes nothing and does not claim messages were sent", async () => {
+    const { sdk, sent } = makeSdk([makeUr(1, road)], { rank: 3 });
+    const confirm = accept();
+    const notify = silent();
+
+    await runCloseSelected(
+      sdk,
+      { speedCamera: [], stale: [1] },
+      { confirm, notify },
+      NOW,
+    );
+
+    expect(specOf(confirm).quotes).toBeUndefined();
+    expect(specOf(confirm).warning).toBeUndefined();
+    expect(sent).toEqual([]);
+    const summary = notify.mock.calls[0]?.[0] ?? "";
+    expect(summary).toContain("Save to record the closures.");
+    expect(summary).not.toContain("already sent");
   });
 });
 
@@ -320,5 +426,77 @@ describe("runCloseTrafficLight", () => {
 
     expect(outcome).toMatchObject({ reason: "skipNotFreeway" });
     expect(notify).toHaveBeenCalledOnce();
+  });
+});
+
+describe("runCloseStale", () => {
+  it("confirms with the age, then closes without a message", async () => {
+    const { sdk, sent, calls } = makeSdk([makeUr(1, road)]);
+    const confirm = accept();
+
+    const outcome = await runCloseStale(
+      sdk,
+      1,
+      { confirm, notify: silent() },
+      NOW,
+    );
+
+    expect(outcome).toEqual({ id: 1, result: "closed" });
+    expect(specOf(confirm).facts).toContain("Reported 30 days ago.");
+    expect(sent).toEqual([]);
+    expect(calls).toEqual(["details:1", "close:1:not-identified"]);
+  });
+
+  it("writes nothing when the UR is closed while the dialog is open", async () => {
+    const ur = makeUr(1, road);
+    const { sdk, calls } = makeSdk([ur]);
+    const confirm = vi.fn(async () => {
+      ur.isOpen = false;
+      return true;
+    });
+    const notify = silent();
+
+    const outcome = await runCloseStale(sdk, 1, { confirm, notify }, NOW);
+
+    expect(outcome).toEqual({ id: 1, result: "skipped", reason: "skipGone" });
+    expect(calls).toEqual([]);
+    expect(notify).toHaveBeenCalledOnce();
+  });
+
+  it("writes nothing when someone comments while the dialog is open", async () => {
+    const comments: Record<number, ConversationElement[]> = {};
+    const { sdk, calls } = makeSdk([makeUr(1, road)], { comments });
+    const confirm = vi.fn(async () => {
+      comments[1] = [comment];
+      return true;
+    });
+
+    const outcome = await runCloseStale(
+      sdk,
+      1,
+      { confirm, notify: silent() },
+      NOW,
+    );
+
+    expect(outcome).toEqual({
+      id: 1,
+      result: "skipped",
+      reason: "skipConversation",
+    });
+    expect(calls).toEqual(["details:1"]);
+  });
+
+  it("does nothing when the editor declines", async () => {
+    const { sdk, calls } = makeSdk([makeUr(1, road)]);
+
+    expect(
+      await runCloseStale(
+        sdk,
+        1,
+        { confirm: decline(), notify: silent() },
+        NOW,
+      ),
+    ).toBeNull();
+    expect(calls).toEqual([]);
   });
 });

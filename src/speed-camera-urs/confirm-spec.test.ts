@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  closeAllSpec,
+  closeSelectedSpec,
+  closeStaleSpec,
   closeOneSpec,
   closeOnlySpec,
   excerpt,
@@ -39,20 +40,52 @@ describe("closeOnlySpec", () => {
   });
 });
 
-describe("closeAllSpec", () => {
-  it("counts the messages and the closures", () => {
-    const spec = closeAllSpec(["fr", "fr", "de"], "fr");
+describe("closeStaleSpec", () => {
+  it("states the closure, that nothing is sent and the age; no quote, no warning", () => {
+    const spec = closeStaleSpec(7, 32);
 
-    expect(spec.title).toBe("Close 3 speed-camera URs");
+    expect(spec.title).toBe("Close UR #7");
     expect(spec.facts).toEqual([
-      "Messages sent now: 3",
-      "URs closed as Not identified: 3",
+      "The UR is closed as Not identified.",
+      "No message is sent to the reporter.",
+      "Reported 32 days ago.",
+    ]);
+    expect(spec.quotes).toBeUndefined();
+    expect(spec.warning).toBeUndefined();
+    expect(spec.confirmLabel).toBe("Close");
+  });
+});
+
+describe("closeSelectedSpec", () => {
+  it("describes each family of a mixed batch, and quotes the message", () => {
+    const spec = closeSelectedSpec(["fr", "de"], 3, "fr");
+
+    expect(spec.title).toBe("Close 5 UR(s)");
+    expect(spec.facts).toEqual([
+      "2 speed camera(s): message sent now, then closed as Not identified",
+      "3 abandoned: closed as Not identified, without any message",
+    ]);
+    expect(spec.quotes?.options.map((option) => option.lang)).toEqual([
+      "fr",
+      "de",
     ]);
     expect(spec.warning).toContain("cannot be withdrawn");
+    expect(spec.confirmLabel).toBe("Send and close");
+  });
+
+  it("quotes nothing and warns of nothing when only abandoned URs go", () => {
+    const spec = closeSelectedSpec([], 4, "fr");
+
+    expect(spec.facts).toEqual([
+      "4 abandoned: closed as Not identified, without any message",
+    ]);
+    expect(spec.quotes).toBeUndefined();
+    expect(spec.warning).toBeUndefined();
+    expect(spec.confirmLabel).toBe("Close");
   });
 
   it("offers every language of the batch, with its count and exact text", () => {
-    const spec = closeAllSpec(["de", "fr", "fr", "it"], "en");
+    const spec = closeSelectedSpec(["de", "fr", "fr", "it"], 0, "en");
 
     expect(spec.quotes?.options).toEqual([
       { lang: "fr", count: 2, text: buildMessage("fr") },
@@ -63,7 +96,7 @@ describe("closeAllSpec", () => {
   });
 
   it("shows the editor's own language first when the batch has it", () => {
-    const spec = closeAllSpec(["fr", "fr", "de"], "de");
+    const spec = closeSelectedSpec(["fr", "fr", "de"], 0, "de");
 
     expect(spec.quotes?.options.map((option) => option.lang)).toEqual([
       "de",
@@ -72,7 +105,9 @@ describe("closeAllSpec", () => {
   });
 
   it("needs no hint when the batch speaks a single language", () => {
-    expect(closeAllSpec(["fr", "fr"], "fr").quotes?.hint).toBeUndefined();
+    expect(
+      closeSelectedSpec(["fr", "fr"], 0, "fr").quotes?.hint,
+    ).toBeUndefined();
   });
 });
 

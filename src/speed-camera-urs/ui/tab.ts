@@ -5,8 +5,8 @@ import { applyThemeClass, watchTheme } from "../../ui/theme";
 import {
   canBatch,
   isCloseInFlight,
-  runCloseAll,
   runCloseOne,
+  runCloseSelected,
   runCloseTrafficLight,
   summarize,
   type CloseOutcome,
@@ -164,7 +164,10 @@ export class TabUI {
       const ids = lists.ready.map((entry) => entry.id);
       const all = button(
         formatCloseAllButton(lists.ready.length),
-        () => void this.handle(() => runCloseAll(this.sdk, ids)),
+        () =>
+          void this.handle(() =>
+            runCloseSelected(this.sdk, { speedCamera: ids, stale: [] }),
+          ),
         "scu-btn scu-btn-primary",
       );
       all.disabled = isCloseInFlight();

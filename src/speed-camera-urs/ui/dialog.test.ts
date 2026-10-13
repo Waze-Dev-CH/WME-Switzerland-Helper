@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { installFakeDocument, type FakeNode } from "../../ui/fake-dom";
-import { closeAllSpec, closeOneSpec } from "../confirm-spec";
+import { closeOneSpec, closeSelectedSpec } from "../confirm-spec";
 import { buildMessage } from "../message";
 import { showConfirm, showNotice, type DialogHost } from "./dialog";
 
@@ -53,7 +53,7 @@ describe("showConfirm", () => {
 
   it("switches the quoted text when another language's flag is clicked", () => {
     const { host, mounted } = makeHost();
-    void showConfirm(closeAllSpec(["fr", "fr", "de"], "fr"), host);
+    void showConfirm(closeSelectedSpec(["fr", "fr", "de"], 0, "fr"), host);
     const root = mounted[0]!;
     const quote = findAll(root, "scu-quote")[0]!;
     const [french, german] = findAll(root, "scu-flag");
