@@ -26,8 +26,8 @@ ouvert pour qu'il puisse répondre.
 | Un par un | Bouton « Demander des précisions » sur chaque ligne, ouvert à tous les niveaux, avec confirmation qui cite le texte exact |
 | Lot | Dans le bouton unique, au **niveau 3** (`BATCH_MIN_RANK`), comme les radars |
 | Ordre dans le lot | Radars, puis questions Map Mate, puis abandonnés. `BATCH_CAP` (50) reste partagé |
-| Déjà questionné | Jamais deux fois, quel que soit le cas. Reconnu par le texte de n'importe quelle question dans la conversation (quatre langues) ou par l'ensemble `messaged` de la session. Un UR déjà questionné sort de la liste : il attend la réponse |
-| Conversation existante | Tout commentaire d'une autre personne que `Map_Team` exclut l'UR du lot. On peut quand même l'envoyer depuis sa ligne, et la confirmation montre alors le dernier commentaire |
+| Commentaire existant | **Aucune question dès qu'il y a eu un commentaire**, ni en lot ni un par un. Seuls les commentaires automatiques de `Map_Team` ne comptent pas (`hasDiscussion`, même règle que les abandonnés). Un tel UR n'est pas listé |
+| Déjà questionné | Jamais deux fois. Notre question est elle-même un commentaire, donc la règle ci-dessus suffit une fois la conversation relue. L'ensemble `messaged` de la session couvre le délai avant que WME ne la montre (Ctrl+Z, cache) |
 | Case à cocher | 4ᵉ case, « Map Mate : demander des précisions », **décochée par défaut** puisqu'elle envoie des messages |
 | Radar via Map Mate | `MISSING_STATIC_SPEED_CAMERA` reste un radar : message officiel et fermeture, jamais cette question |
 
@@ -124,9 +124,9 @@ Pas de nouveau module.
 | `detect.ts` | `MapMateKind = "trafficLight" \| "route" \| "speedLimit" \| "turn" \| "general"`. `descriptionCode(ur)` (texte avant le premier `:`). `mapMateKind(ur): MapMateKind \| null` : ouvert, éditable, source, type et code connu, sinon `null`. Pur, sans géométrie ni conversation. `closestRoadType` devient exporté |
 | `message.ts` | `buildMapMateQuestion(kind, lang)`, `isMapMateQuestion(text)` |
 | `settings.ts` | `criteria.mapMate`, défaut `false`. La fusion existante donne `false` aux réglages déjà sauvegardés ; la version reste 1 |
-| `scanner.ts` | Nouvelle liste `mapMate: MapMateEntry[]` (`UrEntry` + `kind`). Candidats = `mapMateKind(ur) !== null`, et pour un feu, `isKnownOffFreeway`. Conversations lues **seulement si la case est cochée**, après les radars et avant les abandonnés. Un UR déjà questionné n'est pas listé. Même cache, même invalidation et même abandon d'un balayage dépassé |
-| `close.ts` | `askMapMate(sdk, id, { allowConversation })`, `alreadyAsked(id, comments)`, `runAskMapMate()`. `BatchRequest` gagne `mapMate`. `allowedBatch`, `capBatch` et `closeMany` le traitent au niveau 3, entre radars et abandonnés. `CloseOutcome` gagne `"asked"` |
-| `confirm-spec.ts` | `ConfirmSpec.quotes` devient une **liste** de blocs. `askMapMateSpec(id, kind, lang, lastComment)`. `closeSelectedSpec` ajoute une ligne de famille et un bloc de citation par cas présent |
+| `scanner.ts` | Nouvelle liste `mapMate: MapMateEntry[]` (`UrEntry` + `kind`). Candidats = `mapMateKind(ur) !== null`, et pour un feu, `isKnownOffFreeway`. Conversations lues **seulement si la case est cochée**, après les radars et avant les abandonnés. État `pending` puis `ready` ; un UR avec un commentaire (hors `Map_Team`) ou déjà questionné disparaît de la liste. Même cache, même invalidation et même abandon d'un balayage dépassé |
+| `close.ts` | `askMapMate(sdk, id)` (pas d'option pour forcer : un commentaire bloque toujours), `runAskMapMate()`. `BatchRequest` gagne `mapMate`. `allowedBatch`, `capBatch` et `closeMany` le traitent au niveau 3, entre radars et abandonnés. `CloseOutcome` gagne `"asked"` |
+| `confirm-spec.ts` | `ConfirmSpec.quotes` devient une **liste** de blocs. `askMapMateSpec(id, kind, lang)`. `closeSelectedSpec` ajoute une ligne de famille et un bloc de citation par cas présent |
 | `ui/dialog.ts` | Rend chaque bloc de citation, avec ses drapeaux |
 | `ui/format.ts` | `selectedBatch` et le total du bouton incluent `mapMate`. Libellé de ligne avec le cas (« Feu », « Itinéraire »…) |
 | `ui/tab.ts` | 4ᵉ case, section « Map Mate (N) », bouton par ligne |
@@ -144,7 +144,7 @@ déjà partis et qu'il n'y a rien à sauvegarder (nouvelle clé `askedReminder`)
 
 ### 4.2 Écriture
 
-`askMapMate(sdk, id, { allowConversation })` relit tout juste avant d'écrire :
+`askMapMate(sdk, id)` relit tout juste avant d'écrire :
 
 1. édition autorisée, sinon `errNotAllowed` ;
 2. l'UR existe et `mapMateKind(ur)` n'est pas `null`, sinon `skipGone`. Le cas est relu ici :
@@ -152,10 +152,9 @@ déjà partis et qu'il n'y a rien à sauvegarder (nouvelle clé `askedReminder`)
 3. pour un feu, route connue et hors autoroute, sinon `skipGone` ;
 4. même verrou `inFlight` que `closeOne` ;
 5. conversation relue, échec → `errDetails` ;
-6. déjà questionné (`alreadyAsked`) → `skipConversation`, même avec `allowConversation` :
-   jamais deux fois ;
-7. discussion (`hasDiscussion`) et `!allowConversation` → `skipConversation` ;
-8. `addComment(buildMapMateQuestion(kind, lang))`, échec → `errComment`. En cas de
+6. un commentaire autre que `Map_Team` (`hasDiscussion`) ou déjà questionné cette session
+   (`wasMessaged`) → `skipConversation`. Aucune exception, ni en lot ni un par un ;
+7. `addComment(buildMapMateQuestion(kind, lang))`, échec → `errComment`. En cas de
    succès, `noteMessaged(id)` et le résultat est `"asked"`.
 
 `updateResolutionState` n'est **jamais** appelé.
@@ -163,8 +162,9 @@ déjà partis et qu'il n'y a rien à sauvegarder (nouvelle clé `askedReminder`)
 ### 4.3 Confirmations
 
 - **Un UR** : titre `#id` et cas ; faits « le message ci-dessous part maintenant », « l'UR
-  reste ouvert pour sa réponse » ; citation du texte exact ; dernier commentaire s'il y en
-  a ; avertissement « ne peut pas être retiré ». Bouton « Envoyer ».
+  reste ouvert pour sa réponse » ; citation du texte exact ; avertissement « ne peut pas être
+  retiré ». Bouton « Envoyer ». Pas de dernier commentaire à montrer : un UR qui en a un
+  n'arrive pas jusque-là.
 - **Lot** :
   - une ligne par famille, par exemple « 7 Map Mate : question envoyée maintenant, l'UR
     reste ouvert » ;
@@ -179,8 +179,8 @@ Abandonnés.
 
 La section « Map Mate (N) » vient après les feux sur autoroute. Sa note explique la famille
 et dit que l'UR reste ouvert. Chaque ligne affiche le cas : `#id · Feu · FR · date`. Les
-lignes `pending` n'ont pas de bouton. Les lignes `conversation` portent la mention
-« conversation » et gardent leur bouton, mais n'entrent pas dans le lot.
+lignes `pending` n'ont pas de bouton. Il n'y a pas de lignes « conversation » : un UR
+commenté n'est pas listé.
 
 ## 5. Erreurs
 
@@ -202,12 +202,14 @@ lui, puisque rien d'autre n'est écrit.
 - `scanner.test.ts` :
   - rien n'est lu tant que la case est décochée ;
   - feu sur autoroute ou route non chargée exclus, autres cas indépendants de la route ;
-  - déjà questionné exclu ;
+  - UR commenté (hors `Map_Team`) ou déjà questionné exclu ;
   - ordre des lectures.
 - `close.test.ts` :
   - `askMapMate` envoie le texte du bon cas sans fermer ;
   - jamais deux fois ;
-  - un commentaire bloque l'envoi en lot ;
+  - un commentaire d'une autre personne que `Map_Team` bloque l'envoi, en lot **et** un par
+    un ; un commentaire `Map_Team` seul ne bloque pas ;
+  - un commentaire arrivé pendant que la confirmation est ouverte bloque l'envoi ;
   - un feu reclassé sur autoroute est refusé ;
   - rang et plafond partagés, ordre dans le lot.
 - `confirm-spec.test.ts` / `flows.test.ts` / `ui/dialog.test.ts` : citations multiples, lot
@@ -226,7 +228,7 @@ lui, puisque rien d'autre n'est écrit.
 
 - `CLAUDE.md`, section *Speed-camera URs* :
   - la famille et ses cinq cas ;
-  - l'UR qui reste ouvert ;
+  - l'UR qui reste ouvert, et aucune question dès qu'il y a eu un commentaire (hors `Map_Team`) ;
   - le partage des feux avec l'autoroute ;
   - le lot au niveau 3 et l'anti-doublon.
 - Les quatre README : compléter l'entrée *Added* de la version en cours.
