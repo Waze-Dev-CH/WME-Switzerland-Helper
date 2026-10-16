@@ -246,6 +246,11 @@
     "tabTitle": "House numbers"
   },
   "speedCameraUrs": {
+    "dlgSkip": "Don't show again",
+    "noticeTitleDone": "Done",
+    "noticeTitleError": "Nothing was changed",
+    "noticeTitleRank": "Level too low",
+    "resetSkipped": "Show skipped confirmations again",
     "appName": "Update request assistant",
     "tabName": "UR assistant",
     "tabNote": "Handles the open URs on screen, by the families ticked below. Nothing is saved automatically.",

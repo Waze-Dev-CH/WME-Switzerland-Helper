@@ -39,6 +39,13 @@ describe("closeOnlySpec", () => {
     expect(spec.warning).toBeUndefined();
     expect(spec.confirmLabel).toBe("Close");
   });
+
+  it("carries the skip option only when given one", () => {
+    const skip = { label: "Don't show again", isSkipped: false, remember() {} };
+
+    expect(closeOnlySpec(5).skip).toBeUndefined();
+    expect(closeOnlySpec(5, skip).skip).toBe(skip);
+  });
 });
 
 describe("closeStaleSpec", () => {
@@ -54,6 +61,13 @@ describe("closeStaleSpec", () => {
     expect(spec.quotes).toBeUndefined();
     expect(spec.warning).toBeUndefined();
     expect(spec.confirmLabel).toBe("Close");
+  });
+
+  it("carries the skip option only when given one", () => {
+    const skip = { label: "Don't show again", isSkipped: false, remember() {} };
+
+    expect(closeStaleSpec(7, 32).skip).toBeUndefined();
+    expect(closeStaleSpec(7, 32, skip).skip).toBe(skip);
   });
 });
 

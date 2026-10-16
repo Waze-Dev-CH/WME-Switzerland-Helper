@@ -13,6 +13,8 @@ import {
 } from "./detect";
 import { getLocale, t } from "./i18n";
 import { log } from "./log";
+import type { SkipOption } from "../ui/dialog";
+import { skipOption } from "../ui/skipped-confirms";
 import {
   askMapMateSpec,
   closeOneSpec,
@@ -492,6 +494,16 @@ function closeWithoutMessage(
   return { id, result: "closed" };
 }
 
+/** A single flow only reports when it failed or was refused: nothing was changed. */
+/** Remembering is a privilege of the same rank as the batch: below it the popup always shows. */
+function skipFor(allowed: boolean, id: string): SkipOption | undefined {
+  return allowed ? skipOption(id, t("dlgSkip")) : undefined;
+}
+
+function failure(text: string): { title: string; text: string } {
+  return { title: t("noticeTitleError"), text };
+}
+
 export interface Prompts {
   confirm?: Confirm;
   notify?: Notify;
@@ -546,10 +558,13 @@ export function runCloseOne(
 
     // The reporter already has the message and it cannot be withdrawn: offer to close only.
     if (alreadyMessaged(id, comments)) {
-      const accepted = await confirm(closeOnlySpec(id));
+      const accepted = await confirm(
+        closeOnlySpec(id, skipFor(canBatch(sdk), "scu.closeOnly")),
+      );
       if (!accepted) return null;
       const outcome = await closeOne(sdk, id, { allowConversation: true });
-      if (outcome.result !== "closed") await notify(summarize([outcome]));
+      if (outcome.result !== "closed")
+        await notify(failure(summarize([outcome])));
       return outcome;
     }
 
@@ -568,7 +583,8 @@ export function runCloseOne(
     const outcome = await closeOne(sdk, id, {
       allowConversation: hasConversation,
     });
-    if (outcome.result !== "closed") await notify(summarize([outcome]));
+    if (outcome.result !== "closed")
+      await notify(failure(summarize([outcome])));
     return outcome;
   });
 }
@@ -606,7 +622,7 @@ export function runCloseTrafficLight(
 
     const outcome = await closeTrafficLight(sdk, id);
     if (outcome.result !== "closed")
-      await notify(summarize([outcome], { messagesSent: false }));
+      await notify(failure(summarize([outcome], { messagesSent: false })));
     return outcome;
   });
 }
@@ -635,12 +651,18 @@ export function runCloseStale(
       log.warn(`Could not read the conversation of UR ${id}`, err);
     }
     const idleDays = ageInDays(lastActivity(ur.reportedOn, comments), now);
-    const accepted = await confirm(closeStaleSpec(id, idleDays));
+    const accepted = await confirm(
+      closeStaleSpec(
+        id,
+        idleDays,
+        skipFor(canBatchStale(sdk), "scu.closeStale"),
+      ),
+    );
     if (!accepted) return null;
 
     const outcome = await closeStale(sdk, id, now);
     if (outcome.result !== "closed")
-      await notify(summarize([outcome], { messagesSent: false }));
+      await notify(failure(summarize([outcome], { messagesSent: false })));
     return outcome;
   });
 }
@@ -669,7 +691,7 @@ export function runAskMapMate(
     if (!accepted) return null;
 
     const outcome = await askMapMate(sdk, id);
-    if (outcome.result !== "asked") await notify(summarize([outcome]));
+    if (outcome.result !== "asked") await notify(failure(summarize([outcome])));
     return outcome;
   });
 }
@@ -691,7 +713,10 @@ export async function runCloseSelected(
   if (batchSize(request) > 0 && batchSize(allowed) === 0) {
     const level3Asked = request.speedCamera.length + request.mapMate.length > 0;
     const minRank = level3Asked ? BATCH_MIN_RANK : STALE_BATCH_MIN_RANK;
-    await notify(t("errBatchRank", { level: minRank + 1 }));
+    await notify({
+      title: t("noticeTitleRank"),
+      text: t("errBatchRank", { level: minRank + 1 }),
+    });
     return null;
   }
   const batch = capBatch(allowed);
@@ -699,7 +724,10 @@ export async function runCloseSelected(
   // Each closure checks again, but asking the editor to confirm a batch that can only
   // fail is a worse experience than saying so up front.
   if (!sdk.Editing.isEditingAllowed()) {
-    await notify(t("errNotAllowedBatch"));
+    await notify({
+      title: t("noticeTitleError"),
+      text: t("errNotAllowedBatch"),
+    });
     return null;
   }
 
@@ -725,7 +753,11 @@ export async function runCloseSelected(
     if (!accepted) return null;
 
     const outcomes = await closeMany(sdk, batch, now);
-    if (outcomes) await notify(summarizeBatch(outcomes, batch.speedCamera));
+    if (outcomes)
+      await notify({
+        title: t("noticeTitleDone"),
+        text: summarizeBatch(outcomes, batch.speedCamera),
+      });
     return outcomes;
   });
 }

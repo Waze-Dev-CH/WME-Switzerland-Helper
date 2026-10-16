@@ -6,7 +6,7 @@ import {
   kindLabel,
   languageCounts,
 } from "./message";
-import type { ConfirmSpec, QuoteBlock } from "../ui/dialog";
+import type { ConfirmSpec, QuoteBlock, SkipOption } from "../ui/dialog";
 
 const LANGUAGE_NAME: Record<LocaleCode, StringKey> = {
   fr: "langFr",
@@ -54,12 +54,13 @@ export function closeOneSpec(
 }
 
 /** The reporter already has the message: nothing is quoted because nothing is sent. */
-export function closeOnlySpec(id: number): ConfirmSpec {
+export function closeOnlySpec(id: number, skip?: SkipOption): ConfirmSpec {
   return {
     title: t("dlgTitleOne", { id }),
     facts: [t("confirmCloseOnly")],
     confirmLabel: t("dialogCloseOnly"),
     cancelLabel: t("dialogCancel"),
+    skip,
   };
 }
 
@@ -92,7 +93,11 @@ export function closeTrafficLightSpec(
  * machine and the closure goes to the undo stack, so no warning. The age is shown because
  * it is the whole reason for closing.
  */
-export function closeStaleSpec(id: number, ageDays: number): ConfirmSpec {
+export function closeStaleSpec(
+  id: number,
+  ageDays: number,
+  skip?: SkipOption,
+): ConfirmSpec {
   return {
     title: t("dlgTitleOne", { id }),
     facts: [
@@ -102,6 +107,7 @@ export function closeStaleSpec(id: number, ageDays: number): ConfirmSpec {
     ],
     confirmLabel: t("dialogCloseOnly"),
     cancelLabel: t("dialogCancel"),
+    skip,
   };
 }
 

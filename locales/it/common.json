@@ -246,6 +246,11 @@
     "tabTitle": "Numeri civici"
   },
   "speedCameraUrs": {
+    "dlgSkip": "Non mostrare più",
+    "noticeTitleDone": "Fatto",
+    "noticeTitleError": "Non è stato modificato nulla",
+    "noticeTitleRank": "Livello insufficiente",
+    "resetSkipped": "Mostra di nuovo le conferme saltate",
     "appName": "Assistente per le UR",
     "tabName": "Assistente UR",
     "tabNote": "Tratta le UR aperte sullo schermo, secondo le famiglie selezionate qui sotto. Nulla viene salvato automaticamente.",

@@ -246,6 +246,11 @@
     "tabTitle": "Hausnummern"
   },
   "speedCameraUrs": {
+    "dlgSkip": "Nicht mehr anzeigen",
+    "noticeTitleDone": "Erledigt",
+    "noticeTitleError": "Es wurde nichts geändert",
+    "noticeTitleRank": "Level zu niedrig",
+    "resetSkipped": "Übersprungene Bestätigungen wieder anzeigen",
     "appName": "Assistent für URs",
     "tabName": "UR-Assistent",
     "tabNote": "Bearbeitet die offenen URs im Bildausschnitt, nach den unten angekreuzten Gruppen. Nichts wird automatisch gespeichert.",

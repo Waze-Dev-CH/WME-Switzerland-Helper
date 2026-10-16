@@ -246,6 +246,11 @@
     "tabTitle": "Numéros de maison"
   },
   "speedCameraUrs": {
+    "dlgSkip": "Ne plus afficher",
+    "noticeTitleDone": "Terminé",
+    "noticeTitleError": "Rien n'a été modifié",
+    "noticeTitleRank": "Niveau insuffisant",
+    "resetSkipped": "Réafficher les confirmations masquées",
     "appName": "Assistant des UR",
     "tabName": "Assistant UR",
     "tabNote": "Traite les UR ouverts à l'écran, selon les familles cochées ci-dessous. Rien n'est sauvegardé automatiquement.",
