@@ -11,9 +11,7 @@ import { tokenRules } from "./tokens";
  * string: fine for "OK?", unreadable for four paragraphs that are about to reach a real
  * person. Same containment as that helper: a modal appended to the page, nothing else
  * touched, and it removes itself once answered.
- */
-
-/**
+ *
  * Labels always come from the caller: each feature has its own i18next instance and
  * language preference, so this module never translates anything itself.
  */
@@ -178,8 +176,15 @@ function quoteSection(quotes: QuoteBlock): HTMLElement[] {
   return nodes;
 }
 
-/** Wraps content in the backdrop and resolves once, whichever way the dialog is closed. */
+/** Makes title ids unique, since two dialogs can be in the page at once. */
+let openings = 0;
+
+/**
+ * Puts the title above the content, wraps it all in the backdrop and resolves once,
+ * whichever way the dialog is closed.
+ */
 function open<T>(
+  title: string,
   content: HTMLElement[],
   actions: (finish: (value: T) => void) => HTMLButtonElement[],
   dismissValue: T,
@@ -192,6 +197,10 @@ function open<T>(
     const dialog = el("div", "dlg-pane dlg-dialog");
     dialog.setAttribute("role", "dialog");
     dialog.setAttribute("aria-modal", "true");
+    // Screen readers announce the dialog by its title.
+    const heading = el("h2", "dlg-dialog-title", title);
+    heading.id = `dlg-title-${++openings}`;
+    dialog.setAttribute("aria-labelledby", heading.id);
 
     let settled = false;
     const finish = (value: T) => {
@@ -213,7 +222,7 @@ function open<T>(
     const buttons = actions(finish);
     const row = el("div", "dlg-dialog-actions");
     row.append(...extras, ...buttons);
-    dialog.append(...content, row);
+    dialog.append(heading, ...content, row);
     backdrop.appendChild(dialog);
 
     backdrop.addEventListener("click", (event) => {
@@ -243,10 +252,7 @@ export function showConfirm(
   if (spec.skip?.isSkipped && !spec.previousComment)
     return Promise.resolve(true);
 
-  const content: HTMLElement[] = [
-    el("h2", "dlg-dialog-title", spec.title),
-    factList(spec.facts),
-  ];
+  const content: HTMLElement[] = [factList(spec.facts)];
   if (spec.note) content.push(el("div", "dlg-dialog-note", spec.note));
 
   if (spec.previousComment) {
@@ -278,6 +284,7 @@ export function showConfirm(
     : "dlg-btn dlg-btn-primary";
 
   return open(
+    spec.title,
     content,
     (finish) => [
       button(spec.cancelLabel, () => finish(false), "dlg-btn"),
@@ -301,12 +308,9 @@ export function showChoice<T extends string>(
   host: DialogHost = pageHost,
 ): Promise<T | null> {
   const choices = el("div", "dlg-choices");
-  const content = [
-    el("h2", "dlg-dialog-title", spec.title),
-    factList(spec.facts),
-    choices,
-  ];
+  const content = [factList(spec.facts), choices];
   return open<T | null>(
+    spec.title,
     content,
     (finish) => {
       for (const choice of spec.choices) {
@@ -330,10 +334,8 @@ export function showNotice(
   host: DialogHost = pageHost,
 ): Promise<void> {
   return open<void>(
-    [
-      el("h2", "dlg-dialog-title", spec.title),
-      el("div", "dlg-dialog-text", spec.text),
-    ],
+    spec.title,
+    [el("div", "dlg-dialog-text", spec.text)],
     (finish) => [
       button(spec.okLabel, () => finish(), "dlg-btn dlg-btn-primary"),
     ],

@@ -342,6 +342,24 @@ describe("showNotice", () => {
   });
 });
 
+describe("accessible name", () => {
+  it("names each dialog by its own title", () => {
+    const first = makeHost();
+    const second = makeHost();
+    void showConfirm(spec(), first.host);
+    void showNotice({ title: "Done", text: "x", okLabel: "OK" }, second.host);
+
+    const ids = [first, second].map(({ mounted }) => {
+      const dialog = findAll(mounted[0]!, "dlg-dialog")[0]!;
+      const title = findAll(dialog, "dlg-dialog-title")[0]!;
+      expect(title.id).not.toBe("");
+      expect(dialog.getAttribute("aria-labelledby")).toBe(title.id);
+      return title.id;
+    });
+    expect(ids[0]).not.toBe(ids[1]);
+  });
+});
+
 describe("injectDialogStyles", () => {
   it("emits the dark-skin rules", () => {
     injectDialogStyles();
