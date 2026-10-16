@@ -818,4 +818,47 @@ describe("notices", () => {
       "Done",
     ]);
   });
+
+  // The message left and cannot be withdrawn: "Nothing was changed" would be false.
+  it("are not titled 'Nothing was changed' when the message left but the closure failed", async () => {
+    const notify = silent();
+    const { sdk, sent } = makeSdk([makeUr(1)], { failClose: [1] });
+
+    await runCloseOne(sdk, 1, { confirm: accept(), notify });
+
+    expect(sent).toHaveLength(1);
+    expect(notify.mock.calls[0]?.[0].title).toBe("Not completed");
+  });
+
+  it("are not titled 'Done' when part of a batch failed", async () => {
+    const notify = silent();
+    const { sdk } = makeSdk([makeUr(1), makeUr(2)], {
+      rank: 3,
+      failClose: [2],
+    });
+
+    await runCloseSelected(
+      sdk,
+      { speedCamera: [1, 2], mapMate: [], stale: [] },
+      { confirm: accept(), notify },
+    );
+
+    expect(notify.mock.calls[0]?.[0].title).toBe("Not completed");
+  });
+
+  it("are not titled 'Done' when part of a batch was skipped", async () => {
+    const notify = silent();
+    const { sdk } = makeSdk([makeUr(1), makeUr(2)], {
+      rank: 3,
+      comments: { 2: [comment] },
+    });
+
+    await runCloseSelected(
+      sdk,
+      { speedCamera: [1, 2], mapMate: [], stale: [] },
+      { confirm: accept(), notify },
+    );
+
+    expect(notify.mock.calls[0]?.[0].title).toBe("Not completed");
+  });
 });

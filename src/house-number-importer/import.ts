@@ -246,8 +246,10 @@ export async function runImportPoints(
     const created = outcomes.filter((outcome) => outcome.ok).length;
     const failure = outcomes.find((outcome) => !outcome.ok);
     if (failure) {
+      // The numbers created before the failure stay in the edit stack.
+      const title = created > 0 ? "noticeTitleIncomplete" : "noticeTitleError";
       await notify({
-        title: t("noticeTitleError"),
+        title: t(title),
         text: t("importStopped", {
           done: created,
           total: batch.length,

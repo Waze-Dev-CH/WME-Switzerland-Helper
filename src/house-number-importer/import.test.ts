@@ -292,6 +292,39 @@ describe("runImportPoints", () => {
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
 
+  // Numbers before the failure are in the edit stack: "Nothing was changed" would be false.
+  it("titles a stop after some numbers 'Not completed'", async () => {
+    const { sdk, added } = makeSdk();
+    const add = sdk.DataModel.HouseNumbers.addHouseNumber;
+    sdk.DataModel.HouseNumbers.addHouseNumber = (args) => {
+      if (args.number === "4") throw new Error("refused");
+      return add(args);
+    };
+    const notify = vi.fn(async () => undefined);
+
+    await runImportPoints(sdk, [at(point("2")), at(point("4"))], 1, "Rue Exemple", {
+      confirm: async () => true,
+      notify,
+    });
+
+    expect(added).toHaveLength(1);
+    expect(notify).toHaveBeenCalledWith(expect.objectContaining({ title: "Not completed" }));
+  });
+
+  it("keeps 'Nothing was changed' when the first number already failed", async () => {
+    const { sdk } = makeSdk({ throwOnAdd: new Error("refused") });
+    const notify = vi.fn(async () => undefined);
+
+    await runImportPoints(sdk, [at(point("2")), at(point("4"))], 1, "Rue Exemple", {
+      confirm: async () => true,
+      notify,
+    });
+
+    expect(notify).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Nothing was changed" }),
+    );
+  });
+
   it("does nothing at all on an empty list", async () => {
     const { sdk } = makeSdk();
     const confirm = vi.fn(async () => true);

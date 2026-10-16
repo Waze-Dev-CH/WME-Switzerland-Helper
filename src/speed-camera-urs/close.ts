@@ -500,9 +500,19 @@ function skipFor(allowed: boolean, id: string): SkipOption | undefined {
   return allowed ? skipOption(id, t("dlgSkip")) : undefined;
 }
 
-/** A single flow only reports when it failed or was refused: nothing was changed. */
-function failure(text: string): { title: string; text: string } {
-  return { title: t("noticeTitleError"), text };
+/**
+ * A single flow only reports when it failed or was refused. A failed closure is the one
+ * case where something may already have happened (the message left, which cannot be
+ * withdrawn), so it never claims that nothing was changed.
+ */
+function failure(
+  outcome: CloseOutcome,
+  text: string,
+): { title: string; text: string } {
+  const failedAtWrite =
+    outcome.result === "failed" && outcome.reason === "errClose";
+  const title = failedAtWrite ? "noticeTitleIncomplete" : "noticeTitleError";
+  return { title: t(title), text };
 }
 
 export interface Prompts {
@@ -571,7 +581,7 @@ export function runCloseOne(
       if (!accepted) return null;
       const outcome = await closeOne(sdk, id, { allowConversation: true });
       if (outcome.result !== "closed")
-        await notify(failure(summarize([outcome])));
+        await notify(failure(outcome, summarize([outcome])));
       return outcome;
     }
 
@@ -591,7 +601,7 @@ export function runCloseOne(
       allowConversation: hasConversation,
     });
     if (outcome.result !== "closed")
-      await notify(failure(summarize([outcome])));
+      await notify(failure(outcome, summarize([outcome])));
     return outcome;
   });
 }
@@ -629,7 +639,9 @@ export function runCloseTrafficLight(
 
     const outcome = await closeTrafficLight(sdk, id);
     if (outcome.result !== "closed")
-      await notify(failure(summarize([outcome], { messagesSent: false })));
+      await notify(
+        failure(outcome, summarize([outcome], { messagesSent: false })),
+      );
     return outcome;
   });
 }
@@ -669,7 +681,9 @@ export function runCloseStale(
 
     const outcome = await closeStale(sdk, id, now);
     if (outcome.result !== "closed")
-      await notify(failure(summarize([outcome], { messagesSent: false })));
+      await notify(
+        failure(outcome, summarize([outcome], { messagesSent: false })),
+      );
     return outcome;
   });
 }
@@ -698,7 +712,8 @@ export function runAskMapMate(
     if (!accepted) return null;
 
     const outcome = await askMapMate(sdk, id);
-    if (outcome.result !== "asked") await notify(failure(summarize([outcome])));
+    if (outcome.result !== "asked")
+      await notify(failure(outcome, summarize([outcome])));
     return outcome;
   });
 }
@@ -760,11 +775,15 @@ export async function runCloseSelected(
     if (!accepted) return null;
 
     const outcomes = await closeMany(sdk, batch, now);
-    if (outcomes)
+    if (outcomes) {
+      const allDone = outcomes.every(
+        (outcome) => outcome.result === "closed" || outcome.result === "asked",
+      );
       await notify({
-        title: t("noticeTitleDone"),
+        title: t(allDone ? "noticeTitleDone" : "noticeTitleIncomplete"),
         text: summarizeBatch(outcomes, batch.speedCamera),
       });
+    }
     return outcomes;
   });
 }
