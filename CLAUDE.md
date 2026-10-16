@@ -38,7 +38,28 @@ Build pipeline: `src/*.ts` + `main.user.ts` → Rollup → `.out/main.user.js` �
 - `src/storage.ts` — layer toggle state persisted in localStorage
 - `src/venueMatcher.ts` — fuzzy name + distance-based venue deduplication
 - `src/stopGeometry.ts` — haversine/turf geometry for Point/Polygon/MultiPolygon
-- `src/utils.ts` — shared utilities (haversineDistance, showWmeDialog, waitForMapIdle)
+- `src/utils.ts` — shared utilities (haversineDistance, waitForMapIdle)
+
+### Dialogs (`src/ui/`)
+
+`dialog.ts` is the one dialog of the script (`showConfirm`, `showChoice`, `showNotice`);
+`showWmeDialog` is gone. Every popup is described as data (`ConfirmSpec`, `ChoiceSpec`,
+`NoticeSpec`) built by the feature in its own `confirm-spec.ts` (PT stops:
+`src/publicTransportDialogs.ts`), and the host (`DialogHost`) is injectable so the flows are
+tested without a DOM. Labels always come from the caller, since each feature has its own
+i18next instance. Same containment as before: appended to the page, removed once answered.
+
+"Don't show again" lives in `skipped-confirms.ts`: localStorage key
+`wme-ch-helper.skipped-confirms`, a list of ids prefixed by feature. Skippable ids are
+`chk.ignoreAll`, `scu.closeOnly`, `scu.closeStale` and `pt.deleteObsolete`. Reset buttons
+sit in the checker settings, at the bottom of the URs tab and in the host tab. The house-number
+importer is the exception: the box of the single-import confirmation unticks its own
+`confirmSingleImport` setting instead.
+
+- A remembered skip never applies when the spec quotes a conversation (`previousComment`);
+  the rule lives in the component, not in each caller.
+- The URs skip only exists at batch rank, decided in `close.ts` (`skipFor`), so a choice
+  remembered at a higher level has no effect below it.
 
 ### Street-name checker (`src/street-name-checker/`)
 
@@ -56,8 +77,8 @@ automatically.
 - `settings.ts`: own store, localStorage key `wme-ch-name-check.settings`, versioned with
   a merging migration so `ignoredKeys` survives an unknown version.
 - `geoadmin/idb-store.ts`: IndexedDB tile cache, degrades to a no-op when unavailable.
-- `prompt.ts`: injectable dialog helpers over `showWmeDialog`, so the fix flows stay
-  testable without a DOM.
+- `prompt.ts`: injectable dialog helpers over `ui/dialog.ts` (they take a `ConfirmSpec`), so
+  the fix flows stay testable without a DOM.
 
 **Safety rules for anything that writes to the map.** The script is public, so assume a
 first-day editor installed it:
@@ -71,6 +92,8 @@ first-day editor installed it:
 - A verdict that comes from geometry rather than name similarity (`WRONG_STREET`)
   confirms every time, whatever the count, and carries its confidence figures into the
   prompt. Confirmations state the change, not just how many segments are affected.
+- Geometric verdicts and group actions never carry a "don't show again" box; only
+  `chk.ignoreAll` does. The flow tests assert it.
 - Nothing is ever saved automatically; corrections go to the WME edit stack.
 
 **Deliberate deviations, do not "fix" them:**
@@ -147,12 +170,11 @@ triage) → `TabUI`. `close.ts` is the only module that writes.
 - `map-highlight.ts`: the SDK cannot open a UR's panel (`setSelection` does not accept
   update requests), so a click in the list centres, zooms to `FOCUS_ZOOM` and blinks a ring
   around the UR on a layer with `pointerEvents: "none"`; the next click lands on WME's marker.
-- `confirm-spec.ts` + `ui/dialog.ts`: confirmations are described as data (`ConfirmSpec`),
-  so the flows are tested on what they ask, and rendered by the feature's own modal rather
-  than `showWmeDialog`, which centres a plain string. The message is quoted left-aligned
-  with its line breaks; in a batch, one flag per language switches the quote to the exact
-  text those reporters get. Same containment as `showWmeDialog`: appended to the page,
-  removed once answered. Flags are inline SVG (`ui/flags.ts`), not emoji.
+- `confirm-spec.ts`: confirmations are described as data (`ConfirmSpec`), so the flows are
+  tested on what they ask, and rendered by the shared dialog (`src/ui/dialog.ts`, see
+  Dialogs). The message is quoted left-aligned with its line breaks; in a batch, one flag
+  per language switches the quote to the exact text those reporters get. Flags are inline
+  SVG (`ui/flags.ts`), not emoji.
 
 - `message.ts`: `userPreferences.language` is the Waze app's language id, not ISO
   (`francais`, `eng`, `portuguese_pt` observed), hence a prefix rule with English fallback.
@@ -220,6 +242,9 @@ triage) → `TabUI`. `close.ts` is the only module that writes.
   the batch, as a question.) `closeTrafficLight` re-checks the prefix and `isOnFreeway` right
   before writing. `closeMany` cannot reach them: the speed-camera family needs the speed-camera
   prefix, `askMapMate` and `closeStale` refuse a light not known to be off a freeway.
+- Messages, freeway traffic lights and any confirmation that quotes a conversation never
+  carry a "don't show again" box; the flow tests assert it. The only skippable URs
+  confirmations close without sending anything (`scu.closeOnly`, `scu.closeStale`).
 - Every UR is re-read right before writing; one closed in the meantime is skipped. The UR's
   state is live, but `getUpdateRequestDetails` may return the conversation already in WME's
   data model (the SDK offers no forced refresh), so a very recent comment can be missing.

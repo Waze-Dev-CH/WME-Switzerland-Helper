@@ -131,6 +131,14 @@ e questo progetto aderisce al [Versionamento Semantico](https://semver.org/spec/
 
 ### [Non pubblicato]
 
+#### Aggiunto
+
+- **"Non mostrare più"** sulle conferme semplici (ignora tutto, chiusura di una UR senza messaggio, eliminazione di una fermata del trasporto pubblico obsoleta, importazione di un singolo numero civico). Un pulsante in ogni scheda (impostazioni del verificatore, fondo dell'assistente UR, scheda principale) le mostra di nuovo. Le conferme che citano una conversazione o inviano un messaggio non vengono mai saltate, come le azioni di gruppo e le correzioni sulla mappa.
+
+#### Modificato
+
+- Tutti i popup hanno ora lo stesso aspetto: un titolo, l'elenco di ciò che sta per cambiare e Annulla selezionato per impostazione predefinita.
+
 ### [1.7.0] - 2026-10-13
 
 #### Aggiunto

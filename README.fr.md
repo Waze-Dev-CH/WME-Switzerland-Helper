@@ -131,6 +131,14 @@ et ce projet adhère au [Versionnage Sémantique](https://semver.org/spec/v2.0.0
 
 ### [Non publié]
 
+#### Ajouté
+
+- **« Ne plus montrer »** sur les confirmations simples (tout ignorer, fermeture d'une UR sans message, suppression d'un arrêt de transport public obsolète, import d'un seul numéro). Un bouton dans chaque onglet (réglages du vérificateur, bas de l'assistant UR, onglet principal) les réaffiche. Les confirmations qui citent une conversation ou envoient un message ne sont jamais passées, pas plus que les actions groupées et les corrections de la carte.
+
+#### Modifié
+
+- Tous les popups ont désormais le même aspect : un titre, la liste de ce qui va changer et Annuler sélectionné par défaut.
+
 ### [1.7.0] - 2026-10-13
 
 #### Ajouté
