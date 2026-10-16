@@ -10,7 +10,7 @@ import {
   runCloseStale,
   runCloseTrafficLight,
 } from "./close";
-import type { ConfirmSpec } from "./confirm-spec";
+import type { ConfirmSpec } from "../ui/dialog";
 import {
   makeMapMateUr,
   makeSdk,
@@ -58,7 +58,7 @@ describe("runCloseOne", () => {
     expect(outcome).toEqual({ id: 1, result: "closed" });
     const spec = specOf(confirm);
     expect(spec.quotes?.[0]?.options).toEqual([
-      { lang: "it", text: buildMessage("it") },
+      { lang: "it", langLabel: "Italian", text: buildMessage("it") },
     ]);
     expect(spec.warning).toContain("cannot be withdrawn");
     expect(sent).toHaveLength(1);

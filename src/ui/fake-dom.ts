@@ -19,7 +19,7 @@ export interface FakeNode {
   open: boolean;
   children: FakeNode[];
   attributes: Record<string, string>;
-  listeners: Record<string, Array<() => void>>;
+  listeners: Record<string, Array<(event?: unknown) => void>>;
   style: Record<string, string>;
   append(...nodes: Array<FakeNode | string>): void;
   appendChild(node: FakeNode): FakeNode;
@@ -27,10 +27,10 @@ export interface FakeNode {
   replaceChildren(...nodes: FakeNode[]): void;
   setAttribute(name: string, value: string): void;
   getAttribute(name: string): string | null;
-  addEventListener(type: string, handler: () => void): void;
+  addEventListener(type: string, handler: (event?: unknown) => void): void;
   querySelector(selector: string): FakeNode | null;
-  /** Test-only: fire the listeners of a type without a real event object. */
-  dispatch(type: string): void;
+  /** Test-only: fire the listeners of a type, with an optional event object. */
+  dispatch(type: string, event?: unknown): void;
 }
 
 function createNode(tagName: string): FakeNode {
@@ -83,8 +83,8 @@ function createNode(tagName: string): FakeNode {
       }
       return null;
     },
-    dispatch(type) {
-      for (const handler of node.listeners[type] ?? []) handler();
+    dispatch(type, event) {
+      for (const handler of node.listeners[type] ?? []) handler(event);
     },
   };
   return node;

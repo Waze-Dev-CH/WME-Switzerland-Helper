@@ -15,7 +15,7 @@ describe("closeOneSpec", () => {
 
     expect(spec.title).toBe("Close UR #27011214");
     expect(spec.quotes?.[0]?.options).toEqual([
-      { lang: "it", text: buildMessage("it") },
+      { lang: "it", langLabel: "Italian", text: buildMessage("it") },
     ]);
     expect(spec.warning).toContain("cannot be withdrawn");
     expect(spec.confirmLabel).toBe("Send and close");
@@ -89,9 +89,9 @@ describe("closeSelectedSpec", () => {
     const spec = closeSelectedSpec(["de", "fr", "fr", "it"], [], 0, "en");
 
     expect(spec.quotes?.[0]?.options).toEqual([
-      { lang: "fr", count: 2, text: buildMessage("fr") },
-      { lang: "de", count: 1, text: buildMessage("de") },
-      { lang: "it", count: 1, text: buildMessage("it") },
+      { lang: "fr", langLabel: "French", count: 2, text: buildMessage("fr") },
+      { lang: "de", langLabel: "German", count: 1, text: buildMessage("de") },
+      { lang: "it", langLabel: "Italian", count: 1, text: buildMessage("it") },
     ]);
     expect(spec.quotes?.[0]?.hint).toContain("Click a flag");
   });
@@ -129,7 +129,11 @@ describe("askMapMateSpec", () => {
       "The UR stays open for their answer.",
     ]);
     expect(spec.quotes?.[0]?.options).toEqual([
-      { lang: "de", text: buildMapMateQuestion("route", "de") },
+      {
+        lang: "de",
+        langLabel: "German",
+        text: buildMapMateQuestion("route", "de"),
+      },
     ]);
     expect(spec.warning).toContain("cannot be withdrawn");
     expect(spec.confirmLabel).toBe("Send");

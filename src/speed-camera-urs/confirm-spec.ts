@@ -1,42 +1,19 @@
 import { MAP_MATE_KINDS, type MapMateKind } from "./detect";
-import { t, type LocaleCode } from "./i18n";
+import { t, type LocaleCode, type StringKey } from "./i18n";
 import {
   buildMapMateQuestion,
   buildMessage,
   kindLabel,
   languageCounts,
 } from "./message";
+import type { ConfirmSpec, QuoteBlock } from "../ui/dialog";
 
-/** One language the message leaves in, and the exact text sent in it. */
-export interface QuoteOption {
-  lang: LocaleCode;
-  /** How many URs of the batch get this language; absent for a single UR. */
-  count?: number;
-  text: string;
-}
-
-/** One quoted text, one option per language it leaves in. */
-export interface QuoteBlock {
-  label: string;
-  hint?: string;
-  options: QuoteOption[];
-}
-
-/**
- * What a confirmation says, kept free of DOM so the flows can be tested on it. The dialog
- * renders it; a test reads it.
- */
-export interface ConfirmSpec {
-  title: string;
-  facts: string[];
-  /** The last comment, when the UR already has a conversation. */
-  previousComment?: { label: string; text: string };
-  /** Each text that will leave, in order; within one, the first language is shown first. */
-  quotes?: QuoteBlock[];
-  warning?: string;
-  confirmLabel: string;
-  cancelLabel: string;
-}
+const LANGUAGE_NAME: Record<LocaleCode, StringKey> = {
+  fr: "langFr",
+  de: "langDe",
+  it: "langIt",
+  en: "langEn",
+};
 
 const EXCERPT_MAX = 200;
 
@@ -58,7 +35,9 @@ export function closeOneSpec(
     quotes: [
       {
         label: t("dlgQuoteLabel"),
-        options: [{ lang, text: buildMessage(lang) }],
+        options: [
+          { lang, langLabel: t(LANGUAGE_NAME[lang]), text: buildMessage(lang) },
+        ],
       },
     ],
     warning: t("dlgWarningOne"),
@@ -144,6 +123,7 @@ function languageQuote(
   ];
   const options = ordered.map((entry) => ({
     lang: entry.lang,
+    langLabel: t(LANGUAGE_NAME[entry.lang]),
     count: entry.count,
     text: textIn(entry.lang),
   }));
@@ -227,7 +207,13 @@ export function askMapMateSpec(
     quotes: [
       {
         label: t("dlgQuoteLabel"),
-        options: [{ lang, text: buildMapMateQuestion(kind, lang) }],
+        options: [
+          {
+            lang,
+            langLabel: t(LANGUAGE_NAME[lang]),
+            text: buildMapMateQuestion(kind, lang),
+          },
+        ],
       },
     ],
     warning: t("dlgWarningOne"),

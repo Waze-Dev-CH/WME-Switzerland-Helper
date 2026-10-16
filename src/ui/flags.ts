@@ -1,4 +1,4 @@
-import type { LocaleCode } from "../i18n";
+export type FlagLang = "fr" | "de" | "it" | "en";
 
 /**
  * Small flags marking the language of a message, as inline SVG data URIs.
@@ -8,7 +8,7 @@ import type { LocaleCode } from "../i18n";
  * stands for the language, not the country; it is always shown next to the language name
  * in its tooltip.
  */
-const SVG: Record<LocaleCode, string> = {
+const SVG: Record<FlagLang, string> = {
   fr:
     "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 2'>" +
     "<path fill='#0055a4' d='M0 0h1v2H0z'/><path fill='#fff' d='M1 0h1v2H1z'/>" +
@@ -32,7 +32,7 @@ const SVG: Record<LocaleCode, string> = {
     "<path stroke='#c8102e' stroke-width='6' d='M30 0v30M0 15h60'/></g></svg>",
 };
 
-export const FLAG_SRC: Record<LocaleCode, string> = {
+export const FLAG_SRC: Record<FlagLang, string> = {
   fr: `data:image/svg+xml,${encodeURIComponent(SVG.fr)}`,
   de: `data:image/svg+xml,${encodeURIComponent(SVG.de)}`,
   it: `data:image/svg+xml,${encodeURIComponent(SVG.it)}`,

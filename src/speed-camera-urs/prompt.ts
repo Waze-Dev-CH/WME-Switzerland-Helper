@@ -1,5 +1,6 @@
-import type { ConfirmSpec } from "./confirm-spec";
-import { showConfirm, showNotice } from "./ui/dialog";
+import type { ConfirmSpec } from "../ui/dialog";
+import { t } from "./i18n";
+import { showConfirm, showNotice } from "../ui/dialog";
 
 /** Ask for a yes/no decision described by `spec`. Resolves false when declined or dismissed. */
 export type Confirm = (spec: ConfirmSpec) => Promise<boolean>;
@@ -12,4 +13,5 @@ export type Notify = (message: string) => Promise<void>;
  */
 export const confirmDialog: Confirm = (spec) => showConfirm(spec);
 
-export const notifyDialog: Notify = (message) => showNotice(message);
+export const notifyDialog: Notify = (text) =>
+  showNotice({ title: t("appName"), text, okLabel: t("dialogOk") });
