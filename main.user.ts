@@ -24,7 +24,11 @@ import { initHouseNumberImporter } from "./src/house-number-importer";
 import { initSpeedCameraUrs } from "./src/speed-camera-urs";
 import { groupScriptTab } from "./src/ui/tab-group";
 import { el } from "./src/ui/dom";
-import { clearSkipped, hasSkipped } from "./src/ui/skipped-confirms";
+import {
+  clearSkipped,
+  hasSkipped,
+  syncResetButton,
+} from "./src/ui/skipped-confirms";
 import { initStreetNameChecker } from "./src/street-name-checker";
 
 const englishScriptName = "WME Switzerland helper";
@@ -224,15 +228,15 @@ function initScript() {
 
     tabPane.innerHTML = sidebarTab.render();
 
-    // Neutral WME button; it starts disabled when there is nothing to bring back, and
-    // refreshes itself on click (a skip chosen later waits for the next render).
+    // Neutral WME button, disabled while there is nothing to bring back. The tab is built
+    // once, so a skip chosen later is picked up when the editor comes back to the tab.
     const resetSkipped = el(
       "button",
       "btn btn-default",
       i18next.t("common:dialogs.resetSkipped"),
     );
     resetSkipped.type = "button";
-    resetSkipped.disabled = !hasSkipped("pt");
+    syncResetButton(resetSkipped, "pt", tabPane);
     resetSkipped.addEventListener("click", () => {
       clearSkipped("pt");
       resetSkipped.disabled = !hasSkipped("pt");

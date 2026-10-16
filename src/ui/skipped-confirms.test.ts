@@ -5,7 +5,9 @@ import {
   isConfirmSkipped,
   rememberSkip,
   skipOption,
+  syncResetButton,
 } from "./skipped-confirms";
+import { installFakeDocument, type FakeNode } from "./fake-dom";
 
 const KEY = "wme-ch-helper.skipped-confirms";
 
@@ -118,5 +120,54 @@ describe("skipped confirmations without working storage", () => {
     expect(isConfirmSkipped("chk.ignoreAll")).toBe(false);
     expect(hasSkipped("chk")).toBe(false);
     expect(() => clearSkipped("chk")).not.toThrow();
+  });
+});
+
+// The button is built once and the popups write later: the editor must find it enabled
+// when they come back to it, whichever way they come.
+describe("syncResetButton", () => {
+  const store = new Map<string, string>();
+  let restore: () => void;
+  beforeEach(() => {
+    store.clear();
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+    });
+    restore = installFakeDocument();
+  });
+  afterEach(() => {
+    restore();
+    vi.unstubAllGlobals();
+  });
+
+  function setup() {
+    const button = document.createElement("button");
+    const region = document.createElement("div");
+    syncResetButton(button, "pt", region);
+    return { button, region: region as unknown as FakeNode };
+  }
+
+  it("starts disabled when nothing of its scope is skipped", () => {
+    rememberSkip("chk.ignoreAll");
+    expect(setup().button.disabled).toBe(true);
+  });
+
+  it("enables itself when the editor reaches it after a skip was chosen", () => {
+    const { button, region } = setup();
+    rememberSkip("pt.deleteObsolete");
+
+    region.dispatch("pointerenter");
+
+    expect(button.disabled).toBe(false);
+  });
+
+  it("also refreshes on keyboard focus", () => {
+    const { button, region } = setup();
+    rememberSkip("pt.deleteObsolete");
+
+    region.dispatch("focusin");
+
+    expect(button.disabled).toBe(false);
   });
 });

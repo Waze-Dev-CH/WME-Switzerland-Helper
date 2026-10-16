@@ -56,3 +56,22 @@ export function skipOption(id: string, label: string): SkipOption {
     remember: () => rememberSkip(id),
   };
 }
+
+/**
+ * Keeps a reset button's disabled state in step with the store. The button is built once
+ * and the popups write later, so it is refreshed whenever the editor reaches `region`, the
+ * area around it: a disabled button gets no focus, and not every browser sends it pointer
+ * events either.
+ */
+export function syncResetButton(
+  button: HTMLButtonElement,
+  scope: SkipScope,
+  region: HTMLElement,
+): void {
+  const refresh = () => {
+    button.disabled = !hasSkipped(scope);
+  };
+  refresh();
+  region.addEventListener("pointerenter", refresh);
+  region.addEventListener("focusin", refresh);
+}

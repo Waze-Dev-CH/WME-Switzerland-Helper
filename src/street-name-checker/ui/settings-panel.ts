@@ -17,7 +17,7 @@ import {
   type SettingsStore,
 } from "../settings";
 import { buildSubsection, el, icon, toggleSwitch } from "../../ui/dom";
-import { clearSkipped, hasSkipped } from "../../ui/skipped-confirms";
+import { clearSkipped, syncResetButton } from "../../ui/skipped-confirms";
 import { LEGEND_KEYS } from "./format";
 
 /**
@@ -210,7 +210,8 @@ export function buildSettingsPanel(ctx: SettingsPanelContext): HTMLElement {
     "",
     t("resetSkipped"),
   ) as HTMLButtonElement;
-  resetSkippedBtn.disabled = !hasSkipped("chk");
+  // Built once per rebuild, while "ignore all" remembers its skip without one.
+  syncResetButton(resetSkippedBtn, "chk", details);
   resetSkippedBtn.addEventListener("click", () => {
     clearSkipped("chk");
     ctx.rebuild();
