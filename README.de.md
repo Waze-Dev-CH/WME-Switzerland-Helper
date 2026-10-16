@@ -133,7 +133,7 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 #### Hinzugefügt
 
-- **"Nicht mehr anzeigen"** bei einfachen Bestätigungen (alle ignorieren, eine UR ohne Nachricht schliessen, eine veraltete ÖV-Haltestelle löschen, einzelne Hausnummer importieren). Eine Schaltfläche in jedem Tab (Einstellungen der Prüfung, unten im UR-Assistenten, Haupttab) zeigt sie wieder an. Bestätigungen, die eine Unterhaltung zitieren oder eine Nachricht senden, werden nie übersprungen, ebenso wenig Gruppenaktionen und Korrekturen auf der Karte.
+- **"Nicht mehr anzeigen"** bei einfachen Bestätigungen (alle ignorieren, eine veraltete ÖV-Haltestelle löschen, einzelne Hausnummer importieren, eine UR ohne Nachricht schliessen). Beim Schliessen einer UR erscheint das Kästchen ab Level 3, wenn die meldende Person unsere Nachricht schon erhalten hat, und ab Level 4 für eine verwaiste UR. Eine Schaltfläche in jedem Tab (Einstellungen der Prüfung, unten im UR-Assistenten, Haupttab) zeigt sie wieder an. Bestätigungen, die eine Unterhaltung zitieren oder eine Nachricht senden, werden nie übersprungen, ebenso wenig Gruppenaktionen und Korrekturen auf der Karte.
 
 #### Geändert
 

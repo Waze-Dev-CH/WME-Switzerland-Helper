@@ -176,7 +176,7 @@ triage) → `TabUI`. `close.ts` is the only module that writes.
   tested on what they ask, and rendered by the shared dialog (`src/ui/dialog.ts`, see
   Dialogs). The message is quoted left-aligned with its line breaks; in a batch, one flag
   per language switches the quote to the exact text those reporters get. Flags are inline
-  SVG (`ui/flags.ts`), not emoji.
+  SVG (`src/ui/flags.ts`), not emoji.
 
 - `message.ts`: `userPreferences.language` is the Waze app's language id, not ISO
   (`francais`, `eng`, `portuguese_pt` observed), hence a prefix rule with English fallback.
