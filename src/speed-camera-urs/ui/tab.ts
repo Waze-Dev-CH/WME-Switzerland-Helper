@@ -1,6 +1,7 @@
 import type { WmeSDK } from "wme-sdk-typings";
 import { buildSection, button, el, icon } from "../../ui/dom";
 import { groupScriptTab, tabLabelText } from "../../ui/tab-group";
+import { clearSkipped, hasSkipped } from "../../ui/skipped-confirms";
 import { applyThemeClass, watchTheme } from "../../ui/theme";
 import {
   canBatch,
@@ -69,6 +70,14 @@ export class TabUI {
   private staleList = el("div", "scu-list");
   private staleSection: HTMLDetailsElement | null = null;
   private mapMateList = el("div", "scu-list");
+  private resetSkippedButton = button(
+    t("resetSkipped"),
+    () => {
+      clearSkipped("scu");
+      this.resetSkippedButton.disabled = true;
+    },
+    "scu-btn",
+  );
   private mapMateSection: HTMLDetailsElement | null = null;
 
   constructor(
@@ -157,6 +166,7 @@ export class TabUI {
       this.trafficLightSection,
       this.mapMateSection,
       this.staleSection,
+      this.resetSkippedButton,
     );
     this.tabPane.replaceChildren(pane);
   }
@@ -223,6 +233,8 @@ export class TabUI {
     const { entries, trafficLights, mapMate, stale } = snapshot;
     const lists = splitEntries(entries);
     this.bannerText.textContent = formatStatus(snapshot, criteria);
+    // A choice made in a popup since the last render must enable the button.
+    this.resetSkippedButton.disabled = !hasSkipped("scu");
 
     this.readySection.hidden = !criteria.speedCamera;
     this.conversationSection.hidden = !criteria.speedCamera;

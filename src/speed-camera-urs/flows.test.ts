@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConversationElement } from "wme-sdk-typings";
 import {
   closeOne,
@@ -10,7 +10,7 @@ import {
   runCloseStale,
   runCloseTrafficLight,
 } from "./close";
-import type { ConfirmSpec } from "./confirm-spec";
+import type { ConfirmSpec } from "../ui/dialog";
 import {
   makeMapMateUr,
   makeSdk,
@@ -20,6 +20,7 @@ import {
 } from "./fake-sdk";
 import { Scanner } from "./scanner";
 import { buildMapMateQuestion, buildMessage } from "./message";
+import { rememberSkip } from "../ui/skipped-confirms";
 
 const official = {
   createdOn: 0,
@@ -41,9 +42,23 @@ const specOf = (confirm: ReturnType<typeof accept>): ConfirmSpec => {
   if (!spec) throw new Error("confirm was not called");
   return spec;
 };
-const silent = () => vi.fn<(message: string) => Promise<void>>(async () => {});
+const silent = () =>
+  vi.fn<(notice: { title: string; text: string }) => Promise<void>>(
+    async () => {},
+  );
 
-beforeEach(() => resetMessagedForTests());
+const store = new Map<string, string>();
+
+beforeEach(() => {
+  resetMessagedForTests();
+  store.clear();
+  vi.stubGlobal("localStorage", {
+    getItem: (k: string) => store.get(k) ?? null,
+    setItem: (k: string, v: string) => void store.set(k, v),
+  });
+});
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe("runCloseOne", () => {
   it("shows the language and the exact message before sending", async () => {
@@ -58,7 +73,7 @@ describe("runCloseOne", () => {
     expect(outcome).toEqual({ id: 1, result: "closed" });
     const spec = specOf(confirm);
     expect(spec.quotes?.[0]?.options).toEqual([
-      { lang: "it", text: buildMessage("it") },
+      { lang: "it", langLabel: "Italian", text: buildMessage("it") },
     ]);
     expect(spec.warning).toContain("cannot be withdrawn");
     expect(sent).toHaveLength(1);
@@ -112,7 +127,7 @@ describe("runCloseOne", () => {
 
     await runCloseOne(sdk, 1, { confirm: accept(), notify });
 
-    expect(notify.mock.calls[0]?.[0]).toContain(
+    expect(notify.mock.calls[0]?.[0]?.text).toContain(
       "the message could not be sent",
     );
   });
@@ -199,7 +214,7 @@ describe("runCloseSelected", () => {
       ),
     ).toBeNull();
     expect(confirm).not.toHaveBeenCalled();
-    expect(notify.mock.calls[0]?.[0]).toContain("level 3");
+    expect(notify.mock.calls[0]?.[0]?.text).toContain("level 3");
     expect(calls).toEqual([]);
   });
 
@@ -232,11 +247,13 @@ describe("runCloseSelected", () => {
     expect(spec.warning).toContain("cannot be withdrawn");
     expect(outcomes).toHaveLength(3);
     expect(sent).toHaveLength(3);
-    expect(notify.mock.calls[0]?.[0]).toContain(
+    expect(notify.mock.calls[0]?.[0]?.text).toContain(
       "3 closed, 0 skipped, 0 failed.",
     );
-    expect(notify.mock.calls[0]?.[0]).toContain("Save to record the closures.");
-    expect(notify.mock.calls[0]?.[0]).toContain(
+    expect(notify.mock.calls[0]?.[0]?.text).toContain(
+      "Save to record the closures.",
+    );
+    expect(notify.mock.calls[0]?.[0]?.text).toContain(
       "The messages are already sent.",
     );
   });
@@ -254,7 +271,7 @@ describe("runCloseSelected", () => {
       ),
     ).toBeNull();
     expect(confirm).not.toHaveBeenCalled();
-    expect(notify.mock.calls[0]?.[0]).toContain("nothing was sent");
+    expect(notify.mock.calls[0]?.[0]?.text).toContain("nothing was sent");
     expect(sent).toEqual([]);
   });
 
@@ -314,7 +331,7 @@ describe("runCloseSelected", () => {
       ),
     ).toBeNull();
     expect(confirm).not.toHaveBeenCalled();
-    expect(notify.mock.calls[0]?.[0]).toContain("level 4");
+    expect(notify.mock.calls[0]?.[0]?.text).toContain("level 4");
     expect(calls).toEqual([]);
   });
 
@@ -348,7 +365,7 @@ describe("runCloseSelected", () => {
     expect(specOf(confirm).facts).toHaveLength(2);
     expect(outcomes?.map((o) => o.result)).toEqual(["closed", "closed"]);
     expect(sent.map((s) => s.id)).toEqual([1]);
-    expect(notify.mock.calls[0]?.[0]).toContain(
+    expect(notify.mock.calls[0]?.[0]?.text).toContain(
       "The messages are already sent.",
     );
   });
@@ -368,7 +385,7 @@ describe("runCloseSelected", () => {
     expect(specOf(confirm).quotes).toBeUndefined();
     expect(specOf(confirm).warning).toBeUndefined();
     expect(sent).toEqual([]);
-    const summary = notify.mock.calls[0]?.[0] ?? "";
+    const summary = notify.mock.calls[0]?.[0]?.text ?? "";
     expect(summary).toContain("Save to record the closures.");
     expect(summary).not.toContain("already sent");
   });
@@ -593,7 +610,7 @@ describe("runCloseSelected with Map Mate", () => {
 
     expect(specOf(confirm).quotes).toHaveLength(2);
     expect(sent.map((s) => s.id)).toEqual([1, 2]);
-    expect(notify.mock.calls[0]?.[0]).toContain("1 question(s) sent.");
+    expect(notify.mock.calls[0]?.[0]?.text).toContain("1 question(s) sent.");
   });
 });
 
@@ -625,5 +642,223 @@ describe("an abandoned UR with only Map_Team's question (reported from WME)", ()
 
     expect(outcome).toEqual({ id: 1, result: "closed" });
     expect(calls[calls.length - 1]).toBe("close:1:not-identified");
+  });
+});
+
+/** Like the real dialog: a remembered skip answers yes without showing anything. */
+const honouringSkip = () => {
+  const shown: ConfirmSpec[] = [];
+  const confirm = vi.fn(async (spec: ConfirmSpec) => {
+    if (spec.skip?.isSkipped && !spec.previousComment) return true;
+    shown.push(spec);
+    return true;
+  });
+  return { confirm, shown };
+};
+
+describe("don't show again", () => {
+  it("offers it on the close-only confirmation from level 3", async () => {
+    const ur = makeUr(1);
+    const { sdk } = makeSdk([ur], { rank: 2 });
+    await closeOne(sdk, 1, { allowConversation: false });
+    ur.isOpen = true;
+    const confirm = accept();
+
+    await runCloseOne(sdk, 1, { confirm, notify: silent() });
+
+    expect(specOf(confirm).skip?.label).toBe("Don't show again");
+  });
+
+  it("never offers it below level 3, even when it was remembered", async () => {
+    rememberSkip("scu.closeOnly");
+    const ur = makeUr(1);
+    const { sdk } = makeSdk([ur], { rank: 1 });
+    await closeOne(sdk, 1, { allowConversation: false });
+    ur.isOpen = true;
+    const confirm = accept();
+
+    await runCloseOne(sdk, 1, { confirm, notify: silent() });
+
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(specOf(confirm).skip).toBeUndefined();
+  });
+
+  // The message left long ago and the reporter has answered it since: a remembered skip
+  // must not close over that answer unseen.
+  it("shows the reporter's reply on a close-only confirmation, even when it was remembered", async () => {
+    rememberSkip("scu.closeOnly");
+    const reply = { createdOn: 1, text: "it is still there", userName: null };
+    const { sdk } = makeSdk([makeUr(1)], {
+      rank: 2,
+      comments: { 1: [official, reply] },
+    });
+    const { confirm, shown } = honouringSkip();
+
+    await runCloseOne(sdk, 1, { confirm, notify: silent() });
+
+    expect(shown).toHaveLength(1);
+    expect(shown[0]?.previousComment).toEqual({
+      label: expect.stringContaining("already has a conversation"),
+      text: "it is still there",
+    });
+  });
+
+  it("quotes nothing on a close-only confirmation when we had the last word", async () => {
+    const { sdk } = makeSdk([makeUr(1)], {
+      rank: 2,
+      comments: { 1: [official] },
+    });
+    const confirm = accept();
+
+    await runCloseOne(sdk, 1, { confirm, notify: silent() });
+
+    expect(specOf(confirm).previousComment).toBeUndefined();
+  });
+
+  it("offers it on an abandoned UR from level 4 only", async () => {
+    const high = accept();
+    await runCloseStale(
+      makeSdk([makeUr(1, road)], { rank: 3 }).sdk,
+      1,
+      { confirm: high, notify: silent() },
+      NOW,
+    );
+    const low = accept();
+    await runCloseStale(
+      makeSdk([makeUr(1, road)], { rank: 2 }).sdk,
+      1,
+      { confirm: low, notify: silent() },
+      NOW,
+    );
+
+    expect(specOf(high).skip).toBeDefined();
+    expect(specOf(low).skip).toBeUndefined();
+  });
+
+  it("still refuses a UR whose reporter wrote last when the popup is skipped", async () => {
+    rememberSkip("scu.closeStale");
+    const reporter = { ...comment, userName: null, createdOn: NOW - 20 * DAY };
+    const { sdk, calls } = makeSdk([makeUr(1, road)], {
+      rank: 3,
+      comments: { 1: [reporter] },
+    });
+    const { confirm, shown } = honouringSkip();
+
+    const outcome = await runCloseStale(
+      sdk,
+      1,
+      { confirm, notify: silent() },
+      NOW,
+    );
+
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(shown).toEqual([]);
+    expect(outcome).toEqual({
+      id: 1,
+      result: "skipped",
+      reason: "skipConversation",
+    });
+    expect(calls).not.toContain("close:1:not-identified");
+  });
+
+  it("is never offered on the other confirmations", async () => {
+    const light = accept();
+    await runCloseTrafficLight(
+      makeSdk([makeTrafficLightUr(1)], {
+        rank: 5,
+        segments: [makeSegment(3)],
+      }).sdk,
+      1,
+      { confirm: light, notify: silent() },
+    );
+    const one = accept();
+    await runCloseOne(makeSdk([makeUr(2)], { rank: 5 }).sdk, 2, {
+      confirm: one,
+      notify: silent(),
+    });
+    const ask = accept();
+    await runAskMapMate(
+      makeSdk([makeMapMateUr(3, "MISSING_TRAFFIC_LIGHT")], { rank: 5 }).sdk,
+      3,
+      { confirm: ask, notify: silent() },
+    );
+    const selected = accept();
+    await runCloseSelected(
+      makeSdk([makeUr(4)], { rank: 5 }).sdk,
+      { speedCamera: [4], mapMate: [], stale: [] },
+      { confirm: selected, notify: silent() },
+    );
+
+    for (const confirm of [light, one, ask, selected]) {
+      expect(specOf(confirm).skip).toBeUndefined();
+    }
+  });
+});
+
+describe("notices", () => {
+  it("always carry a title and a text", async () => {
+    const notify = silent();
+    const { sdk } = makeSdk([makeUr(1)], { rank: 1, failComment: [1] });
+    await runCloseOne(sdk, 1, { confirm: accept(), notify });
+    await runCloseSelected(
+      sdk,
+      { speedCamera: [1], mapMate: [], stale: [] },
+      { confirm: accept(), notify },
+    );
+    const ok = makeSdk([makeUr(2)], { rank: 3 }).sdk;
+    await runCloseSelected(
+      ok,
+      { speedCamera: [2], mapMate: [], stale: [] },
+      { confirm: accept(), notify },
+    );
+
+    expect(notify.mock.calls.map(([n]) => n.title)).toEqual([
+      "Nothing was changed",
+      "Level too low",
+      "Done",
+    ]);
+  });
+
+  // The message left and cannot be withdrawn: "Nothing was changed" would be false.
+  it("are not titled 'Nothing was changed' when the message left but the closure failed", async () => {
+    const notify = silent();
+    const { sdk, sent } = makeSdk([makeUr(1)], { failClose: [1] });
+
+    await runCloseOne(sdk, 1, { confirm: accept(), notify });
+
+    expect(sent).toHaveLength(1);
+    expect(notify.mock.calls[0]?.[0].title).toBe("Not completed");
+  });
+
+  it("are not titled 'Done' when part of a batch failed", async () => {
+    const notify = silent();
+    const { sdk } = makeSdk([makeUr(1), makeUr(2)], {
+      rank: 3,
+      failClose: [2],
+    });
+
+    await runCloseSelected(
+      sdk,
+      { speedCamera: [1, 2], mapMate: [], stale: [] },
+      { confirm: accept(), notify },
+    );
+
+    expect(notify.mock.calls[0]?.[0].title).toBe("Not completed");
+  });
+
+  it("are not titled 'Done' when part of a batch was skipped", async () => {
+    const notify = silent();
+    const { sdk } = makeSdk([makeUr(1), makeUr(2)], {
+      rank: 3,
+      comments: { 2: [comment] },
+    });
+
+    await runCloseSelected(
+      sdk,
+      { speedCamera: [1, 2], mapMate: [], stale: [] },
+      { confirm: accept(), notify },
+    );
+
+    expect(notify.mock.calls[0]?.[0].title).toBe("Not completed");
   });
 });

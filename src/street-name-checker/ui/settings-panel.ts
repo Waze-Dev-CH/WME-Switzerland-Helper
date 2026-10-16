@@ -17,6 +17,7 @@ import {
   type SettingsStore,
 } from "../settings";
 import { buildSubsection, el, icon, toggleSwitch } from "../../ui/dom";
+import { clearSkipped, syncResetButton } from "../../ui/skipped-confirms";
 import { LEGEND_KEYS } from "./format";
 
 /**
@@ -40,7 +41,10 @@ export interface SettingsPanelContext {
 export function buildSettingsPanel(ctx: SettingsPanelContext): HTMLElement {
   const details = el("details", "chk-section");
   const summary = el("summary");
-  summary.append(icon("settings", "chk-section-icon"), el("span", "", t("settingsAndHelp")));
+  summary.append(
+    icon("settings", "chk-section-icon"),
+    el("span", "", t("settingsAndHelp")),
+  );
   details.appendChild(summary);
   const body = el("div", "chk-section-body");
   const settings = ctx.settings.get();
@@ -78,7 +82,9 @@ export function buildSettingsPanel(ctx: SettingsPanelContext): HTMLElement {
       const current = new Set(ctx.settings.get().enabledStatuses);
       if (cb.checked) current.add(status);
       else current.delete(status);
-      ctx.settings.update({ enabledStatuses: ALL_STATUSES.filter((s) => current.has(s)) });
+      ctx.settings.update({
+        enabledStatuses: ALL_STATUSES.filter((s) => current.has(s)),
+      });
       ctx.scanner.reevaluate();
     });
     const dot = el("span", "chk-dot");
@@ -118,7 +124,11 @@ export function buildSettingsPanel(ctx: SettingsPanelContext): HTMLElement {
     optionToggle("keepOldName", "keepOldNameAsAlt", "keepOldNameTitle"),
     optionToggle("guidelineChecks", "guidelineChecks", "guidelineChecksTitle"),
     optionToggle("helperSetting", "editPanelHelper"),
-    optionToggle("geometryMatching", "geometryMatching", "geometryMatchingTitle"),
+    optionToggle(
+      "geometryMatching",
+      "geometryMatching",
+      "geometryMatchingTitle",
+    ),
     optionToggle("editableOnly", "editableOnly", "editableOnlyTitle"),
     viewportToggle,
   ];
@@ -138,7 +148,9 @@ export function buildSettingsPanel(ctx: SettingsPanelContext): HTMLElement {
   }
   select.value = settings.cityScoping;
   select.title = t("scopingTitle");
-  select.addEventListener("change", () => apply({ cityScoping: select.value as CityScoping }));
+  select.addEventListener("change", () =>
+    apply({ cityScoping: select.value as CityScoping }),
+  );
   scopingRow.appendChild(select);
 
   const zoomRow = el("div", "chk-settings-row");
@@ -176,8 +188,14 @@ export function buildSettingsPanel(ctx: SettingsPanelContext): HTMLElement {
   langRow.appendChild(langSelect);
 
   const ignoredRow = el("div", "chk-settings-row");
-  ignoredRow.appendChild(el("span", "", t("ignoredCount", { n: settings.ignoredKeys.length })));
-  const resetIgnoredBtn = el("button", "", t("resetIgnored")) as HTMLButtonElement;
+  ignoredRow.appendChild(
+    el("span", "", t("ignoredCount", { n: settings.ignoredKeys.length })),
+  );
+  const resetIgnoredBtn = el(
+    "button",
+    "",
+    t("resetIgnored"),
+  ) as HTMLButtonElement;
   resetIgnoredBtn.disabled = settings.ignoredKeys.length === 0;
   resetIgnoredBtn.addEventListener("click", () => {
     ctx.settings.update({ ignoredKeys: [] });
@@ -186,6 +204,20 @@ export function buildSettingsPanel(ctx: SettingsPanelContext): HTMLElement {
   });
   ignoredRow.appendChild(resetIgnoredBtn);
 
+  const skippedRow = el("div", "chk-settings-row");
+  const resetSkippedBtn = el(
+    "button",
+    "",
+    t("resetSkipped"),
+  ) as HTMLButtonElement;
+  // Built once per rebuild, while "ignore all" remembers its skip without one.
+  syncResetButton(resetSkippedBtn, "chk", details);
+  resetSkippedBtn.addEventListener("click", () => {
+    clearSkipped("chk");
+    ctx.rebuild();
+  });
+  skippedRow.appendChild(resetSkippedBtn);
+
   // Auto-scan sits at the top, outside any subsection: it is the one setting an editor
   // reaches for often, and it used to be a click away in the master row.
   body.append(
@@ -193,7 +225,13 @@ export function buildSettingsPanel(ctx: SettingsPanelContext): HTMLElement {
     buildSubsection("chk", "road", t("roadTypesLabel"), [grid]),
     buildSubsection("chk", "filter", t("statusesLabel"), [statusGrid]),
     buildSubsection("chk", "list", t("optionsLabel"), options),
-    buildSubsection("chk", "location", t("scopeDisplayLabel"), [scopingRow, zoomRow, langRow, ignoredRow]),
+    buildSubsection("chk", "location", t("scopeDisplayLabel"), [
+      scopingRow,
+      zoomRow,
+      langRow,
+      ignoredRow,
+      skippedRow,
+    ]),
     ctx.footer(),
   );
   details.appendChild(body);

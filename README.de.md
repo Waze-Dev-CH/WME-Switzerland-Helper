@@ -131,6 +131,14 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### [Unveröffentlicht]
 
+#### Hinzugefügt
+
+- **"Nicht mehr anzeigen"** bei einfachen Bestätigungen (alle ignorieren, eine veraltete ÖV-Haltestelle löschen, einzelne Hausnummer importieren, Zusammenfassung nach einem Massenimport, eine UR ohne Nachricht schliessen). Beim Schliessen einer UR erscheint das Kästchen ab Level 3, wenn die meldende Person unsere Nachricht schon erhalten hat, und ab Level 4 für eine verwaiste UR. Eine Schaltfläche in jedem Tab (Einstellungen der Prüfung, unten im UR-Assistenten, Haupttab) zeigt sie wieder an. Bestätigungen, die eine Unterhaltung zitieren oder eine Nachricht senden, werden nie übersprungen, ebenso wenig Gruppenaktionen und Korrekturen auf der Karte.
+
+#### Geändert
+
+- Alle Popups sehen jetzt gleich aus: ein Titel, die Liste dessen, was sich ändert, und Abbrechen ist vorausgewählt.
+
 ### [1.7.0] - 2026-10-13
 
 #### Hinzugefügt

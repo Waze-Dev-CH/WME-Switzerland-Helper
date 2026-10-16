@@ -15,6 +15,7 @@ import {
 } from "./existing";
 import { GwrTileFetcher, tileKeysForBbox } from "./gwr/tiles";
 import type { GwrPoint } from "./gwr/types";
+import { t } from "./i18n";
 import { MAX_SNAP_DISTANCE_M, runImportPoint, runImportPoints, type ImportOutcome } from "./import";
 import type { Confirm, Notify } from "./prompt";
 import { log } from "./log";
@@ -422,6 +423,7 @@ export class Controller {
     await runImportPoint(this.sdk, point, target, streetName, {
       ...this.prompts,
       confirmSingle: this.settings.get().confirmSingleImport,
+      onSkipConfirm: () => this.settings.update({ confirmSingleImport: false }),
       onComplete: (outcomes) => this.markImported(outcomes),
     });
   }
@@ -436,6 +438,11 @@ export class Controller {
       ...this.prompts,
       // What we believe exists, pending edits included, so a stale list cannot duplicate.
       alreadyPresent: this.existingNumbers ?? this.optimisticNumbersFor(streetName),
+      summarySkip: {
+        label: t("dialogSkip"),
+        isSkipped: !this.settings.get().showImportSummary,
+        remember: () => this.settings.update({ showImportSummary: false }),
+      },
       onComplete: (outcomes) => this.markImported(outcomes),
     });
   }

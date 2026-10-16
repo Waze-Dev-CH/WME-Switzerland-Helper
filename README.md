@@ -131,6 +131,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### [Unreleased]
 
+#### Added
+
+- **"Don't show again"** on simple confirmations (ignore all, deleting an obsolete public transport stop, single house number import, the summary after a bulk import, closing a UR without a message). On UR closures the box appears from level 3 when the reporter already has our message, and from level 4 for an abandoned UR. A button in each tab (checker settings, bottom of the UR assistant, main tab) shows them again. Confirmations that quote a conversation or bring a message are never skipped, and neither are group actions and map corrections.
+
+#### Changed
+
+- Every popup now has the same look: a title, a list of what is about to change and Cancel selected by default.
+
 ### [1.7.0] - 2026-10-13
 
 #### Added

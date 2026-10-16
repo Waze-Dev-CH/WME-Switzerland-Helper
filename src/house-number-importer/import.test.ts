@@ -243,8 +243,8 @@ describe("runImportPoints", () => {
     const { sdk } = makeSdk();
     let message = "";
     await runImportPoints(sdk, [at(point("4")), at(point("2"))], 1, "Rue Exemple", {
-      confirm: async (text) => {
-        message = text;
+      confirm: async (spec) => {
+        message = [spec.title, ...spec.facts, spec.note, spec.warning].join("\n");
         return false;
       },
       notify: async () => undefined,
@@ -264,8 +264,8 @@ describe("runImportPoints", () => {
     let message = "";
 
     await runImportPoints(sdk, many.map((p) => at(p)), 1, "Rue Exemple", {
-      confirm: async (text) => {
-        message = text;
+      confirm: async (spec) => {
+        message = [spec.title, ...spec.facts, spec.note, spec.warning].join("\n");
         return false;
       },
       notify: async () => undefined,
@@ -288,7 +288,70 @@ describe("runImportPoints", () => {
 
     expect(added).toHaveLength(2);
     expect(notify).toHaveBeenCalledTimes(1);
+    expect(notify).toHaveBeenCalledWith({ title: "Done", text: expect.stringContaining("2") });
     expect(onComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers the summary skip on a full success", async () => {
+    const { sdk } = makeSdk();
+    const notify = vi.fn(async () => undefined);
+    const summarySkip = { label: "Don't show again", isSkipped: false, remember: vi.fn() };
+
+    await runImportPoints(sdk, [at(point("2")), at(point("4"))], 1, "Rue Exemple", {
+      confirm: async () => true,
+      notify,
+      summarySkip,
+    });
+
+    expect(notify).toHaveBeenCalledWith(expect.objectContaining({ title: "Done", skip: summarySkip }));
+  });
+
+  // A stop is news the editor must read, whatever they chose for the routine summary.
+  it("never offers the summary skip when the import stopped", async () => {
+    const { sdk } = makeSdk({ throwOnAdd: new Error("refused") });
+    const notify = vi.fn<(notice: object) => Promise<void>>(async () => undefined);
+
+    await runImportPoints(sdk, [at(point("2")), at(point("4"))], 1, "Rue Exemple", {
+      confirm: async () => true,
+      notify,
+      summarySkip: { label: "Don't show again", isSkipped: true, remember: vi.fn() },
+    });
+
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(notify.mock.calls[0]?.[0]).not.toHaveProperty("skip");
+  });
+
+  // Numbers before the failure are in the edit stack: "Nothing was changed" would be false.
+  it("titles a stop after some numbers 'Not completed'", async () => {
+    const { sdk, added } = makeSdk();
+    const add = sdk.DataModel.HouseNumbers.addHouseNumber;
+    sdk.DataModel.HouseNumbers.addHouseNumber = (args) => {
+      if (args.number === "4") throw new Error("refused");
+      return add(args);
+    };
+    const notify = vi.fn(async () => undefined);
+
+    await runImportPoints(sdk, [at(point("2")), at(point("4"))], 1, "Rue Exemple", {
+      confirm: async () => true,
+      notify,
+    });
+
+    expect(added).toHaveLength(1);
+    expect(notify).toHaveBeenCalledWith(expect.objectContaining({ title: "Not completed" }));
+  });
+
+  it("keeps 'Nothing was changed' when the first number already failed", async () => {
+    const { sdk } = makeSdk({ throwOnAdd: new Error("refused") });
+    const notify = vi.fn(async () => undefined);
+
+    await runImportPoints(sdk, [at(point("2")), at(point("4"))], 1, "Rue Exemple", {
+      confirm: async () => true,
+      notify,
+    });
+
+    expect(notify).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Nothing was changed" }),
+    );
   });
 
   it("does nothing at all on an empty list", async () => {
@@ -330,5 +393,20 @@ describe("runImportPoint", () => {
     await runImportPoint(sdk, point("15"), 1, "Rue Exemple", { confirmSingle: false, notify });
 
     expect(notify).toHaveBeenCalledTimes(1);
+    expect(notify).toHaveBeenCalledWith(expect.objectContaining({ title: "Nothing was changed" }));
+  });
+
+  it("wires the skip option of the confirmation to onSkipConfirm", async () => {
+    const { sdk } = makeSdk();
+    const onSkipConfirm = vi.fn();
+    await runImportPoint(sdk, point("15"), 1, "Rue Exemple", {
+      confirmSingle: true,
+      onSkipConfirm,
+      confirm: async (spec) => {
+        spec.skip?.remember();
+        return false;
+      },
+    });
+    expect(onSkipConfirm).toHaveBeenCalledTimes(1);
   });
 });

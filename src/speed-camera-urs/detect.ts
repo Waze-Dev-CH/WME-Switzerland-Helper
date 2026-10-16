@@ -196,11 +196,19 @@ export function isAbandoned(
 export function reporterHasLastWord(
   comments: readonly ConversationElement[],
 ): boolean {
+  return reporterLastWord(comments) !== null;
+}
+
+/** The reporter's comment when they spoke last among the people, otherwise null. */
+export function reporterLastWord(
+  comments: readonly ConversationElement[],
+): ConversationElement | null {
   const latest = comments
     .filter((comment) => !isMapTeam(comment))
     .sort((a, b) => a.createdOn - b.createdOn)
     .pop();
-  return latest !== undefined && isReporter(latest);
+  if (latest === undefined || !isReporter(latest)) return null;
+  return latest;
 }
 
 export function isIdle(lastActivityOn: number, now: number): boolean {

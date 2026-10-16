@@ -23,6 +23,13 @@ import {
 import { initHouseNumberImporter } from "./src/house-number-importer";
 import { initSpeedCameraUrs } from "./src/speed-camera-urs";
 import { groupScriptTab } from "./src/ui/tab-group";
+import { applyThemeClass, watchTheme } from "./src/ui/theme";
+import { el } from "./src/ui/dom";
+import {
+  clearSkipped,
+  hasSkipped,
+  syncResetButton,
+} from "./src/ui/skipped-confirms";
 import { initStreetNameChecker } from "./src/street-name-checker";
 
 const englishScriptName = "WME Switzerland helper";
@@ -146,6 +153,10 @@ function initScript() {
     // back to it in a bar shared with every other userscript.
     tabLabel.innerText = scriptName;
     groupScriptTab(tabLabel, tabPane, "layers");
+    // The dark class lives on <html>: the PT-stop dialogs read it, and must not depend on
+    // a feature tab having set it first.
+    applyThemeClass(tabPane);
+    watchTheme(tabPane);
 
     const sidebarTab = new SidebarTab({ scriptName });
 
@@ -221,6 +232,21 @@ function initScript() {
     sidebarTab.addChild(notesSection);
 
     tabPane.innerHTML = sidebarTab.render();
+
+    // Neutral WME button, disabled while there is nothing to bring back. The tab is built
+    // once, so a skip chosen later is picked up when the editor comes back to the tab.
+    const resetSkipped = el(
+      "button",
+      "btn btn-default",
+      i18next.t("common:dialogs.resetSkipped"),
+    );
+    resetSkipped.type = "button";
+    syncResetButton(resetSkipped, "pt", tabPane);
+    resetSkipped.addEventListener("click", () => {
+      clearSkipped("pt");
+      resetSkipped.disabled = !hasSkipped("pt");
+    });
+    tabPane.appendChild(resetSkipped);
   }
 
   async function init() {

@@ -41,7 +41,7 @@ ${statusDotRules()}
 .chk-list.chk-busy-active { min-height: 90px; }
 
 /* ---- Floating window ---------------------------------------------------- */
-/* z-index sits below showWmeDialog's 10000 so the fix confirmations stay on top. */
+/* z-index sits below the shared dialogs' 10000 so the fix confirmations stay on top. */
 .chk-window {
   position: fixed;
   z-index: 9000;

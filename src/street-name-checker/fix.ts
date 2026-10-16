@@ -2,7 +2,18 @@ import type { UserRank, WmeSDK } from "wme-sdk-typings";
 import { t } from "./i18n";
 import { log } from "./log";
 import { issueKey, type Issue } from "./matching/evaluate";
-import { type Confirm, confirmDialog, type Notify, notifyDialog } from "./prompt";
+import {
+  groupRenameSpec,
+  ignoreAllSpec,
+  overLockSpec,
+  wrongStreetSpec,
+} from "./confirm-spec";
+import {
+  type Confirm,
+  confirmDialog,
+  type Notify,
+  notifyDialog,
+} from "./prompt";
 import type { Settings, SettingsStore } from "./settings";
 
 export const GROUP_FIX_CAP = 50;
@@ -21,7 +32,10 @@ export const GROUP_FIX_CONFIRM_THRESHOLD = 20;
 export const GROUP_FIX_MIN_RANK = 2;
 
 /** Lock-level issues: fixed by setting the lock rank, not by applying a name. */
-export const LOCK_STATUSES = new Set<Issue["status"]>(["UNDER_LOCK", "OVER_LOCK"]);
+export const LOCK_STATUSES = new Set<Issue["status"]>([
+  "UNDER_LOCK",
+  "OVER_LOCK",
+]);
 
 /**
  * Statuses whose verdict rests on geometry rather than on a name similarity, so a wrong
@@ -79,9 +93,17 @@ function findOrCreateStreet(sdk: WmeSDK, streetName: string, cityId: number) {
  * record in the segment's city, then update the segment's primary address.
  * Never saves; the editor reviews and saves with the native WME flow.
  */
-export function fixSegment(sdk: WmeSDK, issue: Issue, settings: Settings): FixOutcome {
+export function fixSegment(
+  sdk: WmeSDK,
+  issue: Issue,
+  settings: Settings,
+): FixOutcome {
   const segmentId = issue.segmentId;
-  const fail = (errorCode: FixErrorCode): FixOutcome => ({ segmentId, ok: false, errorCode });
+  const fail = (errorCode: FixErrorCode): FixOutcome => ({
+    segmentId,
+    ok: false,
+    errorCode,
+  });
 
   // Lock issues have no suggestion; handle before the name-fix gate below.
   if (LOCK_STATUSES.has(issue.status)) return fixLock(sdk, issue);
@@ -117,7 +139,11 @@ export function fixSegment(sdk: WmeSDK, issue: Issue, settings: Settings): FixOu
     if (issue.note?.altLabels) {
       for (const name of issue.note.altLabels) {
         const alt = findOrCreateStreet(sdk, name, cityId);
-        if (alt && alt.id !== street.id && !alternateStreetIds.includes(alt.id)) {
+        if (
+          alt &&
+          alt.id !== street.id &&
+          !alternateStreetIds.includes(alt.id)
+        ) {
           alternateStreetIds.push(alt.id);
         }
       }
@@ -126,7 +152,8 @@ export function fixSegment(sdk: WmeSDK, issue: Issue, settings: Settings): FixOu
     // No empty edit: nothing changed (stale list, repeated group fix). The alternates array
     // only ever grows here, so an unchanged length means no alternate was added.
     const primaryChanged = segment.primaryStreetId !== street.id;
-    const altsChanged = alternateStreetIds.length !== segment.alternateStreetIds.length;
+    const altsChanged =
+      alternateStreetIds.length !== segment.alternateStreetIds.length;
     if (!primaryChanged && !altsChanged) return { segmentId, ok: true };
 
     sdk.DataModel.Segments.updateAddress({
@@ -152,7 +179,11 @@ export function fixSegment(sdk: WmeSDK, issue: Issue, settings: Settings): FixOu
  */
 function fixLock(sdk: WmeSDK, issue: Issue): FixOutcome {
   const segmentId = issue.segmentId;
-  const fail = (errorCode: FixErrorCode): FixOutcome => ({ segmentId, ok: false, errorCode });
+  const fail = (errorCode: FixErrorCode): FixOutcome => ({
+    segmentId,
+    ok: false,
+    errorCode,
+  });
 
   // The note carries the expected lock LEVEL (1-6); the SDK lockRank is 0-based.
   const expectedLevel = issue.note?.expectedLock;
@@ -166,7 +197,10 @@ function fixLock(sdk: WmeSDK, issue: Issue): FixOutcome {
     return {
       segmentId,
       ok: false,
-      errorDetail: t("errLockAboveRank", { expected: expectedLevel, user: userRank + 1 }),
+      errorDetail: t("errLockAboveRank", {
+        expected: expectedLevel,
+        user: userRank + 1,
+      }),
     };
   }
 
@@ -176,7 +210,10 @@ function fixLock(sdk: WmeSDK, issue: Issue): FixOutcome {
     const targetRank = expectedLevel - 1;
     // Already at the expected level (stale list, repeated group fix): no empty edit.
     if (segment.lockRank === targetRank) return { segmentId, ok: true };
-    sdk.DataModel.Segments.updateSegment({ segmentId, lockRank: targetRank as UserRank });
+    sdk.DataModel.Segments.updateSegment({
+      segmentId,
+      lockRank: targetRank as UserRank,
+    });
     return { segmentId, ok: true };
   } catch (err) {
     log.error(`Lock fix failed for segment ${segmentId}`, err);
@@ -251,35 +288,30 @@ export async function runFix(
   sdk: WmeSDK,
   issue: Issue,
   settings: Settings,
-  { button, onComplete, confirm = confirmDialog, notify = notifyDialog }: FixUiHooks = {},
+  {
+    button,
+    onComplete,
+    confirm = confirmDialog,
+    notify = notifyDialog,
+  }: FixUiHooks = {},
 ): Promise<void> {
   // Lowering an over-lock is often unwanted; confirm before applying.
   if (
     issue.status === "OVER_LOCK" &&
-    !(await confirm(t("confirmOverLockFix", { n: issue.note?.expectedLock ?? "" })))
+    !(await confirm(overLockSpec(issue.note?.expectedLock ?? "", 1)))
   ) {
     return;
   }
-  // A geometric verdict renames a street that reads as perfectly valid, and until now it
-  // was the one destructive fix with no confirmation at all, while lowering a lock (a
-  // click to undo) always asked. The confidence figures travel with the prompt.
+  // A geometric verdict renames a street that reads as perfectly valid, so it always
+  // asks, with the confidence figures in the prompt.
   if (GEOMETRY_STATUSES.has(issue.status)) {
-    // Composed here rather than through ui/format.ts: the domain layer should not reach
-    // into the presentation one for a string.
-    const detail =
-      issue.note?.coverage !== undefined
-        ? `\n${t("noteMatchConfidence", {
-            pct: Math.round(issue.note.coverage * 100),
-            m: issue.note.matchDistanceM ?? 0,
-          })}`
-        : "";
-    const confirmed = await confirm(
-      t("confirmWrongStreetFix", {
-        current: issue.currentName ?? "",
-        suggestion: issue.suggestion ?? "",
-      }) + detail,
+    const spec = wrongStreetSpec(
+      issue.currentName ?? "",
+      issue.suggestion ?? "",
+      issue.note?.coverage,
+      issue.note?.matchDistanceM,
     );
-    if (!confirmed) return;
+    if (!(await confirm(spec))) return;
   }
   const result = await withFixLock(async () => {
     if (button) {
@@ -287,7 +319,11 @@ export async function runFix(
       button.textContent = "…";
     }
     const outcome = fixSegment(sdk, issue, settings);
-    if (!outcome.ok) await notify(t("fixFailed", { error: formatFixError(outcome) }));
+    if (!outcome.ok)
+      await notify({
+        title: t("noticeTitleError"),
+        text: t("fixFailed", { error: formatFixError(outcome) }),
+      });
     return outcome;
   });
   // null = another fix was already running; its own completion will re-render.
@@ -309,31 +345,38 @@ export async function runFixGroup(
   issues: Issue[],
   header: GroupFixHeader,
   settings: Settings,
-  { button, onComplete, confirm = confirmDialog, notify = notifyDialog }: FixUiHooks = {},
+  {
+    button,
+    onComplete,
+    confirm = confirmDialog,
+    notify = notifyDialog,
+  }: FixUiHooks = {},
 ): Promise<void> {
   // Defence in depth: two UIs build the group buttons, and a missed check in either one
   // would silently reopen the door. The refusal lives with the action, not with the
   // button that triggers it.
   if (!canGroupFix(sdk)) {
-    await notify(t("errGroupFixRank", { level: GROUP_FIX_MIN_RANK + 1 }));
+    await notify({
+      title: t("noticeTitleRank"),
+      text: t("errGroupFixRank", { level: GROUP_FIX_MIN_RANK + 1 }),
+    });
     return;
   }
   const n = Math.min(issues.length, GROUP_FIX_CAP);
   if (header.status === "OVER_LOCK") {
-    if (!(await confirm(t("confirmOverLockFix", { n: header.expectedLock ?? "" })))) return;
-  } else if (
+    if (!(await confirm(overLockSpec(header.expectedLock ?? "", n)))) return;
+  } else {
     // Geometry-driven verdicts confirm every time, even for a single segment: a wrong
     // one renames a correctly named street. Volume alone is the wrong yardstick here.
-    (GEOMETRY_STATUSES.has(header.status) || n > GROUP_FIX_CONFIRM_THRESHOLD) &&
-    !(await confirm(
-      t("confirmGroupFixDetailed", {
-        n,
-        current: header.currentName ?? "",
-        suggestion: header.suggestion ?? "",
-      }),
-    ))
-  ) {
-    return;
+    const geometric = GEOMETRY_STATUSES.has(header.status);
+    const spec = groupRenameSpec(
+      n,
+      header.currentName ?? "",
+      header.suggestion ?? "",
+      geometric,
+    );
+    const mustAsk = geometric || n > GROUP_FIX_CONFIRM_THRESHOLD;
+    if (mustAsk && !(await confirm(spec))) return;
   }
   const result = await withFixLock(async () => {
     if (button) button.disabled = true;
@@ -342,14 +385,15 @@ export async function runFixGroup(
     });
     const failed = outcomes.find((o) => !o.ok);
     if (failed) {
-      await notify(
-        t("fixStopped", {
+      await notify({
+        title: t("noticeTitleError"),
+        text: t("fixStopped", {
           done: outcomes.filter((o) => o.ok).length,
           total: n,
           error: formatFixError(failed),
           id: failed.segmentId,
         }),
-      );
+      });
     }
     return outcomes;
   });
@@ -357,7 +401,11 @@ export async function runFixGroup(
 }
 
 /** Dismiss a finding as a false positive (local, reversible via Settings → Reset). */
-export function ignoreIssue(settings: SettingsStore, issue: Issue, onComplete?: () => void): void {
+export function ignoreIssue(
+  settings: SettingsStore,
+  issue: Issue,
+  onComplete?: () => void,
+): void {
   const keys = settings.get().ignoredKeys;
   const key = issueKey(issue);
   if (!keys.includes(key)) settings.update({ ignoredKeys: [...keys, key] });
@@ -374,7 +422,7 @@ export async function ignoreIssues(
   // Reversible (Settings → Reset), but confirm a large mass-hide to avoid accidents.
   if (
     issues.length > GROUP_FIX_CONFIRM_THRESHOLD &&
-    !(await confirm(t("confirmIgnoreAll", { n: issues.length })))
+    !(await confirm(ignoreAllSpec(issues.length)))
   ) {
     return;
   }

@@ -27,7 +27,13 @@ import {
 import { point } from "@turf/turf";
 import { SBBDataFetcher, SBBRecord } from "./sbbDataLayer";
 import { FeatureLayer } from "./featureLayer";
-import { showWmeDialog, waitForMapIdle } from "./utils";
+import { waitForMapIdle } from "./utils";
+import { showChoice, showConfirm } from "./ui/dialog";
+import {
+  deleteObsoleteSpec,
+  mergeActionSpec,
+  pickVenueSpec,
+} from "./publicTransportDialogs";
 import { StopGeometry } from "./stopGeometry";
 import { StopNameFormatter } from "./stopNameFormatter";
 import { VenueMatcher, type VenueLike } from "./venueMatcher";
@@ -962,23 +968,8 @@ class PublicTransportStopsLayer extends FeatureLayer {
     const venue = this.features.get(featureId) as VenueLike | undefined;
     if (!venue) return;
 
-    const result = await showWmeDialog({
-      message: i18next.t("common:deleteObsoleteStop.message", {
-        name: venue.name,
-      }),
-      buttons: [
-        {
-          label: i18next.t("common:deleteObsoleteStop.confirm"),
-          value: "confirm",
-        },
-        {
-          label: i18next.t("common:deleteObsoleteStop.cancel"),
-          value: "cancel",
-        },
-      ],
-    });
-
-    if (result !== "confirm") return;
+    const confirmed = await showConfirm(deleteObsoleteSpec(venue.name));
+    if (!confirmed) return;
 
     const venueId = String(venue.id);
     // Venues sourced from the Features API/cache aren't loaded in the SDK data
@@ -1250,20 +1241,10 @@ class PublicTransportStopsLayer extends FeatureLayer {
       matchingVenues.map((venue) => venue.id.toString()),
     );
 
-    const buttons = matchingVenues.map((venue, index) => ({
-      label: venue.name?.trim() ? venue.name : `#${index + 1}`,
-      value: String(index),
-    }));
-    buttons.push({
-      label: i18next.t("common:venueMatchDialog.cancel"),
-      value: "cancel",
-    });
-
-    const result = await showWmeDialog({
-      message: i18next.t("common:venueMatchDialog.selectMessage"),
-      buttons,
-    });
-    if (result === "cancel") return undefined;
+    const result = await showChoice(
+      pickVenueSpec(matchingVenues.map((venue) => venue.name)),
+    );
+    if (result === null) return undefined;
     return matchingVenues[Number(result)];
   }
 
@@ -1277,34 +1258,11 @@ class PublicTransportStopsLayer extends FeatureLayer {
     const { wmeSDK, venue, sameCoord } = args;
     this.trySelectVenues(wmeSDK, [venue.id.toString()]);
 
-    const buttons = [
-      { label: i18next.t("common:venueMatchDialog.merge"), value: "merge" },
-    ];
-    // Same point → drop only "update coordinates"; keep "save new" since stops
-    // can be stacked on top of each other.
-    if (!sameCoord) {
-      buttons.push({
-        label: i18next.t("common:venueMatchDialog.mergeWithCoords"),
-        value: "merge-with-coords",
-      });
-    }
-    buttons.push({
-      label: i18next.t("common:venueMatchDialog.saveNew"),
-      value: "save",
-    });
-    buttons.push({
-      label: i18next.t("common:venueMatchDialog.cancel"),
-      value: "cancel",
-    });
-
-    const result = await showWmeDialog({
-      message: i18next.t("common:venueMatchDialog.message", { venueCount: 1 }),
-      // This one string carries its own <br/> and <pre> markup; every other caller
-      // relies on showWmeDialog escaping the message.
-      allowHtml: true,
-      buttons,
-    });
-    return result as "merge" | "merge-with-coords" | "save" | "cancel";
+    // Same point drops only "update coordinates"; the spec knows that.
+    const result = await showChoice(
+      mergeActionSpec(venue.name, sameCoord),
+    );
+    return result ?? "cancel";
   }
 
   private async createOrUpdateVenue(args: {

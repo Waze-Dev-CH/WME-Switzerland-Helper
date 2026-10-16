@@ -13,6 +13,8 @@ export interface Settings {
   /** Drop addresses of buildings that are planned, authorized or under construction. */
   existingBuildingsOnly: boolean;
   confirmSingleImport: boolean;
+  /** The "N numbers created" notice after a bulk import; a stop is always shown. */
+  showImportSummary: boolean;
   language: LanguagePreference;
 }
 
@@ -26,6 +28,7 @@ export const DEFAULT_SETTINGS: Settings = {
   strictMatching: true,
   existingBuildingsOnly: true,
   confirmSingleImport: false,
+  showImportSummary: true,
   language: "auto",
 };
 
