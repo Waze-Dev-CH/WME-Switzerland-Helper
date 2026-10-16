@@ -166,6 +166,45 @@ describe("Controller", () => {
     expect(controller.getSnapshot().missing).toHaveLength(0);
   });
 
+  it("turns the bulk-import summary off when its box is ticked", async () => {
+    const { sdk } = makeSdk([]);
+    const seen: Array<boolean | undefined> = [];
+    const prompts = {
+      confirm: async () => true,
+      notify: async (notice: { skip?: { isSkipped: boolean; remember(): void } }) => {
+        seen.push(notice.skip?.isSkipped);
+        notice.skip?.remember();
+      },
+    };
+    const settings = new SettingsStore();
+    const controller = makeController(sdk, [point("2"), point("4")], {}, { settings, prompts });
+    await controller.refresh();
+
+    await controller.importMissing();
+
+    expect(seen).toEqual([false]);
+    expect(settings.get().showImportSummary).toBe(false);
+  });
+
+  it("hands a skipped summary to the dialog once the setting is off", async () => {
+    const { sdk } = makeSdk([]);
+    const seen: Array<boolean | undefined> = [];
+    const prompts = {
+      confirm: async () => true,
+      notify: async (notice: { skip?: { isSkipped: boolean } }) => {
+        seen.push(notice.skip?.isSkipped);
+      },
+    };
+    const settings = new SettingsStore();
+    settings.update({ showImportSummary: false });
+    const controller = makeController(sdk, [point("2"), point("4")], {}, { settings, prompts });
+    await controller.refresh();
+
+    await controller.importMissing();
+
+    expect(seen).toEqual([true]);
+  });
+
   it.each(["wme-no-edits", "wme-save-finished"])(
     "offers every number again after %s",
     async (eventName) => {

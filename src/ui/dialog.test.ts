@@ -340,6 +340,61 @@ describe("showNotice", () => {
 
     await expect(done).resolves.toBeUndefined();
   });
+
+  it("resolves without mounting anything when the skip is remembered", async () => {
+    const { host, mounted } = makeHost();
+    const remember = vi.fn();
+    await showNotice(
+      {
+        title: "Done",
+        text: "3 closed",
+        okLabel: "OK",
+        skip: { label: "Don't show again", isSkipped: true, remember },
+      },
+      host,
+    );
+    expect(mounted).toHaveLength(0);
+    expect(remember).not.toHaveBeenCalled();
+  });
+
+  it("remembers when the box is ticked and OK pressed", async () => {
+    const { host, mounted } = makeHost();
+    const remember = vi.fn();
+    const done = showNotice(
+      {
+        title: "Done",
+        text: "3 closed",
+        okLabel: "OK",
+        skip: { label: "Don't show again", isSkipped: false, remember },
+      },
+      host,
+    );
+    const root = mounted[0]!;
+    const box = findAll(root, "dlg-skip")[0]!.children[0]!;
+    box.checked = true;
+    findAll(root, "dlg-btn-primary")[0]?.dispatch("click");
+
+    await done;
+    expect(remember).toHaveBeenCalledTimes(1);
+  });
+
+  it("remembers nothing when OK is pressed with the box unticked", async () => {
+    const { host, mounted } = makeHost();
+    const remember = vi.fn();
+    const done = showNotice(
+      {
+        title: "Done",
+        text: "3 closed",
+        okLabel: "OK",
+        skip: { label: "Don't show again", isSkipped: false, remember },
+      },
+      host,
+    );
+    findAll(mounted[0]!, "dlg-btn-primary")[0]?.dispatch("click");
+
+    await done;
+    expect(remember).not.toHaveBeenCalled();
+  });
 });
 
 describe("accessible name", () => {

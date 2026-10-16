@@ -249,6 +249,7 @@
     "settingsStrictMatch": "Corrispondenza rigorosa dei nomi delle vie",
     "settingsExistingOnly": "Solo edifici costruiti",
     "settingsConfirmSingle": "Confermare ogni importazione singola",
+    "settingsShowSummary": "Mostrare il riepilogo dopo un'importazione in blocco",
     "settingsLanguage": "Lingua",
     "shortcutImportMissing": "Importare i numeri civici mancanti",
     "shortcutToggleLayer": "Attivare/disattivare il livello dei numeri civici",

@@ -83,6 +83,8 @@ export interface NoticeSpec {
   title: string;
   text: string;
   okLabel: string;
+  /** Only for routine news; a failure must be read every time. */
+  skip?: SkipOption;
 }
 
 const CSS = `
@@ -237,6 +239,16 @@ function open<T>(
   });
 }
 
+/** Unticked on every opening: the choice is made knowingly, each time it is made. */
+function skipBox(skip: SkipOption, extras: HTMLElement[]): HTMLInputElement {
+  const label = el("label", "dlg-skip");
+  const box = el("input");
+  box.type = "checkbox";
+  label.append(box, el("span", "", skip.label));
+  extras.push(label);
+  return box;
+}
+
 function factList(facts: string[]): HTMLElement {
   const list = el("ul", "dlg-dialog-facts");
   for (const fact of facts) list.appendChild(el("li", "", fact));
@@ -268,16 +280,11 @@ export function showConfirm(
     content.push(warning);
   }
 
-  // Unticked on every opening: the choice is made knowingly, each time it is made. Never
-  // offered beside a conversation, which is shown every time whatever was remembered.
+  // Never offered beside a conversation, which is shown every time whatever was remembered.
   const extras: HTMLElement[] = [];
   let box: HTMLInputElement | undefined;
   if (spec.skip && !spec.previousComment) {
-    const label = el("label", "dlg-skip");
-    box = el("input");
-    box.type = "checkbox";
-    label.append(box, el("span", "", spec.skip.label));
-    extras.push(label);
+    box = skipBox(spec.skip, extras);
   }
   const confirmClass = spec.danger
     ? "dlg-btn dlg-btn-danger"
@@ -333,13 +340,25 @@ export function showNotice(
   spec: NoticeSpec,
   host: DialogHost = pageHost,
 ): Promise<void> {
+  if (spec.skip?.isSkipped) return Promise.resolve();
+
+  const extras: HTMLElement[] = [];
+  const box = spec.skip ? skipBox(spec.skip, extras) : undefined;
   return open<void>(
     spec.title,
     [el("div", "dlg-dialog-text", spec.text)],
     (finish) => [
-      button(spec.okLabel, () => finish(), "dlg-btn dlg-btn-primary"),
+      button(
+        spec.okLabel,
+        () => {
+          if (box?.checked) spec.skip?.remember();
+          finish();
+        },
+        "dlg-btn dlg-btn-primary",
+      ),
     ],
     undefined,
     host,
+    extras,
   );
 }

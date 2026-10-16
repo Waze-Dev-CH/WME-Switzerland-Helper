@@ -54,7 +54,8 @@ i18next instance. Same containment as before: appended to the page, removed once
 `chk.ignoreAll`, `scu.closeOnly`, `scu.closeStale` and `pt.deleteObsolete`. Reset buttons
 sit in the checker settings, at the bottom of the URs tab and in the host tab. The house-number
 importer is the exception: the box of the single-import confirmation unticks its own
-`confirmSingleImport` setting instead.
+`confirmSingleImport` setting instead, and the bulk-import summary ("N numbers created")
+carries a box that unticks `showImportSummary`. A stopped or partial import is always shown.
 
 - A remembered skip never applies when the spec quotes a conversation (`previousComment`),
   and such a confirmation renders no box at all; both rules live in the component, not in

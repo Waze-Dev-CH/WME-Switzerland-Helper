@@ -60,6 +60,7 @@ export class TabUI {
    * "don't show again" box turns the setting off from outside the tab.
    */
   private confirmSingleInput: HTMLInputElement | null = null;
+  private showSummaryInput: HTMLInputElement | null = null;
 
   private banner = el("div", "hn-banner");
   private bannerText = el("span", "hn-banner-text");
@@ -165,6 +166,8 @@ export class TabUI {
 
     if (this.confirmSingleInput)
       this.confirmSingleInput.checked = this.settings.get().confirmSingleImport;
+    if (this.showSummaryInput)
+      this.showSummaryInput.checked = this.settings.get().showImportSummary;
 
     this.renderSelection(snapshot, enabled);
     this.renderAction(snapshot, enabled);
@@ -286,6 +289,14 @@ export class TabUI {
     );
     this.confirmSingleInput = confirmSingleToggle.querySelector("input");
 
+    const showSummaryToggle = toggleSwitch(
+      "hn",
+      t("settingsShowSummary"),
+      settings.showImportSummary,
+      (showImportSummary) => this.settings.update({ showImportSummary }),
+    );
+    this.showSummaryInput = showSummaryToggle.querySelector("input");
+
     return buildSection("hn", "settings", t("settingsAndHelp"), [
       // What the feature is. It used to be the tab's second block, permanently on screen;
       // unlike the street-name checker, this feature has no note in the main sidebar, so
@@ -312,6 +323,7 @@ export class TabUI {
         },
       ),
       confirmSingleToggle,
+      showSummaryToggle,
       languageRow,
       // The pills carry the legend already, with a counter on top. This only covers the
       // statuses the current selection happens not to contain.

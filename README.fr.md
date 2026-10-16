@@ -133,7 +133,7 @@ et ce projet adhère au [Versionnage Sémantique](https://semver.org/spec/v2.0.0
 
 #### Ajouté
 
-- **« Ne plus montrer »** sur les confirmations simples (tout ignorer, suppression d'un arrêt de transport public obsolète, import d'un seul numéro, fermeture d'un UR sans message). Sur la fermeture d'un UR, la case apparaît dès le niveau 3 quand le rapporteur a déjà reçu notre message, et dès le niveau 4 pour un UR abandonné. Un bouton dans chaque onglet (réglages du vérificateur, bas de l'assistant UR, onglet principal) les réaffiche. Les confirmations qui citent une conversation ou envoient un message ne sont jamais passées, pas plus que les actions groupées et les corrections de la carte.
+- **« Ne plus montrer »** sur les confirmations simples (tout ignorer, suppression d'un arrêt de transport public obsolète, import d'un seul numéro, bilan après un import en masse, fermeture d'un UR sans message). Sur la fermeture d'un UR, la case apparaît dès le niveau 3 quand le rapporteur a déjà reçu notre message, et dès le niveau 4 pour un UR abandonné. Un bouton dans chaque onglet (réglages du vérificateur, bas de l'assistant UR, onglet principal) les réaffiche. Les confirmations qui citent une conversation ou envoient un message ne sont jamais passées, pas plus que les actions groupées et les corrections de la carte.
 
 #### Modifié
 

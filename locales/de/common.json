@@ -249,6 +249,7 @@
     "settingsStrictMatch": "Strikter Abgleich der Strassennamen",
     "settingsExistingOnly": "Nur gebaute Gebäude",
     "settingsConfirmSingle": "Jeden Einzelimport bestätigen",
+    "settingsShowSummary": "Zusammenfassung nach einem Massenimport anzeigen",
     "settingsLanguage": "Sprache",
     "shortcutImportMissing": "Fehlende Hausnummern importieren",
     "shortcutToggleLayer": "Hausnummern-Ebene ein-/ausschalten",

@@ -249,6 +249,7 @@
     "settingsStrictMatch": "Strict street-name matching",
     "settingsExistingOnly": "Only buildings that are built",
     "settingsConfirmSingle": "Confirm every single import",
+    "settingsShowSummary": "Show the summary after a bulk import",
     "settingsLanguage": "Language",
     "shortcutImportMissing": "Import the missing house numbers",
     "shortcutToggleLayer": "Toggle the house-number layer",

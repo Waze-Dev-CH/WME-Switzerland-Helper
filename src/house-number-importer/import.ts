@@ -1,5 +1,6 @@
 import type { WmeSDK } from "wme-sdk-typings";
 import { getStreetNameVerdict } from "../street-check-bridge";
+import type { SkipOption } from "../ui/dialog";
 import { massImportSpec, singleImportSpec } from "./confirm-spec";
 import { countSegments, distanceToSegmentM, type Assignment } from "./assign";
 import type { GwrPoint } from "./gwr/types";
@@ -161,6 +162,8 @@ export interface ImportUiHooks {
    * otherwise be remembered as existing while nothing was ever created for it.
    */
   onComplete?: (outcomes: ImportOutcome[]) => void;
+  /** Lets the editor hide the bulk-import summary; never applied to a stop. */
+  summarySkip?: SkipOption;
 }
 
 function describeFailure(outcome: ImportOutcome): string {
@@ -260,6 +263,7 @@ export async function runImportPoints(
       await notify({
         title: t("noticeTitleDone"),
         text: t("importedCount", { count: created }),
+        ...(hooks.summarySkip ? { skip: hooks.summarySkip } : {}),
       });
     }
     hooks.onComplete?.(outcomes);

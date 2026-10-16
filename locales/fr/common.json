@@ -249,6 +249,7 @@
     "settingsStrictMatch": "Correspondance stricte des noms de rue",
     "settingsExistingOnly": "Uniquement les bâtiments construits",
     "settingsConfirmSingle": "Confirmer chaque import unitaire",
+    "settingsShowSummary": "Afficher le bilan après un import en masse",
     "settingsLanguage": "Langue",
     "shortcutImportMissing": "Importer les numéros manquants",
     "shortcutToggleLayer": "Activer/désactiver la couche des numéros",

@@ -292,6 +292,35 @@ describe("runImportPoints", () => {
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
 
+  it("offers the summary skip on a full success", async () => {
+    const { sdk } = makeSdk();
+    const notify = vi.fn(async () => undefined);
+    const summarySkip = { label: "Don't show again", isSkipped: false, remember: vi.fn() };
+
+    await runImportPoints(sdk, [at(point("2")), at(point("4"))], 1, "Rue Exemple", {
+      confirm: async () => true,
+      notify,
+      summarySkip,
+    });
+
+    expect(notify).toHaveBeenCalledWith(expect.objectContaining({ title: "Done", skip: summarySkip }));
+  });
+
+  // A stop is news the editor must read, whatever they chose for the routine summary.
+  it("never offers the summary skip when the import stopped", async () => {
+    const { sdk } = makeSdk({ throwOnAdd: new Error("refused") });
+    const notify = vi.fn<(notice: object) => Promise<void>>(async () => undefined);
+
+    await runImportPoints(sdk, [at(point("2")), at(point("4"))], 1, "Rue Exemple", {
+      confirm: async () => true,
+      notify,
+      summarySkip: { label: "Don't show again", isSkipped: true, remember: vi.fn() },
+    });
+
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(notify.mock.calls[0]?.[0]).not.toHaveProperty("skip");
+  });
+
   // Numbers before the failure are in the edit stack: "Nothing was changed" would be false.
   it("titles a stop after some numbers 'Not completed'", async () => {
     const { sdk, added } = makeSdk();
