@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { installFakeDocument, type FakeNode } from "./fake-dom";
+import {
+  installFakeDocument,
+  type FakeDocument,
+  type FakeNode,
+} from "./fake-dom";
 import {
   showChoice,
   showConfirm,
@@ -45,6 +49,16 @@ const frenchQuote = {
   label: "Message",
   options: [{ lang: "fr" as const, langLabel: "French", text: "Bonjour" }],
 };
+
+function fakeDocument(): FakeDocument {
+  return document as unknown as FakeDocument;
+}
+
+function pressEscape() {
+  const stopPropagation = vi.fn();
+  fakeDocument().dispatch("keydown", { key: "Escape", stopPropagation });
+  return stopPropagation;
+}
 
 let restore: () => void;
 beforeEach(() => (restore = installFakeDocument()));
@@ -206,14 +220,51 @@ describe("showConfirm", () => {
     expect(findAll(mounted[0]!, "dlg-btn-primary")).toHaveLength(0);
   });
 
-  it("stops Escape from reaching the page", async () => {
-    const { host, mounted } = makeHost();
+  // WME binds its shortcuts on the document, and the focus is often outside the dialog
+  // (a click on the map behind the backdrop, a blur): Escape is caught on the page.
+  it("cancels on Escape pressed anywhere on the page, and stops it there", async () => {
+    const { host } = makeHost();
     const answer = showConfirm(spec(), host);
-    const stopPropagation = vi.fn();
 
-    mounted[0]!.dispatch("keydown", { key: "Escape", stopPropagation });
+    const stopPropagation = pressEscape();
 
     expect(stopPropagation).toHaveBeenCalledOnce();
+    expect(await answer).toBe(false);
+  });
+
+  it("listens in the capture phase, and only while open", async () => {
+    const { host, mounted } = makeHost();
+    const answer = showConfirm(spec(), host);
+
+    expect(fakeDocument().listeners.keydown).toEqual([
+      expect.objectContaining({ capture: true }),
+    ]);
+    findAll(mounted[0]!, "dlg-btn-primary")[0]?.dispatch("click");
+    await answer;
+
+    expect(fakeDocument().listeners.keydown).toEqual([]);
+  });
+
+  it("ignores keys other than Escape", () => {
+    const { host, mounted } = makeHost();
+    void showConfirm(spec(), host);
+    const stopPropagation = vi.fn();
+
+    fakeDocument().dispatch("keydown", { key: "Enter", stopPropagation });
+
+    expect(stopPropagation).not.toHaveBeenCalled();
+    expect(mounted).toHaveLength(1);
+  });
+
+  it("cancels on a click on the backdrop, not on the dialog", async () => {
+    const { host, mounted } = makeHost();
+    const answer = showConfirm(spec(), host);
+    const backdrop = mounted[0]!;
+
+    backdrop.dispatch("click", { target: backdrop.children[0] });
+    expect(mounted).toHaveLength(1);
+    backdrop.dispatch("click", { target: backdrop });
+
     expect(await answer).toBe(false);
   });
 });
@@ -238,6 +289,25 @@ describe("showChoice", () => {
     const cancelled = showChoice(choiceSpec, second.host);
     findAll(second.mounted[0]!, "dlg-btn")[0]?.dispatch("click");
     expect(await cancelled).toBeNull();
+  });
+
+  it("resolves null on Escape pressed anywhere on the page", async () => {
+    const { host } = makeHost();
+    const answer = showChoice(
+      {
+        title: "Which",
+        facts: [],
+        choices: [{ value: "a" as const, label: "A" }],
+        cancelLabel: "Cancel",
+      },
+      host,
+    );
+
+    const stopPropagation = pressEscape();
+
+    expect(stopPropagation).toHaveBeenCalledOnce();
+    expect(await answer).toBeNull();
+    expect(fakeDocument().listeners.keydown).toEqual([]);
   });
 });
 

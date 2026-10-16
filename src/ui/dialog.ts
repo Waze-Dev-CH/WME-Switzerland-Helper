@@ -197,9 +197,18 @@ function open<T>(
     const finish = (value: T) => {
       if (settled) return;
       settled = true;
+      document.removeEventListener("keydown", onKeydown, true);
       host.unmount(backdrop);
       resolve(value);
     };
+
+    // On the document, capture phase: WME binds its own shortcuts there, and the focus is
+    // not always inside the dialog. Stopped here, Escape only closes the dialog.
+    function onKeydown(event: KeyboardEvent) {
+      if (event?.key !== "Escape") return;
+      event.stopPropagation();
+      finish(dismissValue);
+    }
 
     const buttons = actions(finish);
     const row = el("div", "dlg-dialog-actions");
@@ -210,12 +219,7 @@ function open<T>(
     backdrop.addEventListener("click", (event) => {
       if (event?.target === backdrop) finish(dismissValue);
     });
-    backdrop.addEventListener("keydown", (event) => {
-      if (event?.key !== "Escape") return;
-      // WME binds Escape to its own tools; this one only closes the dialog.
-      event.stopPropagation();
-      finish(dismissValue);
-    });
+    document.addEventListener("keydown", onKeydown, true);
 
     host.mount(backdrop);
     // The first button gets the focus: for a confirmation that is Cancel, so a stray Enter

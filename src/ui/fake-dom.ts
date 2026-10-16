@@ -8,6 +8,7 @@
  */
 export interface FakeNode {
   tagName: string;
+  id: string;
   className: string;
   textContent: string;
   title: string;
@@ -36,6 +37,7 @@ export interface FakeNode {
 function createNode(tagName: string): FakeNode {
   const node: FakeNode = {
     tagName,
+    id: "",
     className: "",
     textContent: "",
     title: "",
@@ -90,11 +92,53 @@ function createNode(tagName: string): FakeNode {
   return node;
 }
 
+interface DocumentListener {
+  handler: (event?: unknown) => void;
+  capture: boolean;
+}
+
+/** The document itself, for the listeners a dialog puts on the whole page. */
+export interface FakeDocument {
+  createElement(tag: string): FakeNode;
+  listeners: Record<string, DocumentListener[]>;
+  addEventListener(
+    type: string,
+    handler: (event?: unknown) => void,
+    capture?: boolean,
+  ): void;
+  removeEventListener(
+    type: string,
+    handler: (event?: unknown) => void,
+    capture?: boolean,
+  ): void;
+  /** Test-only: fire the listeners of a type, with an optional event object. */
+  dispatch(type: string, event?: unknown): void;
+}
+
+function createDocument(): FakeDocument {
+  const doc: FakeDocument = {
+    createElement: (tag) => createNode(tag),
+    listeners: {},
+    addEventListener(type, handler, capture = false) {
+      (doc.listeners[type] ??= []).push({ handler, capture });
+    },
+    removeEventListener(type, handler, capture = false) {
+      doc.listeners[type] = (doc.listeners[type] ?? []).filter(
+        (entry) => entry.handler !== handler || entry.capture !== capture,
+      );
+    },
+    dispatch(type, event) {
+      for (const entry of [...(doc.listeners[type] ?? [])]) entry.handler(event);
+    },
+  };
+  return doc;
+}
+
 /** Installs the double on globalThis and returns the function that removes it. */
 export function installFakeDocument(): () => void {
   const globals = globalThis as unknown as Record<string, unknown>;
   const previous = globals.document;
-  globals.document = { createElement: (tag: string) => createNode(tag) };
+  globals.document = createDocument();
   return () => {
     globals.document = previous;
   };
