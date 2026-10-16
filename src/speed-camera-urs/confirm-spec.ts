@@ -53,15 +53,29 @@ export function closeOneSpec(
   return spec;
 }
 
-/** The reporter already has the message: nothing is quoted because nothing is sent. */
-export function closeOnlySpec(id: number, skip?: SkipOption): ConfirmSpec {
-  return {
+/**
+ * The reporter already has the message: nothing is quoted because nothing is sent. Their
+ * reply, when they answered it, is shown instead, and the dialog then always appears.
+ */
+export function closeOnlySpec(
+  id: number,
+  skip?: SkipOption,
+  previousComment: string | null = null,
+): ConfirmSpec {
+  const spec: ConfirmSpec = {
     title: t("dlgTitleOne", { id }),
     facts: [t("confirmCloseOnly")],
     confirmLabel: t("dialogCloseOnly"),
     cancelLabel: t("dialogCancel"),
     skip,
   };
+  if (previousComment !== null) {
+    spec.previousComment = {
+      label: t("dlgConversation"),
+      text: excerpt(previousComment),
+    };
+  }
+  return spec;
 }
 
 /**

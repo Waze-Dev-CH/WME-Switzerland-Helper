@@ -56,8 +56,9 @@ sit in the checker settings, at the bottom of the URs tab and in the host tab. T
 importer is the exception: the box of the single-import confirmation unticks its own
 `confirmSingleImport` setting instead.
 
-- A remembered skip never applies when the spec quotes a conversation (`previousComment`);
-  the rule lives in the component, not in each caller.
+- A remembered skip never applies when the spec quotes a conversation (`previousComment`),
+  and such a confirmation renders no box at all; both rules live in the component, not in
+  each caller.
 - The URs skip only exists at batch rank, decided in `close.ts` (`skipFor`), so a choice
   remembered at a higher level has no effect below it.
 
@@ -236,7 +237,8 @@ triage) → `TabUI`. `close.ts` is the only module that writes.
   `wasMessaged(id)` (this session) or a comment contains the official text (`isOfficialMessage`,
   any of the four languages), which is what survives a reload when the closure was not saved.
   Closing it one by one closes it without re-sending, behind its own confirmation
-  (`confirmCloseOnly`, button "Close").
+  (`confirmCloseOnly`, button "Close"). When the reporter has answered since
+  (`reporterLastWord`), that confirmation quotes the reply, so it is shown every time.
 - Traffic lights **on a freeway** have **no batch at all**, whatever the level: the prefix
   alone does not make a speed camera. (A Map Mate light known to be off a freeway does reach
   the batch, as a question.) `closeTrafficLight` re-checks the prefix and `isOnFreeway` right

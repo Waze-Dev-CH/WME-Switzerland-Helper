@@ -683,6 +683,38 @@ describe("don't show again", () => {
     expect(specOf(confirm).skip).toBeUndefined();
   });
 
+  // The message left long ago and the reporter has answered it since: a remembered skip
+  // must not close over that answer unseen.
+  it("shows the reporter's reply on a close-only confirmation, even when it was remembered", async () => {
+    rememberSkip("scu.closeOnly");
+    const reply = { createdOn: 1, text: "it is still there", userName: null };
+    const { sdk } = makeSdk([makeUr(1)], {
+      rank: 2,
+      comments: { 1: [official, reply] },
+    });
+    const { confirm, shown } = honouringSkip();
+
+    await runCloseOne(sdk, 1, { confirm, notify: silent() });
+
+    expect(shown).toHaveLength(1);
+    expect(shown[0]?.previousComment).toEqual({
+      label: expect.stringContaining("already has a conversation"),
+      text: "it is still there",
+    });
+  });
+
+  it("quotes nothing on a close-only confirmation when we had the last word", async () => {
+    const { sdk } = makeSdk([makeUr(1)], {
+      rank: 2,
+      comments: { 1: [official] },
+    });
+    const confirm = accept();
+
+    await runCloseOne(sdk, 1, { confirm, notify: silent() });
+
+    expect(specOf(confirm).previousComment).toBeUndefined();
+  });
+
   it("offers it on an abandoned UR from level 4 only", async () => {
     const high = accept();
     await runCloseStale(

@@ -9,6 +9,7 @@ import {
   isStaleCandidate,
   isTrafficLightUr,
   mapMateKind,
+  reporterLastWord,
   triage,
 } from "./detect";
 import { getLocale, t } from "./i18n";
@@ -558,8 +559,14 @@ export function runCloseOne(
 
     // The reporter already has the message and it cannot be withdrawn: offer to close only.
     if (alreadyMessaged(id, comments)) {
+      // A reply to our message is shown, which also overrides a remembered skip.
+      const reply = reporterLastWord(comments);
       const accepted = await confirm(
-        closeOnlySpec(id, skipFor(canBatch(sdk), "scu.closeOnly")),
+        closeOnlySpec(
+          id,
+          skipFor(canBatch(sdk), "scu.closeOnly"),
+          reply ? reply.text : null,
+        ),
       );
       if (!accepted) return null;
       const outcome = await closeOne(sdk, id, { allowConversation: true });

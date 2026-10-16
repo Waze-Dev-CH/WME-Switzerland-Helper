@@ -173,6 +173,20 @@ describe("showConfirm", () => {
     expect(mounted).toHaveLength(1);
   });
 
+  // A confirmation that quotes a conversation is read every time: offering to skip it
+  // would offer something the dialog then refuses to honour.
+  it("renders no box when a conversation is quoted", () => {
+    const { host, mounted } = makeHost();
+    void showConfirm(
+      spec({
+        previousComment: { label: "Conversation", text: "still there" },
+        skip: { label: "x", isSkipped: false, remember: vi.fn() },
+      }),
+      host,
+    );
+    expect(findAll(mounted[0]!, "dlg-skip")).toEqual([]);
+  });
+
   it("remembers when the box is ticked and the action confirmed", async () => {
     const { host, mounted } = makeHost();
     const remember = vi.fn();

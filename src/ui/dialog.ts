@@ -262,10 +262,11 @@ export function showConfirm(
     content.push(warning);
   }
 
-  // Unticked on every opening: the choice is made knowingly, each time it is made.
+  // Unticked on every opening: the choice is made knowingly, each time it is made. Never
+  // offered beside a conversation, which is shown every time whatever was remembered.
   const extras: HTMLElement[] = [];
   let box: HTMLInputElement | undefined;
-  if (spec.skip) {
+  if (spec.skip && !spec.previousComment) {
     const label = el("label", "dlg-skip");
     box = el("input");
     box.type = "checkbox";
