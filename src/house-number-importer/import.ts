@@ -1,5 +1,6 @@
 import type { WmeSDK } from "wme-sdk-typings";
 import { getStreetNameVerdict } from "../street-check-bridge";
+import { massImportSpec, singleImportSpec } from "./confirm-spec";
 import { countSegments, distanceToSegmentM, type Assignment } from "./assign";
 import type { GwrPoint } from "./gwr/types";
 import { t } from "./i18n";
@@ -175,7 +176,10 @@ export async function runImportPoint(
   point: GwrPoint,
   segmentId: number,
   streetName: string,
-  options: { confirmSingle: boolean } & ImportUiHooks = {
+  options: {
+    confirmSingle: boolean;
+    onSkipConfirm?: () => void;
+  } & ImportUiHooks = {
     confirmSingle: false,
   },
 ): Promise<void> {
@@ -183,14 +187,17 @@ export async function runImportPoint(
   const notify = options.notify ?? notifyDialog;
 
   await withImportLock(async () => {
-    if (
-      options.confirmSingle &&
-      !(await confirm(t("confirmSingleImport", { number: point.number, street: streetName })))
-    ) {
-      return;
+    if (options.confirmSingle) {
+      const spec = singleImportSpec(point.number, streetName, options.onSkipConfirm ?? (() => {}));
+      if (!(await confirm(spec))) return;
     }
     const outcome = importPoint(sdk, point, segmentId);
-    if (!outcome.ok) await notify(describeFailure(outcome));
+    if (!outcome.ok) {
+      await notify({
+        title: t("noticeTitleError"),
+        text: describeFailure(outcome),
+      });
+    }
     options.onComplete?.([outcome]);
   });
 }
@@ -217,55 +224,41 @@ export async function runImportPoints(
       .map((assignment) => assignment.point.number)
       .join(", ");
     const capped = assignments.length > IMPORT_CAP;
-    const base = capped
-      ? t("confirmMassImportCapped", {
-          cap: IMPORT_CAP,
-          count: assignments.length,
-          street: streetName,
-          numbers,
-        })
-      : t("confirmMassImport", {
-          count: batch.length,
-          street: streetName,
-          numbers,
-        });
-
-    // A street is several WME segments, and each number hangs from its own. Say so, or a
-    // batch touching five segments looks like it only touched the selected one.
-    const segments = countSegments(batch);
-    const spread = segments > 1 ? `\n\n${t("confirmMassImportSegments", { segments })}` : "";
 
     // Creating forty numbers on a street that is about to be renamed is work done twice.
     // The checker's verdict is informative, not blocking: the register can lag reality.
     const verdict = getStreetNameVerdict(selectedSegmentId);
-    const warning =
-      verdict.kind === "mismatch" ? `\n\n${t("confirmMassImportUnverifiedName")}` : "";
 
-    // The coordinates come from the register's entrance point, which is usually right but
-    // not always: a courtyard entrance, a building set back from the road. Placing forty
-    // numbers in one click should not read as "and they are all correct".
-    const review = `\n\n${t("confirmMassImportReview")}`;
-
-    if (
-      batch.length >= CONFIRM_THRESHOLD &&
-      !(await confirm(`${base}${spread}${warning}${review}`))
-    ) {
-      return;
+    if (batch.length >= CONFIRM_THRESHOLD) {
+      const spec = massImportSpec({
+        count: batch.length,
+        cap: capped ? IMPORT_CAP : undefined,
+        total: capped ? assignments.length : undefined,
+        street: streetName,
+        numbers,
+        segments: countSegments(batch),
+        unverifiedName: verdict.kind === "mismatch",
+      });
+      if (!(await confirm(spec))) return;
     }
 
     const outcomes = await importPoints(sdk, assignments, undefined, hooks.alreadyPresent);
     const created = outcomes.filter((outcome) => outcome.ok).length;
     const failure = outcomes.find((outcome) => !outcome.ok);
     if (failure) {
-      await notify(
-        t("importStopped", {
+      await notify({
+        title: t("noticeTitleError"),
+        text: t("importStopped", {
           done: created,
           total: batch.length,
           message: describeFailure(failure),
         }),
-      );
+      });
     } else {
-      await notify(t("importedCount", { count: created }));
+      await notify({
+        title: t("noticeTitleDone"),
+        text: t("importedCount", { count: created }),
+      });
     }
     hooks.onComplete?.(outcomes);
   });

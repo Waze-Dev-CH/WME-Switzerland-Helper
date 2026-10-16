@@ -422,6 +422,7 @@ export class Controller {
     await runImportPoint(this.sdk, point, target, streetName, {
       ...this.prompts,
       confirmSingle: this.settings.get().confirmSingleImport,
+      onSkipConfirm: () => this.settings.update({ confirmSingleImport: false }),
       onComplete: (outcomes) => this.markImported(outcomes),
     });
   }

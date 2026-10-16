@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { WmeSDK } from "wme-sdk-typings";
+import type { ConfirmSpec } from "../ui/dialog";
 import { canBulkImport, Controller } from "./controller";
 import { GwrTileFetcher, TileCache } from "./gwr/tiles";
 import type { GwrPoint } from "./gwr/types";
@@ -29,13 +30,13 @@ const point = (number: string): GwrPoint => ({
  */
 function makeSdk(serverNumbers: string[]) {
   const added: string[] = [];
-  const handlers = new Map<string, Array<() => void>>();
+  const handlers = new Map<string, Array<(payload?: unknown) => void>>();
   // Mutable, so a test can move the selection to another street without a second SDK.
   let streetName = "Rue Exemple";
   let editingAllowed = true;
   const sdk = {
     Events: {
-      on: ({ eventName, eventHandler }: { eventName: string; eventHandler: () => void }) => {
+      on: ({ eventName, eventHandler }: { eventName: string; eventHandler: (payload?: unknown) => void }) => {
         const list = handlers.get(eventName) ?? [];
         list.push(eventHandler);
         handlers.set(eventName, list);
@@ -74,8 +75,8 @@ function makeSdk(serverNumbers: string[]) {
     },
   } as unknown as WmeSDK;
   /** Fire a WME event the way the editor would. */
-  const emit = (eventName: string) => {
-    for (const handler of handlers.get(eventName) ?? []) handler();
+  const emit = (eventName: string, payload?: unknown) => {
+    for (const handler of handlers.get(eventName) ?? []) handler(payload);
   };
   const setStreetName = (name: string) => {
     streetName = name;
@@ -99,17 +100,20 @@ function makeController(
   sdk: WmeSDK,
   points: GwrPoint[],
   tile: { truncated?: boolean; fail?: boolean } = {},
+  extras: { settings?: SettingsStore; layer?: AddressPointLayer; prompts?: ConstructorParameters<typeof Controller>[4] } = {},
 ) {
   const fetcher = new GwrTileFetcher(new TileCache(), async () => {
     if (tile.fail) throw new Error("tile unavailable");
     return { points, truncated: tile.truncated ?? false };
   });
-  const settings = new SettingsStore();
+  const settings = extras.settings ?? new SettingsStore();
   settings.update({ enabled: true, minZoom: 15 });
-  return new Controller(sdk, fetcher, settings, makeLayer(), {
+  const prompts = extras.prompts ?? {
     confirm: async () => true,
     notify: async () => undefined,
-  });
+  };
+  const controller = new Controller(sdk, fetcher, settings, extras.layer ?? makeLayer(), prompts);
+  return controller;
 }
 
 describe("Controller", () => {
@@ -270,5 +274,26 @@ describe("Controller", () => {
     await controller.importMissing();
 
     expect(added).toEqual(["2", "4"]);
+  });
+
+  it("turns the single-import confirmation off when the editor ticks the skip box", async () => {
+    const { sdk, emit } = makeSdk([]);
+    const target = point("15");
+    const layer = { ...makeLayer(), pointOf: () => target } as unknown as AddressPointLayer;
+    const prompts = {
+      confirm: async (spec: ConfirmSpec) => {
+        spec.skip?.remember();
+        return true;
+      },
+      notify: async () => undefined,
+    };
+    const settings = new SettingsStore();
+    settings.update({ confirmSingleImport: true });
+    const controller = makeController(sdk, [target], {}, { settings, layer, prompts });
+    controller.start();
+    await controller.refresh();
+
+    emit("wme-layer-feature-clicked", { featureId: target.id });
+    await vi.waitFor(() => expect(settings.get().confirmSingleImport).toBe(false));
   });
 });

@@ -243,8 +243,8 @@ describe("runImportPoints", () => {
     const { sdk } = makeSdk();
     let message = "";
     await runImportPoints(sdk, [at(point("4")), at(point("2"))], 1, "Rue Exemple", {
-      confirm: async (text) => {
-        message = text;
+      confirm: async (spec) => {
+        message = [spec.title, ...spec.facts, spec.note, spec.warning].join("\n");
         return false;
       },
       notify: async () => undefined,
@@ -264,8 +264,8 @@ describe("runImportPoints", () => {
     let message = "";
 
     await runImportPoints(sdk, many.map((p) => at(p)), 1, "Rue Exemple", {
-      confirm: async (text) => {
-        message = text;
+      confirm: async (spec) => {
+        message = [spec.title, ...spec.facts, spec.note, spec.warning].join("\n");
         return false;
       },
       notify: async () => undefined,
@@ -288,6 +288,7 @@ describe("runImportPoints", () => {
 
     expect(added).toHaveLength(2);
     expect(notify).toHaveBeenCalledTimes(1);
+    expect(notify).toHaveBeenCalledWith({ title: "Done", text: expect.stringContaining("2") });
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
 
@@ -330,5 +331,20 @@ describe("runImportPoint", () => {
     await runImportPoint(sdk, point("15"), 1, "Rue Exemple", { confirmSingle: false, notify });
 
     expect(notify).toHaveBeenCalledTimes(1);
+    expect(notify).toHaveBeenCalledWith(expect.objectContaining({ title: "Nothing was changed" }));
+  });
+
+  it("wires the skip option of the confirmation to onSkipConfirm", async () => {
+    const { sdk } = makeSdk();
+    const onSkipConfirm = vi.fn();
+    await runImportPoint(sdk, point("15"), 1, "Rue Exemple", {
+      confirmSingle: true,
+      onSkipConfirm,
+      confirm: async (spec) => {
+        spec.skip?.remember();
+        return false;
+      },
+    });
+    expect(onSkipConfirm).toHaveBeenCalledTimes(1);
   });
 });
