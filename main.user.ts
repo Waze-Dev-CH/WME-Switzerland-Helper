@@ -23,6 +23,7 @@ import {
 import { initHouseNumberImporter } from "./src/house-number-importer";
 import { initSpeedCameraUrs } from "./src/speed-camera-urs";
 import { groupScriptTab } from "./src/ui/tab-group";
+import { applyThemeClass, watchTheme } from "./src/ui/theme";
 import { el } from "./src/ui/dom";
 import {
   clearSkipped,
@@ -152,6 +153,10 @@ function initScript() {
     // back to it in a bar shared with every other userscript.
     tabLabel.innerText = scriptName;
     groupScriptTab(tabLabel, tabPane, "layers");
+    // The dark class lives on <html>: the PT-stop dialogs read it, and must not depend on
+    // a feature tab having set it first.
+    applyThemeClass(tabPane);
+    watchTheme(tabPane);
 
     const sidebarTab = new SidebarTab({ scriptName });
 
