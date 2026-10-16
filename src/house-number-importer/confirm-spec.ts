@@ -43,7 +43,7 @@ export function massImportSpec(args: {
       ? t("dlgTitleMassCapped", { cap, total, street: args.street })
       : t("dlgTitleMass", { count: args.count, street: args.street });
 
-  const facts = [t("dlgFactNotSaved")];
+  const facts = [t("dlgFactNotSavedMany")];
   if (cap !== undefined) facts.push(t("dlgFactCap", { cap }));
   // A street is several WME segments, and each number hangs from its own. Say so, or a
   // batch touching five segments looks like it only touched the selected one.

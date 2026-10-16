@@ -35,6 +35,7 @@ describe("massImportSpec", () => {
     expect(spec.title).toContain("Rue Exemple");
     expect(spec.note).toContain("2, 4, 6");
     expect(facts(spec)).toContain("saved automatically");
+    expect(facts(spec)).toContain("the changes go to your pending edits");
     expect(facts(spec)).toMatch(/check the result/i);
     expect(spec.skip).toBeUndefined();
   });

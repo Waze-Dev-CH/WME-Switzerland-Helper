@@ -56,6 +56,12 @@ describe("checker confirm specs", () => {
     expect(spec.skip).toBeUndefined();
   });
 
+  it("groupRenameSpec speaks of one segment in the singular", () => {
+    const spec = groupRenameSpec(1, "A", "B", true);
+    expect(spec.title).toBe("Rename 1 segment");
+    expect(facts(spec)).toContain('1 segment named "A" becomes "B".');
+  });
+
   it("groupRenameSpec warns when the verdict comes from geometry", () => {
     const spec = groupRenameSpec(2, "A", "B", true);
     expect(spec.warning).toContain("geometry");
@@ -65,7 +71,9 @@ describe("checker confirm specs", () => {
   it("only ignoreAllSpec offers to skip, under the chk.ignoreAll id", () => {
     const spec = ignoreAllSpec(30);
     expect(spec.title).toContain("30");
-    expect(facts(spec)).toContain("saved");
+    // Ignoring changes nothing in WME: there is nothing to save, so it says so instead.
+    expect(facts(spec)).toContain("Nothing changes in WME");
+    expect(facts(spec)).not.toContain("saved automatically");
     expect(spec.skip?.isSkipped).toBe(false);
     expect(spec.skip?.label).toBeTruthy();
   });

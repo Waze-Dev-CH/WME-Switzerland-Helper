@@ -33,8 +33,12 @@ void i18n.init({
 export type LocaleCode = "en" | "fr" | "de" | "it";
 export type LanguagePreference = "auto" | LocaleCode;
 
-/** Keys of the `streetCheck` namespace section, derived from the English source. */
-export type StringKey = keyof (typeof enCommon)["streetCheck"];
+/**
+ * Keys of the `streetCheck` namespace section, derived from the English source. A plural
+ * pair (`key_one`, `key_other`) is addressed by `key`, as i18next resolves it from `count`.
+ */
+type PluralBase<K> = K extends `${infer Base}_${"one" | "other"}` ? Base : K;
+export type StringKey = PluralBase<keyof (typeof enCommon)["streetCheck"]>;
 
 export const LANGUAGE_CHOICES: Array<{ value: LanguagePreference; label: string }> = [
   { value: "auto", label: "Auto (WME)" },

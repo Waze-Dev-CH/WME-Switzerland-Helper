@@ -4,7 +4,8 @@ import { t } from "./i18n";
 
 /**
  * Confirmations described as data, so the fix flows are tested on what they ask and the
- * shared dialog renders them. Every spec says that nothing is saved automatically.
+ * shared dialog renders them. Every spec that edits the map says that nothing is saved
+ * automatically; ignoring edits nothing, so it does not.
  */
 
 const labels = () => ({
@@ -74,7 +75,7 @@ export function groupRenameSpec(
 export function ignoreAllSpec(n: number): ConfirmSpec {
   return {
     title: t("dlgTitleIgnoreAll", { count: n }),
-    facts: [t("dlgFactIgnoreAll"), t("dlgFactNotSaved")],
+    facts: [t("dlgFactIgnoreAll")],
     skip: skipOption("chk.ignoreAll", t("dialogSkip")),
     ...labels(),
   };
