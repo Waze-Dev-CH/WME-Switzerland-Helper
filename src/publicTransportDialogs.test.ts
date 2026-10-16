@@ -1,10 +1,11 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import i18next from "../locales/i18n";
 import {
   deleteObsoleteSpec,
   mergeActionSpec,
   pickVenueSpec,
 } from "./publicTransportDialogs";
+import { isConfirmSkipped } from "./ui/skipped-confirms";
 
 beforeAll(async () => {
   await i18next.changeLanguage("en");
@@ -34,6 +35,21 @@ describe("deleteObsoleteSpec", () => {
     expect([spec.title, ...spec.facts].join("\n")).toContain("Bern, Bahnhof");
     expect(strings(spec).some((s) => s.includes("<"))).toBe(false);
   });
+
+  // The id is what the host tab's reset button clears: any other id would survive it.
+  it("remembers the skip under pt.deleteObsolete", () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+    });
+
+    deleteObsoleteSpec("Bern, Bahnhof").skip?.remember();
+
+    expect(isConfirmSkipped("pt.deleteObsolete")).toBe(true);
+  });
+
+  afterEach(() => vi.unstubAllGlobals());
 });
 
 describe("mergeActionSpec", () => {
