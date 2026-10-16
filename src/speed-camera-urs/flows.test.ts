@@ -719,8 +719,13 @@ describe("don't show again", () => {
       NOW,
     );
 
+    expect(confirm).toHaveBeenCalledOnce();
     expect(shown).toEqual([]);
-    expect(outcome?.result).not.toBe("closed");
+    expect(outcome).toEqual({
+      id: 1,
+      result: "skipped",
+      reason: "skipConversation",
+    });
     expect(calls).not.toContain("close:1:not-identified");
   });
 

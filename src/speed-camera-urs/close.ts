@@ -494,12 +494,12 @@ function closeWithoutMessage(
   return { id, result: "closed" };
 }
 
-/** A single flow only reports when it failed or was refused: nothing was changed. */
 /** Remembering is a privilege of the same rank as the batch: below it the popup always shows. */
 function skipFor(allowed: boolean, id: string): SkipOption | undefined {
   return allowed ? skipOption(id, t("dlgSkip")) : undefined;
 }
 
+/** A single flow only reports when it failed or was refused: nothing was changed. */
 function failure(text: string): { title: string; text: string } {
   return { title: t("noticeTitleError"), text };
 }
