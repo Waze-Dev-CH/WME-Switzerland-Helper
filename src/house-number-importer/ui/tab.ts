@@ -55,6 +55,11 @@ export class TabUI {
   private tabLabel: HTMLElement | null = null;
   /** Checkbox of the master toggle, realigned when the layer checkbox changes the state. */
   private enabledInput: HTMLInputElement | null = null;
+  /**
+   * Checkbox of the single-import confirmation, realigned on every snapshot: the dialog's
+   * "don't show again" box turns the setting off from outside the tab.
+   */
+  private confirmSingleInput: HTMLInputElement | null = null;
 
   private banner = el("div", "hn-banner");
   private bannerText = el("span", "hn-banner-text");
@@ -157,6 +162,9 @@ export class TabUI {
 
     this.warning.textContent = warning ?? "";
     this.warning.hidden = warning === null || !enabled;
+
+    if (this.confirmSingleInput)
+      this.confirmSingleInput.checked = this.settings.get().confirmSingleImport;
 
     this.renderSelection(snapshot, enabled);
     this.renderAction(snapshot, enabled);
@@ -270,6 +278,14 @@ export class TabUI {
     });
     languageRow.append(el("span", "", t("settingsLanguage")), select);
 
+    const confirmSingleToggle = toggleSwitch(
+      "hn",
+      t("settingsConfirmSingle"),
+      settings.confirmSingleImport,
+      (confirmSingleImport) => this.settings.update({ confirmSingleImport }),
+    );
+    this.confirmSingleInput = confirmSingleToggle.querySelector("input");
+
     return buildSection("hn", "settings", t("settingsAndHelp"), [
       // What the feature is. It used to be the tab's second block, permanently on screen;
       // unlike the street-name checker, this feature has no note in the main sidebar, so
@@ -295,12 +311,7 @@ export class TabUI {
           void this.controller.reload();
         },
       ),
-      toggleSwitch(
-        "hn",
-        t("settingsConfirmSingle"),
-        settings.confirmSingleImport,
-        (confirmSingleImport) => this.settings.update({ confirmSingleImport }),
-      ),
+      confirmSingleToggle,
       languageRow,
       // The pills carry the legend already, with a counter on top. This only covers the
       // statuses the current selection happens not to contain.

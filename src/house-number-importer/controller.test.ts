@@ -296,4 +296,30 @@ describe("Controller", () => {
     emit("wme-layer-feature-clicked", { featureId: target.id });
     await vi.waitFor(() => expect(settings.get().confirmSingleImport).toBe(false));
   });
+
+  // The tab reads its settings toggle back on every snapshot: without a snapshot after the
+  // box was ticked, the toggle would keep showing a confirmation that is now off.
+  it("publishes a snapshot once the skip box turned the confirmation off", async () => {
+    const { sdk, emit } = makeSdk([]);
+    const target = point("15");
+    const layer = { ...makeLayer(), pointOf: () => target } as unknown as AddressPointLayer;
+    const prompts = {
+      confirm: async (spec: ConfirmSpec) => {
+        spec.skip?.remember();
+        return true;
+      },
+      notify: async () => undefined,
+    };
+    const settings = new SettingsStore();
+    settings.update({ confirmSingleImport: true });
+    const controller = makeController(sdk, [target], {}, { settings, layer, prompts });
+    controller.start();
+    await controller.refresh();
+    const seen: boolean[] = [];
+    controller.onUpdate(() => seen.push(settings.get().confirmSingleImport));
+
+    emit("wme-layer-feature-clicked", { featureId: target.id });
+
+    await vi.waitFor(() => expect(seen).toContain(false));
+  });
 });
