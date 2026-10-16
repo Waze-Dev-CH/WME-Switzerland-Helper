@@ -178,17 +178,27 @@
   },
   "reloadStops": "Refresh public transport stops",
   "deleteObsoleteStop": {
-    "message": "The venue \"{{name}}\" has no matching SBB stop. Do you want to delete it?",
+    "title": "Delete this venue?",
+    "message": "The venue \"{{name}}\" has no matching SBB stop. It will be deleted from the map once you save.",
     "confirm": "Delete",
     "cancel": "Cancel"
   },
   "venueMatchDialog": {
     "cancel": "Cancel",
-    "selectMessage": "Multiple matching stops found. Choose which one to merge with:",
+    "pickTitle": "Which venue to merge with?",
+    "selectMessage": "Several matching stops were found and selected on the map. Choose the one to merge with.",
+    "mergeTitle": "A stop with this name already exists",
+    "message": "It seems {{venueCount}} stop(s) with this name already exist. We have selected them for you.",
     "merge": "Merge",
+    "mergeDescription": "Applies the information to the existing stop without creating a new one.",
     "mergeWithCoords": "Merge and update coordinates",
+    "mergeWithCoordsDescription": "Same as merge, and moves the existing stop to the SBB position.",
     "saveNew": "Save new",
-    "message": "It seems {{venueCount}} stop(s) with this name already exist.<br/>We have selected them for you.<br/>What would you like to do?<br/>Selecting <pre style=\"display: inline;\">Merge</pre> will apply the information to the existing stops without creating a new one."
+    "saveNewDescription": "Creates a new stop next to the existing one, for stops stacked on the same point."
+  },
+  "dialogs": {
+    "skip": "Don't ask again",
+    "resetSkipped": "Show skipped confirmations again"
   },
   "hnImport": {
     "appName": "House numbers",

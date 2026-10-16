@@ -178,17 +178,27 @@
   },
   "reloadStops": "Recharger les arrêts de transport public",
   "deleteObsoleteStop": {
-    "message": "Le lieu \"{{name}}\" n'a pas d'arrêt SBB correspondant. Voulez-vous le supprimer ?",
+    "title": "Supprimer ce lieu ?",
+    "message": "Le lieu \"{{name}}\" n'a pas d'arrêt SBB correspondant. Il sera supprimé de la carte lorsque vous enregistrerez.",
     "confirm": "Supprimer",
     "cancel": "Annuler"
   },
   "venueMatchDialog": {
     "cancel": "Annuler",
-    "selectMessage": "Plusieurs arrêts correspondants trouvés. Choisissez celui avec lequel fusionner :",
+    "pickTitle": "Avec quel lieu fusionner ?",
+    "selectMessage": "Plusieurs arrêts correspondants ont été trouvés et sélectionnés sur la carte. Choisissez celui avec lequel fusionner.",
+    "mergeTitle": "Un arrêt portant ce nom existe déjà",
+    "message": "Il semble qu'il existe déjà {{venueCount}} arrêt(s) avec ce nom. Nous les avons sélectionnés pour vous.",
     "merge": "Fusionner",
+    "mergeDescription": "Applique les informations à l'arrêt existant sans en créer un nouveau.",
     "mergeWithCoords": "Fusionner et mettre à jour les coordonnées",
+    "mergeWithCoordsDescription": "Comme fusionner, et déplace l'arrêt existant à la position SBB.",
     "saveNew": "Enregistrer le nouveau",
-    "message": "Il semble qu'il existe déjà {{venueCount}} arrêt(s) avec ce nom.<br/>Nous les avons sélectionnés pour vous.<br/>Que voulez-vous faire ?<br/>Sélectionner <pre style=\"display: inline;\">Fusionner</pre> appliquera les informations aux anciens points sans créer le nouveau."
+    "saveNewDescription": "Crée un nouvel arrêt à côté de l'existant, pour les arrêts superposés au même point."
+  },
+  "dialogs": {
+    "skip": "Ne plus demander",
+    "resetSkipped": "Réafficher les confirmations masquées"
   },
   "hnImport": {
     "appName": "Numéros de maison",

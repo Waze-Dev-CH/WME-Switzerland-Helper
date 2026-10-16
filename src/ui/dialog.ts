@@ -7,7 +7,7 @@ import { tokenRules } from "./tokens";
 /**
  * The confirmation, choice and notice dialogs shared by every feature.
  *
- * Its own rather than the host's `showWmeDialog`, which centres every line of a plain
+ * Its own rather than a plain-string helper, which would centre every line of a
  * string: fine for "OK?", unreadable for four paragraphs that are about to reach a real
  * person. Same containment as that helper: a modal appended to the page, nothing else
  * touched, and it removes itself once answered.

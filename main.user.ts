@@ -23,6 +23,8 @@ import {
 import { initHouseNumberImporter } from "./src/house-number-importer";
 import { initSpeedCameraUrs } from "./src/speed-camera-urs";
 import { groupScriptTab } from "./src/ui/tab-group";
+import { el } from "./src/ui/dom";
+import { clearSkipped, hasSkipped } from "./src/ui/skipped-confirms";
 import { initStreetNameChecker } from "./src/street-name-checker";
 
 const englishScriptName = "WME Switzerland helper";
@@ -221,6 +223,21 @@ function initScript() {
     sidebarTab.addChild(notesSection);
 
     tabPane.innerHTML = sidebarTab.render();
+
+    // Neutral WME button; it starts disabled when there is nothing to bring back, and
+    // refreshes itself on click (a skip chosen later waits for the next render).
+    const resetSkipped = el(
+      "button",
+      "btn btn-default",
+      i18next.t("common:dialogs.resetSkipped"),
+    );
+    resetSkipped.type = "button";
+    resetSkipped.disabled = !hasSkipped("pt");
+    resetSkipped.addEventListener("click", () => {
+      clearSkipped("pt");
+      resetSkipped.disabled = !hasSkipped("pt");
+    });
+    tabPane.appendChild(resetSkipped);
   }
 
   async function init() {

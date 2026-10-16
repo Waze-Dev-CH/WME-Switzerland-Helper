@@ -178,17 +178,27 @@
   },
   "reloadStops": "Haltestellen des öffentlichen Verkehrs neu laden",
   "deleteObsoleteStop": {
-    "message": "Der Ort \"{{name}}\" hat keine entsprechende SBB-Haltestelle. Möchten Sie ihn löschen?",
+    "title": "Diesen Ort löschen?",
+    "message": "Der Ort \"{{name}}\" hat keine entsprechende SBB-Haltestelle. Er wird beim Speichern von der Karte gelöscht.",
     "confirm": "Löschen",
     "cancel": "Abbrechen"
   },
   "venueMatchDialog": {
     "cancel": "Abbrechen",
-    "selectMessage": "Mehrere passende Haltestellen gefunden. Wählen Sie aus, mit welcher zusammengeführt werden soll:",
+    "pickTitle": "Mit welchem Ort zusammenführen?",
+    "selectMessage": "Mehrere passende Haltestellen wurden gefunden und auf der Karte ausgewählt. Wählen Sie aus, mit welcher zusammengeführt werden soll.",
+    "mergeTitle": "Eine Haltestelle mit diesem Namen existiert bereits",
+    "message": "Es scheinen bereits {{venueCount}} Haltestelle(n) mit diesem Namen zu existieren. Wir haben sie für Sie ausgewählt.",
     "merge": "Zusammenführen",
+    "mergeDescription": "Wendet die Informationen auf die bestehende Haltestelle an, ohne eine neue zu erstellen.",
     "mergeWithCoords": "Zusammenführen und Koordinaten aktualisieren",
+    "mergeWithCoordsDescription": "Wie Zusammenführen und verschiebt die bestehende Haltestelle an die SBB-Position.",
     "saveNew": "Neuen speichern",
-    "message": "Es scheinen bereits {{venueCount}} Haltestelle(n) mit diesem Namen zu existieren.<br/>Wir haben sie für Sie ausgewählt.<br/>Was möchten Sie tun?<br/>Wenn Sie <pre style=\"display: inline;\">Zusammenführen</pre> wählen, werden die Informationen auf die bestehenden Punkte angewendet, ohne einen neuen zu erstellen."
+    "saveNewDescription": "Erstellt eine neue Haltestelle neben der bestehenden, für übereinanderliegende Haltestellen."
+  },
+  "dialogs": {
+    "skip": "Nicht mehr fragen",
+    "resetSkipped": "Übersprungene Bestätigungen wieder anzeigen"
   },
   "hnImport": {
     "appName": "Hausnummern",

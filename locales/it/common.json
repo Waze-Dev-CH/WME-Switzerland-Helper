@@ -178,17 +178,27 @@
   },
   "reloadStops": "Ricarica le fermate del trasporto pubblico",
   "deleteObsoleteStop": {
-    "message": "La location \"{{name}}\" non ha una fermata SBB corrispondente. Vuoi eliminarla?",
+    "title": "Eliminare questa location?",
+    "message": "La location \"{{name}}\" non ha una fermata SBB corrispondente. Verrà eliminata dalla mappa al salvataggio.",
     "confirm": "Elimina",
     "cancel": "Annulla"
   },
   "venueMatchDialog": {
     "cancel": "Annulla",
-    "selectMessage": "Trovate più fermate corrispondenti. Scegli con quale unire:",
+    "pickTitle": "Con quale location unire?",
+    "selectMessage": "Sono state trovate più fermate corrispondenti e selezionate sulla mappa. Scegli con quale unire.",
+    "mergeTitle": "Esiste già una fermata con questo nome",
+    "message": "Sembra che esistano già {{venueCount}} fermata/e con questo nome. Le abbiamo selezionate per voi.",
     "merge": "Unisci",
+    "mergeDescription": "Applica le informazioni alla fermata esistente senza crearne una nuova.",
     "mergeWithCoords": "Unisci e aggiorna coordinate",
+    "mergeWithCoordsDescription": "Come unisci, e sposta la fermata esistente nella posizione SBB.",
     "saveNew": "Salva nuovo",
-    "message": "Sembra che esistano già {{venueCount}} fermata/e con questo nome.<br/>Le abbiamo selezionate per voi.<br/>Cosa volete fare?<br/>Selezionando <pre style=\"display: inline;\">Unisci</pre> verranno applicate le informazioni ai punti esistenti senza crearne uno nuovo."
+    "saveNewDescription": "Crea una nuova fermata accanto a quella esistente, per fermate sovrapposte nello stesso punto."
+  },
+  "dialogs": {
+    "skip": "Non chiedere più",
+    "resetSkipped": "Mostra di nuovo le conferme saltate"
   },
   "hnImport": {
     "appName": "Numeri civici",
