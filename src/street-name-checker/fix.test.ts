@@ -505,6 +505,69 @@ describe("geometric verdicts always confirm", () => {
     expect(updates).toHaveLength(0);
   });
 
+  // The group button renames streets that read as valid, exactly like the single fix.
+  it("warns about the geometry on a group rename, and never offers a skip", async () => {
+    const { sdk } = makeSdk(0, 5);
+    let asked: ConfirmSpec | undefined;
+    await runFixGroup(
+      sdk,
+      [wrongStreet(), wrongStreet()],
+      {
+        status: "WRONG_STREET",
+        suggestion: "Route de la Guerite",
+        currentName: "Chemin de la Poste",
+      },
+      DEFAULT_SETTINGS,
+      {
+        confirm: async (spec) => {
+          asked = spec;
+          return false;
+        },
+      },
+    );
+    expect(asked?.warning).toContain("geometry");
+    expect(asked?.skip).toBeUndefined();
+  });
+
+  it("asks a large cosmetic group without the geometry warning or a skip", async () => {
+    const { sdk } = makeSdk(0, 5);
+    let asked: ConfirmSpec | undefined;
+    await runFixGroup(
+      sdk,
+      Array.from({ length: 21 }, () => issue()),
+      { status: "COSMETIC", suggestion: "Avenue de Florimont" },
+      DEFAULT_SETTINGS,
+      {
+        confirm: async (spec) => {
+          asked = spec;
+          return false;
+        },
+      },
+    );
+    expect(asked).toBeDefined();
+    expect(asked?.warning).toBeUndefined();
+    expect(asked?.skip).toBeUndefined();
+  });
+
+  it("never offers a skip on an over-lock group", async () => {
+    const { sdk } = makeSdk(0, 5);
+    let asked: ConfirmSpec | undefined;
+    await runFixGroup(
+      sdk,
+      [issue({ status: "OVER_LOCK" }), issue({ status: "OVER_LOCK" })],
+      { status: "OVER_LOCK", expectedLock: 2 },
+      DEFAULT_SETTINGS,
+      {
+        confirm: async (spec) => {
+          asked = spec;
+          return false;
+        },
+      },
+    );
+    expect(asked).toBeDefined();
+    expect(asked?.skip).toBeUndefined();
+  });
+
   it("stays silent under the threshold for a cosmetic group", async () => {
     const { sdk, updates } = makeSdk(0, 5);
     let asked = 0;

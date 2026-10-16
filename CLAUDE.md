@@ -92,9 +92,10 @@ first-day editor installed it:
   and a missed check in either would reopen the hole silently.
 - A verdict that comes from geometry rather than name similarity (`WRONG_STREET`)
   confirms every time, whatever the count, and carries its confidence figures into the
-  prompt. Confirmations state the change, not just how many segments are affected.
+  prompt; the group rename carries the same geometry warning. Confirmations state the
+  change, not just how many segments are affected.
 - Geometric verdicts and group actions never carry a "don't show again" box; only
-  `chk.ignoreAll` does. The flow tests assert it.
+  `chk.ignoreAll` does. The flow tests in `fix.test.ts` assert it.
 - Nothing is ever saved automatically; corrections go to the WME edit stack.
 
 **Deliberate deviations, do not "fix" them:**

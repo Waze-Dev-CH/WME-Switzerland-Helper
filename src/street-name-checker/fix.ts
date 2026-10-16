@@ -365,15 +365,18 @@ export async function runFixGroup(
   const n = Math.min(issues.length, GROUP_FIX_CAP);
   if (header.status === "OVER_LOCK") {
     if (!(await confirm(overLockSpec(header.expectedLock ?? "", n)))) return;
-  } else if (
+  } else {
     // Geometry-driven verdicts confirm every time, even for a single segment: a wrong
     // one renames a correctly named street. Volume alone is the wrong yardstick here.
-    (GEOMETRY_STATUSES.has(header.status) || n > GROUP_FIX_CONFIRM_THRESHOLD) &&
-    !(await confirm(
-      groupRenameSpec(n, header.currentName ?? "", header.suggestion ?? ""),
-    ))
-  ) {
-    return;
+    const geometric = GEOMETRY_STATUSES.has(header.status);
+    const spec = groupRenameSpec(
+      n,
+      header.currentName ?? "",
+      header.suggestion ?? "",
+      geometric,
+    );
+    const mustAsk = geometric || n > GROUP_FIX_CONFIRM_THRESHOLD;
+    if (mustAsk && !(await confirm(spec))) return;
   }
   const result = await withFixLock(async () => {
     if (button) button.disabled = true;

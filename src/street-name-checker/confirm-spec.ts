@@ -51,12 +51,14 @@ export function wrongStreetSpec(
   return spec;
 }
 
+/** `geometric`: the verdict comes from geometry, so it warns like the single rename. */
 export function groupRenameSpec(
   n: number,
   current: string,
   suggestion: string,
+  geometric: boolean,
 ): ConfirmSpec {
-  return {
+  const spec: ConfirmSpec = {
     title: t("dlgTitleRenameGroup", { count: n }),
     facts: [
       t("dlgFactRenameMany", { count: n, current, suggestion }),
@@ -64,6 +66,8 @@ export function groupRenameSpec(
     ],
     ...labels(),
   };
+  if (geometric) spec.warning = t("dlgWarningGeometry");
+  return spec;
 }
 
 /** Reversible and local, hence the only one an editor may stop being asked about. */

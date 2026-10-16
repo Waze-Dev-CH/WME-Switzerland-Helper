@@ -47,11 +47,18 @@ describe("checker confirm specs", () => {
   });
 
   it("groupRenameSpec states count and both names", () => {
-    const spec = groupRenameSpec(12, "Av. X", "Avenue X");
+    const spec = groupRenameSpec(12, "Av. X", "Avenue X", false);
     expect(spec.title).toContain("12");
     expect(facts(spec)).toContain("Av. X");
     expect(facts(spec)).toContain("Avenue X");
     expect(facts(spec)).toContain("saved automatically");
+    expect(spec.warning).toBeUndefined();
+    expect(spec.skip).toBeUndefined();
+  });
+
+  it("groupRenameSpec warns when the verdict comes from geometry", () => {
+    const spec = groupRenameSpec(2, "A", "B", true);
+    expect(spec.warning).toContain("geometry");
     expect(spec.skip).toBeUndefined();
   });
 
