@@ -1,9 +1,18 @@
 import type { LineString } from "geojson";
 import type { WmeSDK } from "wme-sdk-typings";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fixGroup, fixSegment, ignoreIssue, runFix, runFixGroup, withFixLock } from "./fix";
+import {
+  fixGroup,
+  fixSegment,
+  ignoreIssue,
+  ignoreIssues,
+  runFix,
+  runFixGroup,
+  withFixLock,
+} from "./fix";
 import type { Issue } from "./matching/evaluate";
 import { DEFAULT_SETTINGS, type SettingsStore } from "./settings";
+import type { ConfirmSpec } from "../ui/dialog";
 
 const GEOMETRY: LineString = {
   type: "LineString",
@@ -69,7 +78,10 @@ function makeSdk(
           updates.push(segmentId);
         },
         updateSegment: (args: { segmentId: number; lockRank: number }) => {
-          lockUpdates.push({ segmentId: args.segmentId, lockRank: args.lockRank });
+          lockUpdates.push({
+            segmentId: args.segmentId,
+            lockRank: args.lockRank,
+          });
         },
       },
       Streets: {
@@ -93,7 +105,9 @@ describe("fixSegment", () => {
   it("does nothing when the street is already assigned (no empty edit)", () => {
     const { sdk, updates } = makeSdk();
     // makeSdk assigns primaryStreetId 100; force getStreet to return that same street
-    (sdk.DataModel.Streets as { getStreet: unknown }).getStreet = () => ({ id: 100 });
+    (sdk.DataModel.Streets as { getStreet: unknown }).getStreet = () => ({
+      id: 100,
+    });
     const outcome = fixSegment(sdk, issue(), DEFAULT_SETTINGS);
     expect(outcome.ok).toBe(true);
     expect(updates).toHaveLength(0);
@@ -101,7 +115,11 @@ describe("fixSegment", () => {
 
   it("refuses non-fixable issues", () => {
     const { sdk } = makeSdk();
-    const outcome = fixSegment(sdk, issue({ fixable: false, suggestion: null }), DEFAULT_SETTINGS);
+    const outcome = fixSegment(
+      sdk,
+      issue({ fixable: false, suggestion: null }),
+      DEFAULT_SETTINGS,
+    );
     expect(outcome.ok).toBe(false);
     expect(outcome.errorCode).toBe("errNotFixable");
   });
@@ -110,7 +128,10 @@ describe("fixSegment", () => {
   // records the address passed to updateAddress, so BILINGUAL handling can be asserted.
   function makeNamedSdk(primaryStreetId = 100): {
     sdk: WmeSDK;
-    update: () => { primaryStreetId: number; alternateStreetIds: number[] } | null;
+    update: () => {
+      primaryStreetId: number;
+      alternateStreetIds: number[];
+    } | null;
   } {
     const ids = new Map<string, number>();
     let nextStreetId = 200;
@@ -122,7 +143,10 @@ describe("fixSegment", () => {
       }
       return id;
     };
-    let captured: { primaryStreetId: number; alternateStreetIds: number[] } | null = null;
+    let captured: {
+      primaryStreetId: number;
+      alternateStreetIds: number[];
+    } | null = null;
     const sdk = {
       Editing: { isEditingAllowed: () => true },
       State: { getUserInfo: () => ({ rank: 5 }) },
@@ -135,8 +159,14 @@ describe("fixSegment", () => {
             lockRank: 0,
           }),
           getAddress: () => ({ city: { id: 10, name: "Biel/Bienne" } }),
-          updateAddress: (args: { primaryStreetId: number; alternateStreetIds: number[] }) => {
-            captured = { primaryStreetId: args.primaryStreetId, alternateStreetIds: args.alternateStreetIds };
+          updateAddress: (args: {
+            primaryStreetId: number;
+            alternateStreetIds: number[];
+          }) => {
+            captured = {
+              primaryStreetId: args.primaryStreetId,
+              alternateStreetIds: args.alternateStreetIds,
+            };
           },
         },
         Streets: {
@@ -160,12 +190,18 @@ describe("fixSegment", () => {
       status: "BILINGUAL",
       currentName: "Unterer Quai / Quai du Bas",
       suggestion: "Unterer Quai",
-      note: { fullLabel: "Unterer Quai / Quai du Bas", altLabels: ["Quai du Bas"] },
+      note: {
+        fullLabel: "Unterer Quai / Quai du Bas",
+        altLabels: ["Quai du Bas"],
+      },
     });
     const outcome = fixSegment(sdk, bilingual, DEFAULT_SETTINGS);
     expect(outcome.ok).toBe(true);
     // First requested name "Unterer Quai" -> 200 (primary), "Quai du Bas" -> 201 (alternate).
-    expect(update()).toEqual({ primaryStreetId: 200, alternateStreetIds: [201] });
+    expect(update()).toEqual({
+      primaryStreetId: 200,
+      alternateStreetIds: [201],
+    });
   });
 
   it("adds a missing alternate while keeping the chosen primary language", () => {
@@ -175,51 +211,86 @@ describe("fixSegment", () => {
       status: "BILINGUAL",
       currentName: "Quai du Bas",
       suggestion: "Quai du Bas",
-      note: { fullLabel: "Unterer Quai / Quai du Bas", altLabels: ["Unterer Quai"] },
+      note: {
+        fullLabel: "Unterer Quai / Quai du Bas",
+        altLabels: ["Unterer Quai"],
+      },
     });
     const outcome = fixSegment(sdk, bilingual, DEFAULT_SETTINGS);
     expect(outcome.ok).toBe(true);
-    expect(update()).toEqual({ primaryStreetId: 200, alternateStreetIds: [201] });
+    expect(update()).toEqual({
+      primaryStreetId: 200,
+      alternateStreetIds: [201],
+    });
   });
 });
 
 describe("fixSegment (lock)", () => {
   // note.expectedLock is a 1-6 level; the fix writes lockRank = level - 1.
   const lockIssue = (status: Issue["status"], expectedLevel: number): Issue =>
-    issue({ status, suggestion: null, note: { currentLock: 1, expectedLock: expectedLevel } });
+    issue({
+      status,
+      suggestion: null,
+      note: { currentLock: 1, expectedLock: expectedLevel },
+    });
 
   it("raises an under-locked segment to the expected level (level - 1 lockRank)", () => {
     const { sdk, lockUpdates } = makeSdk(0);
-    const outcome = fixSegment(sdk, lockIssue("UNDER_LOCK", 3), DEFAULT_SETTINGS); // L3 -> lockRank 2
+    const outcome = fixSegment(
+      sdk,
+      lockIssue("UNDER_LOCK", 3),
+      DEFAULT_SETTINGS,
+    ); // L3 -> lockRank 2
     expect(outcome.ok).toBe(true);
-    expect(lockUpdates).toEqual([{ segmentId: expect.any(Number), lockRank: 2 }]);
+    expect(lockUpdates).toEqual([
+      { segmentId: expect.any(Number), lockRank: 2 },
+    ]);
   });
 
   it("lowers an over-locked segment to the expected level", () => {
     const { sdk, lockUpdates } = makeSdk(4);
-    const outcome = fixSegment(sdk, lockIssue("OVER_LOCK", 2), DEFAULT_SETTINGS); // L2 -> lockRank 1
+    const outcome = fixSegment(
+      sdk,
+      lockIssue("OVER_LOCK", 2),
+      DEFAULT_SETTINGS,
+    ); // L2 -> lockRank 1
     expect(outcome.ok).toBe(true);
-    expect(lockUpdates).toEqual([{ segmentId: expect.any(Number), lockRank: 1 }]);
+    expect(lockUpdates).toEqual([
+      { segmentId: expect.any(Number), lockRank: 1 },
+    ]);
   });
 
   it("does nothing when the lock is already at the expected level (no empty edit)", () => {
     const { sdk, lockUpdates } = makeSdk(2); // already lockRank 2 = level 3
-    const outcome = fixSegment(sdk, lockIssue("UNDER_LOCK", 3), DEFAULT_SETTINGS);
+    const outcome = fixSegment(
+      sdk,
+      lockIssue("UNDER_LOCK", 3),
+      DEFAULT_SETTINGS,
+    );
     expect(outcome.ok).toBe(true);
     expect(lockUpdates).toHaveLength(0);
   });
 
   it("refuses when the note carries no expected level", () => {
     const { sdk } = makeSdk();
-    const outcome = fixSegment(sdk, issue({ status: "UNDER_LOCK", suggestion: null, note: null }), DEFAULT_SETTINGS);
+    const outcome = fixSegment(
+      sdk,
+      issue({ status: "UNDER_LOCK", suggestion: null, note: null }),
+      DEFAULT_SETTINGS,
+    );
     expect(outcome.ok).toBe(false);
     expect(outcome.errorCode).toBe("errNotFixable");
   });
 
   it("reports editing-not-allowed without touching the segment", () => {
     const { sdk, lockUpdates } = makeSdk(0);
-    (sdk.Editing as { isEditingAllowed: unknown }).isEditingAllowed = () => false;
-    const outcome = fixSegment(sdk, lockIssue("UNDER_LOCK", 3), DEFAULT_SETTINGS);
+    (sdk.Editing as { isEditingAllowed: unknown }).isEditingAllowed = () =>
+      false;
+    const outcome = fixSegment(
+      sdk,
+      lockIssue("UNDER_LOCK", 3),
+      DEFAULT_SETTINGS,
+    );
     expect(outcome.ok).toBe(false);
     expect(outcome.errorCode).toBe("errEditingNotAllowed");
     expect(lockUpdates).toHaveLength(0);
@@ -227,7 +298,11 @@ describe("fixSegment (lock)", () => {
 
   it("rejects a target level above the editor level with a level-based message", () => {
     const { sdk, lockUpdates } = makeSdk(0, 2); // editor rank 2 = level 3
-    const outcome = fixSegment(sdk, lockIssue("UNDER_LOCK", 4), DEFAULT_SETTINGS); // wants L4 > L3
+    const outcome = fixSegment(
+      sdk,
+      lockIssue("UNDER_LOCK", 4),
+      DEFAULT_SETTINGS,
+    ); // wants L4 > L3
     expect(outcome.ok).toBe(false);
     expect(outcome.errorDetail).toContain("L4");
     expect(outcome.errorDetail).toContain("L3");
@@ -236,10 +311,15 @@ describe("fixSegment (lock)", () => {
 
   it("surfaces an unexpected SDK rejection as errorDetail", () => {
     const { sdk } = makeSdk(0);
-    (sdk.DataModel.Segments as { updateSegment: unknown }).updateSegment = () => {
-      throw new Error("boom");
-    };
-    const outcome = fixSegment(sdk, lockIssue("UNDER_LOCK", 5), DEFAULT_SETTINGS);
+    (sdk.DataModel.Segments as { updateSegment: unknown }).updateSegment =
+      () => {
+        throw new Error("boom");
+      };
+    const outcome = fixSegment(
+      sdk,
+      lockIssue("UNDER_LOCK", 5),
+      DEFAULT_SETTINGS,
+    );
     expect(outcome.ok).toBe(false);
     expect(outcome.errorCode).toBeUndefined();
     expect(outcome.errorDetail).toBe("boom");
@@ -251,8 +331,11 @@ describe("fixGroup", () => {
     const { sdk, updates } = makeSdk();
     const issues = [issue(), issue(), issue()];
     const progress: Array<[number, number]> = [];
-    const outcomes = await fixGroup(sdk, issues, DEFAULT_SETTINGS, (done, total) =>
-      progress.push([done, total]),
+    const outcomes = await fixGroup(
+      sdk,
+      issues,
+      DEFAULT_SETTINGS,
+      (done, total) => progress.push([done, total]),
     );
     expect(outcomes).toHaveLength(3);
     expect(outcomes.every((o) => o.ok)).toBe(true);
@@ -266,7 +349,11 @@ describe("fixGroup", () => {
 
   it("stops at the first error", async () => {
     const { sdk } = makeSdk();
-    const issues = [issue(), issue({ fixable: false, suggestion: null }), issue()];
+    const issues = [
+      issue(),
+      issue({ fixable: false, suggestion: null }),
+      issue(),
+    ];
     const outcomes = await fixGroup(sdk, issues, DEFAULT_SETTINGS);
     expect(outcomes).toHaveLength(2);
     expect(outcomes[1]?.ok).toBe(false);
@@ -279,7 +366,9 @@ describe("runFix (shared UI runner)", () => {
   it("applies the fix and calls onComplete", async () => {
     const { sdk, updates } = makeSdk();
     let completed = false;
-    await runFix(sdk, issue(), DEFAULT_SETTINGS, { onComplete: () => (completed = true) });
+    await runFix(sdk, issue(), DEFAULT_SETTINGS, {
+      onComplete: () => (completed = true),
+    });
     expect(updates).toHaveLength(1);
     expect(completed).toBe(true);
   });
@@ -303,23 +392,30 @@ describe("runFix (shared UI runner)", () => {
 
 describe("group fix rank guard", () => {
   const group = () => [issue(), issue(), issue()];
-  const header = { status: "COSMETIC" as const, suggestion: "Avenue de Florimont" };
+  const header = {
+    status: "COSMETIC" as const,
+    suggestion: "Avenue de Florimont",
+  };
 
   it("refuses below editor level 3 and says why", async () => {
     // rank 1 = displayed level 2. The UI hides the button, but two UIs build it and the
     // refusal has to live with the action, not with the button.
     const { sdk, updates } = makeSdk(0, 1);
-    const notices: string[] = [];
+    const notices: Array<{ title: string; text: string }> = [];
     await runFixGroup(sdk, group(), header, DEFAULT_SETTINGS, {
-      notify: async (m) => void notices.push(m),
+      notify: async (n) => void notices.push(n),
     });
     expect(updates).toHaveLength(0);
     expect(notices).toHaveLength(1);
+    expect(notices[0]?.title).toBeTruthy();
+    expect(notices[0]?.text).toContain("level 3");
   });
 
   it("allows it from editor level 3 up", async () => {
     const { sdk, updates } = makeSdk(0, 2);
-    await runFixGroup(sdk, group(), header, DEFAULT_SETTINGS, { confirm: async () => true });
+    await runFixGroup(sdk, group(), header, DEFAULT_SETTINGS, {
+      confirm: async () => true,
+    });
     expect(updates).toHaveLength(3);
   });
 
@@ -332,13 +428,18 @@ describe("group fix rank guard", () => {
       State: { getUserInfo: () => undefined },
       DataModel: {
         Segments: {
-          getById: ({ segmentId }: { segmentId: number }) => ({ id: segmentId }),
-          updateAddress: ({ segmentId }: { segmentId: number }) => void updates.push(segmentId),
+          getById: ({ segmentId }: { segmentId: number }) => ({
+            id: segmentId,
+          }),
+          updateAddress: ({ segmentId }: { segmentId: number }) =>
+            void updates.push(segmentId),
         },
       },
     } as unknown as WmeSDK;
 
-    await runFixGroup(sdk, group(), header, DEFAULT_SETTINGS, { notify: async () => undefined });
+    await runFixGroup(sdk, group(), header, DEFAULT_SETTINGS, {
+      notify: async () => undefined,
+    });
     expect(updates).toHaveLength(0);
   });
 });
@@ -356,28 +457,29 @@ describe("geometric verdicts always confirm", () => {
     // Until now this was the one destructive fix with no confirmation at all, while
     // lowering a lock, undone with a click, always asked.
     const { sdk, updates } = makeSdk();
-    let asked = "";
+    let asked: ConfirmSpec | undefined;
     await runFix(sdk, wrongStreet(), DEFAULT_SETTINGS, {
-      confirm: async (message) => {
-        asked = message;
+      confirm: async (spec) => {
+        asked = spec;
         return false;
       },
     });
     expect(updates).toHaveLength(0);
-    expect(asked).toContain("Chemin de la Poste");
-    expect(asked).toContain("Route de la Guerite");
+    expect(asked?.facts.join("\n")).toContain("Chemin de la Poste");
+    expect(asked?.facts.join("\n")).toContain("Route de la Guerite");
+    expect(asked?.skip).toBeUndefined();
   });
 
   it("carries the match confidence into the prompt", async () => {
     const { sdk } = makeSdk();
-    let asked = "";
+    let asked: ConfirmSpec | undefined;
     await runFix(sdk, wrongStreet(), DEFAULT_SETTINGS, {
-      confirm: async (message) => {
-        asked = message;
+      confirm: async (spec) => {
+        asked = spec;
         return false;
       },
     });
-    expect(asked).toContain("80");
+    expect(asked?.note).toContain("80");
   });
 
   it("asks for a group of two, well under the volume threshold", async () => {
@@ -452,7 +554,8 @@ describe("withFixLock", () => {
   it("rejects re-entrance while a fix is running", async () => {
     let release!: () => void;
     const first = withFixLock(
-      () => new Promise<string>((resolve) => (release = () => resolve("first"))),
+      () =>
+        new Promise<string>((resolve) => (release = () => resolve("first"))),
     );
     const second = await withFixLock(async () => "second");
     expect(second).toBeNull();
@@ -460,5 +563,29 @@ describe("withFixLock", () => {
     expect(await first).toBe("first");
     // lock released: next call goes through
     expect(await withFixLock(async () => "third")).toBe("third");
+  });
+});
+
+describe("ignoreIssues", () => {
+  const store = () => {
+    const updates: unknown[] = [];
+    const s = {
+      get: () => ({ ...DEFAULT_SETTINGS, ignoredKeys: [] as string[] }),
+      update: (patch: unknown) => void updates.push(patch),
+    } as unknown as SettingsStore;
+    return { s, updates };
+  };
+
+  it("above the threshold asks with the skippable spec", async () => {
+    const { s, updates } = store();
+    const many = Array.from({ length: 21 }, () => issue());
+    let asked: ConfirmSpec | undefined;
+    await ignoreIssues(s, many, undefined, async (spec) => {
+      asked = spec;
+      return false;
+    });
+    expect(asked?.title).toContain("21");
+    expect(asked?.skip).toBeDefined();
+    expect(updates).toHaveLength(0);
   });
 });
