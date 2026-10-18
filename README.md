@@ -131,6 +131,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### [Unreleased]
 
+### [1.8.1] - 2026-10-18
+
 #### Changed
 
 - **Map Mate level-crossing reports are only offered next to a railroad.** The UR assistant now proposes its question only when a WME railroad segment is loaded within 100 m of the report; one dropped in the middle of the fields no longer gets an automatic message.

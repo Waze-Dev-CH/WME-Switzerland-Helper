@@ -131,6 +131,8 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### [Unveröffentlicht]
 
+### [1.8.1] - 2026-10-18
+
 #### Geändert
 
 - **Map-Mate-Meldungen zu Bahnübergängen werden nur noch in der Nähe einer Bahnlinie angeboten.** Der UR-Assistent schlägt seine Frage nur vor, wenn ein WME-Segment vom Typ Eisenbahn im Umkreis von 100 m geladen ist; eine Meldung mitten im Feld erhält keine automatische Nachricht mehr.
