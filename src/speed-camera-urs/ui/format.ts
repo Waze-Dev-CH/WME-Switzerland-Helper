@@ -2,6 +2,7 @@ import { BATCH_CAP, type BatchRequest } from "../close";
 import { ageInDays } from "../detect";
 import { t, type LocaleCode } from "../i18n";
 import { kindLabel } from "../message";
+import { graceDaysLeft } from "../stale";
 import type {
   MapMateEntry,
   ScanSnapshot,
@@ -73,14 +74,25 @@ export function formatRowLabel(
   return `#${entry.id} · ${entry.lang.toUpperCase()} · ${date}`;
 }
 
-/** The days counted are those without any activity, not the report's age. */
+/**
+ * Before the reminder, the days without any activity, not the report's age. After it, how
+ * long the reporter still has, or how long ago they were reminded.
+ */
 export function formatStaleRowLabel(
   entry: StaleEntry,
   locale: LocaleCode,
   now: number,
 ): string {
-  const age = t("rowAgeDays", { count: ageInDays(entry.lastActivity, now) });
-  return `${formatRowLabel(entry, locale)} · ${age}`;
+  return `${formatRowLabel(entry, locale)} · ${staleStep(entry, now)}`;
+}
+
+function staleStep(entry: StaleEntry, now: number): string {
+  const reminded = entry.remindedOn;
+  if (entry.state === "waiting" && reminded !== null)
+    return t("rowStaleWaiting", { count: graceDaysLeft(reminded, now) });
+  if (entry.state === "close" && reminded !== null)
+    return t("rowStaleReminded", { count: ageInDays(reminded, now) });
+  return t("rowAgeDays", { count: ageInDays(entry.lastActivity, now) });
 }
 
 /**
@@ -99,6 +111,7 @@ export function selectedBatch(
     speedCamera: takeCameras ? [...ready.speedCamera] : [],
     mapMate: takeMapMate ? [...ready.mapMate] : [],
     stale: takeStale ? [...ready.stale] : [],
+    staleRemind: takeStale ? [...ready.staleRemind] : [],
   };
 }
 

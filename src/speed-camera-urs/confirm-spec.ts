@@ -3,6 +3,8 @@ import { t, type LocaleCode, type StringKey } from "./i18n";
 import {
   buildMapMateQuestion,
   buildMessage,
+  buildStaleClosing,
+  buildStaleReminder,
   kindLabel,
   languageCounts,
 } from "./message";
@@ -102,26 +104,72 @@ export function closeTrafficLightSpec(
   return spec;
 }
 
+/** One text, in the reporter's language, under the given label. */
+function singleQuote(
+  label: string,
+  lang: LocaleCode,
+  text: string,
+): QuoteBlock {
+  return {
+    label,
+    options: [{ lang, langLabel: t(LANGUAGE_NAME[lang]), text }],
+  };
+}
+
 /**
- * An abandoned UR: closed without a word, like a traffic light. Nothing leaves the editor's
- * machine and the closure goes to the undo stack, so no warning. The age is shown because
- * it is the whole reason for closing.
+ * The last reminder to an abandoned UR: the exact text, and that the UR stays open. The
+ * idle days are shown because they are the whole reason for writing.
+ */
+export function remindStaleSpec(
+  id: number,
+  lang: LocaleCode,
+  idleDays: number,
+): ConfirmSpec {
+  return {
+    title: t("dlgTitleRemind", { id }),
+    facts: [
+      t("dlgFactSendOne"),
+      t("dlgFactStaysOpen"),
+      t("dlgFactAge", { count: idleDays }),
+    ],
+    quotes: [singleQuote(t("dlgQuoteLabel"), lang, buildStaleReminder(lang))],
+    warning: t("dlgWarningOne"),
+    confirmLabel: t("dialogSend"),
+    cancelLabel: t("dialogCancel"),
+  };
+}
+
+/**
+ * Closing an abandoned UR after its reminder: the closing message is quoted and leaves
+ * now. When it already left (a Ctrl+Z reopened the UR), nothing is sent, nothing is
+ * quoted, and that is the only case that may carry "don't show again".
  */
 export function closeStaleSpec(
   id: number,
-  ageDays: number,
+  lang: LocaleCode,
+  remindedDays: number,
+  closingSent: boolean,
   skip?: SkipOption,
 ): ConfirmSpec {
+  if (closingSent)
+    return {
+      title: t("dlgTitleOne", { id }),
+      facts: [t("dlgFactCloseOne"), t("dlgFactClosingSent")],
+      confirmLabel: t("dialogCloseOnly"),
+      cancelLabel: t("dialogCancel"),
+      skip,
+    };
   return {
     title: t("dlgTitleOne", { id }),
     facts: [
+      t("dlgFactSendOne"),
       t("dlgFactCloseOne"),
-      t("dlgFactNoMessage"),
-      t("dlgFactAge", { count: ageDays }),
+      t("dlgFactReminded", { count: remindedDays }),
     ],
-    confirmLabel: t("dialogCloseOnly"),
+    quotes: [singleQuote(t("dlgQuoteLabel"), lang, buildStaleClosing(lang))],
+    warning: t("dlgWarningOne"),
+    confirmLabel: t("dialogConfirm"),
     cancelLabel: t("dialogCancel"),
-    skip,
   };
 }
 
@@ -156,13 +204,23 @@ function languageQuote(
  * every text that will leave, one quotation each. No quote and no warning when nothing is
  * sent.
  */
+export interface SelectedLangs {
+  speedCamera: readonly LocaleCode[];
+  mapMate: ReadonlyArray<{ kind: MapMateKind; lang: LocaleCode }>;
+  /** Abandoned URs closed with the closing message. */
+  stale: readonly LocaleCode[];
+  /** Abandoned URs reminded, left open. */
+  staleRemind: readonly LocaleCode[];
+}
+
 export function closeSelectedSpec(
-  speedCameraLangs: readonly LocaleCode[],
-  mapMate: ReadonlyArray<{ kind: MapMateKind; lang: LocaleCode }>,
-  staleCount: number,
+  selected: SelectedLangs,
   editorLang: LocaleCode,
 ): ConfirmSpec {
-  const cameraCount = speedCameraLangs.length;
+  const { mapMate } = selected;
+  const cameraCount = selected.speedCamera.length;
+  const staleCount = selected.stale.length;
+  const remindCount = selected.staleRemind.length;
   const facts: string[] = [];
   if (cameraCount > 0)
     facts.push(t("dlgFactFamilySpeedCamera", { count: cameraCount }));
@@ -170,9 +228,12 @@ export function closeSelectedSpec(
     facts.push(t("dlgFactFamilyMapMate", { count: mapMate.length }));
   if (staleCount > 0)
     facts.push(t("dlgFactFamilyStale", { count: staleCount }));
+  if (remindCount > 0)
+    facts.push(t("dlgFactFamilyStaleRemind", { count: remindCount }));
 
   // The button names both halves of the change whenever something is sent and closed.
-  const sends = cameraCount + mapMate.length > 0;
+  // Every family sends something now; only the speed cameras and closures also close.
+  const sends = cameraCount + mapMate.length + staleCount + remindCount > 0;
   const closes = cameraCount + staleCount > 0;
   const confirmKey =
     sends && closes
@@ -182,7 +243,7 @@ export function closeSelectedSpec(
         : "dialogCloseOnly";
   const spec: ConfirmSpec = {
     title: t("dlgTitleSelected", {
-      count: cameraCount + mapMate.length + staleCount,
+      count: cameraCount + mapMate.length + staleCount + remindCount,
     }),
     facts,
     confirmLabel: t(confirmKey),
@@ -194,7 +255,7 @@ export function closeSelectedSpec(
     quotes.push(
       languageQuote(
         t("dlgQuoteLabel"),
-        speedCameraLangs,
+        selected.speedCamera,
         editorLang,
         buildMessage,
       ),
@@ -209,6 +270,24 @@ export function closeSelectedSpec(
       ),
     );
   }
+  if (staleCount > 0)
+    quotes.push(
+      languageQuote(
+        t("dlgQuoteLabelClosing"),
+        selected.stale,
+        editorLang,
+        buildStaleClosing,
+      ),
+    );
+  if (remindCount > 0)
+    quotes.push(
+      languageQuote(
+        t("dlgQuoteLabelReminder"),
+        selected.staleRemind,
+        editorLang,
+        buildStaleReminder,
+      ),
+    );
   if (quotes.length === 0) return spec;
   spec.quotes = quotes;
   spec.warning = t("dlgWarningAll");

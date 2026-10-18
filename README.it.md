@@ -133,11 +133,12 @@ e questo progetto aderisce al [Versionamento Semantico](https://semver.org/spec/
 
 #### Aggiunto
 
-- **"Non mostrare più"** sulle conferme semplici (ignora tutto, eliminazione di una fermata del trasporto pubblico obsoleta, importazione di un singolo numero civico, riepilogo dopo un'importazione in blocco, chiusura di una UR senza messaggio). Sulla chiusura di una UR la casella appare dal livello 3 quando chi ha segnalato ha già ricevuto il nostro messaggio, e dal livello 4 per una UR abbandonata. Un pulsante in ogni scheda (impostazioni del verificatore, fondo dell'assistente UR, scheda principale) le mostra di nuovo. Le conferme che citano una conversazione o inviano un messaggio non vengono mai saltate, come le azioni di gruppo e le correzioni sulla mappa.
+- **"Non mostrare più"** sulle conferme semplici (ignora tutto, eliminazione di una fermata del trasporto pubblico obsoleta, importazione di un singolo numero civico, riepilogo dopo un'importazione in blocco, chiusura di una UR senza messaggio). Sulla chiusura di una UR la casella appare dal livello 3 quando chi ha segnalato ha già ricevuto il nostro messaggio, e dal livello 4 per una UR abbandonata il cui messaggio di chiusura è già partito. Un pulsante in ogni scheda (impostazioni del verificatore, fondo dell'assistente UR, scheda principale) le mostra di nuovo. Le conferme che citano una conversazione o inviano un messaggio non vengono mai saltate, come le azioni di gruppo e le correzioni sulla mappa.
 
 #### Modificato
 
 - Tutti i popup hanno ora lo stesso aspetto: un titolo, l'elenco di ciò che sta per cambiare e Annulla selezionato per impostazione predefinita.
+- **Le UR abbandonate non vengono più chiuse in silenzio.** Ora passano per due fasi. Prima un ultimo promemoria, nella lingua di chi ha segnalato, che avvisa che senza ulteriori informazioni la segnalazione verrà chiusa a breve; la UR resta aperta. Senza risposta entro 3 giorni parte un breve messaggio di chiusura («in mancanza di ulteriori informazioni, questa segnalazione verrà chiusa»), poi la UR viene chiusa come *Non identificato*. Nel frattempo l'elenco indica i giorni rimanenti, senza pulsante. Se chi ha segnalato risponde al promemoria, la UR esce dall'elenco. I 3 giorni partono dalla data del promemoria nella conversazione, quindi valgono anche dopo un ricaricamento e da un editor all'altro. Entrambe le fasi citano il testo esatto prima dell'invio; il lotto le gestisce dal livello 4, come prima.
 
 ### [1.7.0] - 2026-10-13
 

@@ -1,7 +1,10 @@
-import type { ConversationElement, WmeSDK } from "wme-sdk-typings";
+import type {
+  ConversationElement,
+  MapUpdateRequest,
+  WmeSDK,
+} from "wme-sdk-typings";
 import {
   ageInDays,
-  isAbandoned,
   lastActivity,
   isKnownOffFreeway,
   isOnFreeway,
@@ -23,14 +26,18 @@ import {
   closeSelectedSpec,
   closeStaleSpec,
   closeTrafficLightSpec,
+  remindStaleSpec,
 } from "./confirm-spec";
 import {
   buildMapMateQuestion,
   buildMessage,
+  buildStaleClosing,
+  buildStaleReminder,
   isOfficialMessage,
   mayAskMapMate,
   messageLanguage,
 } from "./message";
+import { staleStage, type StaleSession, type StaleStage } from "./stale";
 import {
   confirmDialog,
   notifyDialog,
@@ -62,7 +69,9 @@ export type SkipReason =
   | "skipConversation"
   | "skipNotFreeway"
   /** A traffic light whose road is not loaded, or turned out to be a freeway. */
-  | "skipRoadUnknown";
+  | "skipRoadUnknown"
+  /** An abandoned UR no longer at the step the editor clicked: reminded already, or not due. */
+  | "skipStage";
 export type FailReason =
   | "errNotAllowed"
   | "errDetails"
@@ -73,6 +82,8 @@ export type CloseOutcome =
   | { id: number; result: "closed" }
   /** A Map Mate report was asked for details; nothing was closed. */
   | { id: number; result: "asked" }
+  /** An abandoned UR got its last reminder; it stays open for the grace period. */
+  | { id: number; result: "reminded" }
   | { id: number; result: "skipped"; reason: SkipReason }
   | { id: number; result: "failed"; reason: FailReason };
 
@@ -93,6 +104,13 @@ const messaged = new Set<number>();
  */
 const inFlight = new Set<number>();
 
+/**
+ * When this session sent each reminder. The three days count from the reminder's date in
+ * the conversation, but WME may hand back its cached conversation without our comment, and
+ * the UR would then be offered a second reminder.
+ */
+const reminded = new Map<number, number>();
+
 export function wasMessaged(id: number): boolean {
   return messaged.has(id);
 }
@@ -101,10 +119,23 @@ export function noteMessaged(id: number): void {
   messaged.add(id);
 }
 
+/**
+ * What this session sent to an abandoned UR. `messaged` stands for the closing message:
+ * speed cameras and Map Mate reports never reach this family, so on these ids nothing else
+ * fills it.
+ */
+export function staleSession(id: number): StaleSession {
+  return {
+    remindedOn: reminded.get(id) ?? null,
+    closingSent: messaged.has(id),
+  };
+}
+
 /** Tests only: module state would otherwise leak from one test into the next. */
 export function resetMessagedForTests(): void {
   messaged.clear();
   inFlight.clear();
+  reminded.clear();
 }
 
 /**
@@ -135,32 +166,45 @@ export function canBatchStale(sdk: WmeSDK): boolean {
 export interface BatchRequest {
   speedCamera: readonly number[];
   mapMate: readonly number[];
+  /** Abandoned URs whose reminder is due for closure: closing message, then closed. */
   stale: readonly number[];
+  /** Abandoned URs that get their last reminder and stay open. */
+  staleRemind: readonly number[];
 }
 
 /** Each family the editor lacks the rank for is emptied, the others go through. */
 export function allowedBatch(sdk: WmeSDK, request: BatchRequest): BatchRequest {
   const level3 = canBatch(sdk);
+  const level4 = canBatchStale(sdk);
   return {
     speedCamera: level3 ? request.speedCamera : [],
     mapMate: level3 ? request.mapMate : [],
-    stale: canBatchStale(sdk) ? request.stale : [],
+    stale: level4 ? request.stale : [],
+    staleRemind: level4 ? request.staleRemind : [],
   };
 }
 
-/** Speed cameras first, then the reporters we ask; abandoned URs can wait. */
+/**
+ * Speed cameras first, then the reporters we ask; abandoned URs can wait. Their closures
+ * go before the reminders: those have already had their last chance.
+ */
 export function capBatch(request: BatchRequest): BatchRequest {
   const speedCamera = request.speedCamera.slice(0, BATCH_CAP);
   let room = BATCH_CAP - speedCamera.length;
   const mapMate = request.mapMate.slice(0, room);
   room -= mapMate.length;
   const stale = request.stale.slice(0, room);
-  return { speedCamera, mapMate, stale };
+  room -= stale.length;
+  const staleRemind = request.staleRemind.slice(0, room);
+  return { speedCamera, mapMate, stale, staleRemind };
 }
 
 function batchSize(request: BatchRequest): number {
   return (
-    request.speedCamera.length + request.mapMate.length + request.stale.length
+    request.speedCamera.length +
+    request.mapMate.length +
+    request.stale.length +
+    request.staleRemind.length
   );
 }
 
@@ -269,18 +313,22 @@ export async function closeTrafficLight(
   return closeWithoutMessage(urs, id);
 }
 
+type StaleWork = (
+  ur: MapUpdateRequest,
+  stage: StaleStage,
+) => Promise<CloseOutcome>;
+
 /**
- * Close one abandoned UR as not-identified, without any message: the reporter has not
- * looked at it in weeks, and the official text speaks of speed cameras.
- *
- * Re-checks everything right before writing, like closeOne: the list may be minutes old,
- * and a comment arriving since then means someone is talking to the reporter. Same
- * inFlight guard, so a double click does not start two reads.
+ * Everything an abandoned UR is checked for before anything is written, then `work` with
+ * the stage read again right now: the list may be minutes old, and a comment arriving
+ * since then means someone is talking to the reporter. Same inFlight guard as closeOne, so
+ * a double click does not send twice.
  */
-export async function closeStale(
+async function withStaleUr(
   sdk: WmeSDK,
   id: number,
-  now = Date.now(),
+  now: number,
+  work: StaleWork,
 ): Promise<CloseOutcome> {
   if (!sdk.Editing.isEditingAllowed())
     return { id, result: "failed", reason: "errNotAllowed" };
@@ -304,13 +352,10 @@ export async function closeStale(
   try {
     const comments = await readConversation(urs, id);
     if (!comments) return { id, result: "failed", reason: "errDetails" };
-    const messaged = wasMessaged(id);
-    const abandoned = isAbandoned(comments, ur.reportedOn, now);
-    if (messaged || !abandoned) {
+    const stage = staleStage(comments, ur.reportedOn, now, staleSession(id));
+    if (stage.stage === "none") {
       // Everything the verdict was made of: the list said abandoned, this read says not.
-      log.warn(`Abandoned UR ${id} skipped at closure`, {
-        wasMessaged: messaged,
-        isAbandoned: abandoned,
+      log.warn(`Abandoned UR ${id} skipped: no longer abandoned`, {
         reportedOn: describeTime(ur.reportedOn),
         now: describeTime(now),
         comments: comments.map((comment) => ({
@@ -320,10 +365,68 @@ export async function closeStale(
       });
       return { id, result: "skipped", reason: "skipConversation" };
     }
-    return closeWithoutMessage(urs, id);
+    return await work(ur, stage);
   } finally {
     inFlight.delete(id);
   }
+}
+
+/**
+ * The last reminder to an abandoned UR's reporter. The UR stays open: it is closed only
+ * once REMINDER_GRACE_DAYS have passed without an answer (closeStale).
+ */
+export function remindStale(
+  sdk: WmeSDK,
+  id: number,
+  now = Date.now(),
+): Promise<CloseOutcome> {
+  return withStaleUr(sdk, id, now, async (ur, stage) => {
+    if (stage.stage !== "remind")
+      return { id, result: "skipped", reason: "skipStage" };
+    const lang = messageLanguage(ur.userPreferences?.language);
+    try {
+      await sdk.DataModel.MapUpdateRequests.addComment({
+        mapUpdateRequestId: id,
+        text: buildStaleReminder(lang),
+      });
+    } catch (err) {
+      log.warn(`Could not send the reminder to UR ${id}`, err);
+      return { id, result: "failed", reason: "errComment" };
+    }
+    reminded.set(id, now);
+    return { id, result: "reminded" };
+  });
+}
+
+/**
+ * Close an abandoned UR whose reminder went unanswered: the closing message first, then
+ * the closure, as in closeOne. A failed send leaves the UR open and untouched. When the
+ * closing message is already there (a Ctrl+Z reopened the UR), it only closes.
+ */
+export function closeStale(
+  sdk: WmeSDK,
+  id: number,
+  now = Date.now(),
+): Promise<CloseOutcome> {
+  const urs = sdk.DataModel.MapUpdateRequests;
+  return withStaleUr(sdk, id, now, async (ur, stage) => {
+    if (stage.stage !== "close")
+      return { id, result: "skipped", reason: "skipStage" };
+    if (stage.closingSent) return closeWithoutMessage(urs, id);
+
+    const lang = messageLanguage(ur.userPreferences?.language);
+    try {
+      await urs.addComment({
+        mapUpdateRequestId: id,
+        text: buildStaleClosing(lang),
+      });
+    } catch (err) {
+      log.warn(`Could not send the closing message to UR ${id}`, err);
+      return { id, result: "failed", reason: "errComment" };
+    }
+    noteMessaged(id);
+    return closeWithoutMessage(urs, id);
+  });
 }
 
 /**
@@ -403,6 +506,9 @@ export async function closeMany(
   for (const id of batch.stale) {
     outcomes.push(await closeStale(sdk, id, now));
   }
+  for (const id of batch.staleRemind) {
+    outcomes.push(await remindStale(sdk, id, now));
+  }
   return outcomes;
 }
 
@@ -425,28 +531,40 @@ export function summarize(
   ];
   if (count("asked") > 0)
     lines.push(t("summaryAsked", { count: count("asked") }));
+  if (count("reminded") > 0)
+    lines.push(t("summaryReminded", { count: count("reminded") }));
   for (const outcome of outcomes) {
-    if (outcome.result === "closed" || outcome.result === "asked") continue;
+    const problem = outcome.result === "skipped" || outcome.result === "failed";
+    if (!problem) continue;
     lines.push(t("summaryLine", { id: outcome.id, reason: t(outcome.reason) }));
   }
-  // A question alone leaves nothing in the edit stack: there is nothing to save.
+  // A question or a reminder alone leaves nothing in the edit stack: nothing to save.
   const reminder = messagesSent ? "saveReminder" : "saveReminderNoMessage";
   if (count("closed") > 0) lines.push("", t(reminder));
   else if (count("asked") > 0) lines.push("", t("askedReminder"));
+  else if (count("reminded") > 0) lines.push("", t("remindedReminder"));
   return lines.join("\n");
 }
 
+function isDone(outcome: CloseOutcome): boolean {
+  return (
+    outcome.result === "closed" ||
+    outcome.result === "asked" ||
+    outcome.result === "reminded"
+  );
+}
+
 /**
- * The batch's summary. It claims messages were sent only when a speed camera was actually
- * closed: a batch of abandoned URs sends nothing.
+ * The batch's summary. It claims messages were sent only when a UR closed with a message
+ * (a speed camera, or an abandoned UR and its closing message) was actually closed.
  */
 export function summarizeBatch(
   outcomes: readonly CloseOutcome[],
-  speedCameraIds: readonly number[],
+  messagedIds: readonly number[],
 ): string {
-  const cameras = new Set(speedCameraIds);
+  const withMessage = new Set(messagedIds);
   const messagesSent = outcomes.some(
-    (outcome) => outcome.result === "closed" && cameras.has(outcome.id),
+    (outcome) => outcome.result === "closed" && withMessage.has(outcome.id),
   );
   return summarize(outcomes, { messagesSent });
 }
@@ -646,7 +764,62 @@ export function runCloseTrafficLight(
   });
 }
 
-/** One abandoned UR, from the tab. Open to every level, like the other single closures. */
+/**
+ * Read only for the confirmation: the stage decides which text is quoted, and the days
+ * since the reminder are the reason for closing. remindStale and closeStale read it again.
+ */
+async function readStaleStage(
+  sdk: WmeSDK,
+  ur: MapUpdateRequest,
+  now: number,
+): Promise<{ stage: StaleStage; comments: ConversationElement[] }> {
+  let comments: ConversationElement[] = [];
+  try {
+    comments =
+      (
+        await sdk.DataModel.MapUpdateRequests.getUpdateRequestDetails({
+          mapUpdateRequestId: ur.id,
+        })
+      )?.comments ?? [];
+  } catch (err) {
+    log.warn(`Could not read the conversation of UR ${ur.id}`, err);
+  }
+  const stage = staleStage(comments, ur.reportedOn, now, staleSession(ur.id));
+  return { stage, comments };
+}
+
+/** One abandoned UR's reminder, from the tab. Open to every level, like the closures. */
+export function runRemindStale(
+  sdk: WmeSDK,
+  id: number,
+  prompts: Prompts = {},
+  now = Date.now(),
+): Promise<CloseOutcome | null> {
+  const confirm = prompts.confirm ?? confirmDialog;
+  const notify = prompts.notify ?? notifyDialog;
+  return withCloseLock(async () => {
+    const ur = sdk.DataModel.MapUpdateRequests.getById({
+      mapUpdateRequestId: id,
+    });
+    if (!ur) return null;
+
+    const { comments } = await readStaleStage(sdk, ur, now);
+    const idleDays = ageInDays(lastActivity(ur.reportedOn, comments), now);
+    const lang = messageLanguage(ur.userPreferences?.language);
+    const accepted = await confirm(remindStaleSpec(id, lang, idleDays));
+    if (!accepted) return null;
+
+    const outcome = await remindStale(sdk, id, now);
+    if (outcome.result !== "reminded")
+      await notify(failure(outcome, summarize([outcome])));
+    return outcome;
+  });
+}
+
+/**
+ * One abandoned UR's closure, from the tab. Open to every level. "Don't show again" only
+ * when the closing message already left: a confirmation that sends never carries it.
+ */
 export function runCloseStale(
   sdk: WmeSDK,
   id: number,
@@ -656,33 +829,31 @@ export function runCloseStale(
   const confirm = prompts.confirm ?? confirmDialog;
   const notify = prompts.notify ?? notifyDialog;
   return withCloseLock(async () => {
-    const urs = sdk.DataModel.MapUpdateRequests;
-    const ur = urs.getById({ mapUpdateRequestId: id });
+    const ur = sdk.DataModel.MapUpdateRequests.getById({
+      mapUpdateRequestId: id,
+    });
     if (!ur) return null;
 
-    // Read only to show how long nothing has happened; closeStale reads it again.
-    let comments: ConversationElement[] = [];
-    try {
-      comments =
-        (await urs.getUpdateRequestDetails({ mapUpdateRequestId: id }))
-          ?.comments ?? [];
-    } catch (err) {
-      log.warn(`Could not read the conversation of UR ${id}`, err);
-    }
-    const idleDays = ageInDays(lastActivity(ur.reportedOn, comments), now);
+    const { stage, comments } = await readStaleStage(sdk, ur, now);
+    const closingSent = stage.stage === "close" && stage.closingSent;
+    // The reminder's date when known, otherwise the last activity: the reason either way.
+    const since =
+      stage.stage === "close" && stage.remindedOn !== null
+        ? stage.remindedOn
+        : lastActivity(ur.reportedOn, comments);
+    const lang = messageLanguage(ur.userPreferences?.language);
+    const skip = closingSent
+      ? skipFor(canBatchStale(sdk), "scu.closeStale")
+      : undefined;
     const accepted = await confirm(
-      closeStaleSpec(
-        id,
-        idleDays,
-        skipFor(canBatchStale(sdk), "scu.closeStale"),
-      ),
+      closeStaleSpec(id, lang, ageInDays(since, now), closingSent, skip),
     );
     if (!accepted) return null;
 
     const outcome = await closeStale(sdk, id, now);
     if (outcome.result !== "closed")
       await notify(
-        failure(outcome, summarize([outcome], { messagesSent: false })),
+        failure(outcome, summarize([outcome], { messagesSent: !closingSent })),
       );
     return outcome;
   });
@@ -766,9 +937,12 @@ export async function runCloseSelected(
     });
     const accepted = await confirm(
       closeSelectedSpec(
-        batch.speedCamera.map(langOf),
-        mapMate,
-        batch.stale.length,
+        {
+          speedCamera: batch.speedCamera.map(langOf),
+          mapMate,
+          stale: batch.stale.map(langOf),
+          staleRemind: batch.staleRemind.map(langOf),
+        },
         getLocale(),
       ),
     );
@@ -776,12 +950,10 @@ export async function runCloseSelected(
 
     const outcomes = await closeMany(sdk, batch, now);
     if (outcomes) {
-      const allDone = outcomes.every(
-        (outcome) => outcome.result === "closed" || outcome.result === "asked",
-      );
+      const allDone = outcomes.every(isDone);
       await notify({
         title: t(allDone ? "noticeTitleDone" : "noticeTitleIncomplete"),
-        text: summarizeBatch(outcomes, batch.speedCamera),
+        text: summarizeBatch(outcomes, [...batch.speedCamera, ...batch.stale]),
       });
     }
     return outcomes;

@@ -112,7 +112,7 @@ export function ageInDays(reportedOn: number, now: number): number {
 
 /**
  * An open UR old enough to be abandoned, read from the data model alone. The final verdict
- * also needs the conversation (isAbandoned), which costs a server round trip.
+ * also needs the conversation (staleStage), which costs a server round trip.
  *
  * Speed cameras are excluded here rather than by the caller: they always get the official
  * message, and must not slip into a family that closes without one.
@@ -154,8 +154,19 @@ function isMapTeam(comment: ConversationElement): boolean {
   return MAP_TEAM_QUESTIONS.some((question) => comment.text.includes(question));
 }
 
-function isReporter(comment: ConversationElement): boolean {
+export function isReporter(comment: ConversationElement): boolean {
   return !isMapTeam(comment) && REPORTER_NAMES.includes(comment.userName);
+}
+
+/** The latest comment by date among the people, Map_Team left out; null when none wrote. */
+export function latestPersonComment(
+  comments: readonly ConversationElement[],
+): ConversationElement | null {
+  const latest = comments
+    .filter((comment) => !isMapTeam(comment))
+    .sort((a, b) => a.createdOn - b.createdOn)
+    .pop();
+  return latest ?? null;
 }
 
 /** Anyone but Map_Team, the reporter included. */
@@ -174,10 +185,11 @@ export function lastActivity(
 }
 
 /**
- * The final verdict on a stale candidate, once its conversation is read: nothing has
- * happened for STALE_AGE_DAYS, and the reporter does not have the last word. When they
- * do, someone owes them an answer. A question from Map_Team or an editor left unanswered
- * is exactly what this family closes.
+ * Whether a stale candidate, once its conversation is read, is due for our reminder:
+ * nothing has happened for STALE_AGE_DAYS, and the reporter does not have the last word.
+ * When they do, someone owes them an answer. A question from Map_Team or an editor left
+ * unanswered is exactly what this family follows up. What comes after the reminder is
+ * staleStage's (stale.ts).
  */
 export function isAbandoned(
   comments: readonly ConversationElement[],
@@ -203,11 +215,8 @@ export function reporterHasLastWord(
 export function reporterLastWord(
   comments: readonly ConversationElement[],
 ): ConversationElement | null {
-  const latest = comments
-    .filter((comment) => !isMapTeam(comment))
-    .sort((a, b) => a.createdOn - b.createdOn)
-    .pop();
-  if (latest === undefined || !isReporter(latest)) return null;
+  const latest = latestPersonComment(comments);
+  if (latest === null || !isReporter(latest)) return null;
   return latest;
 }
 

@@ -133,11 +133,12 @@ et ce projet adhère au [Versionnage Sémantique](https://semver.org/spec/v2.0.0
 
 #### Ajouté
 
-- **« Ne plus montrer »** sur les confirmations simples (tout ignorer, suppression d'un arrêt de transport public obsolète, import d'un seul numéro, bilan après un import en masse, fermeture d'un UR sans message). Sur la fermeture d'un UR, la case apparaît dès le niveau 3 quand le rapporteur a déjà reçu notre message, et dès le niveau 4 pour un UR abandonné. Un bouton dans chaque onglet (réglages du vérificateur, bas de l'assistant UR, onglet principal) les réaffiche. Les confirmations qui citent une conversation ou envoient un message ne sont jamais passées, pas plus que les actions groupées et les corrections de la carte.
+- **« Ne plus montrer »** sur les confirmations simples (tout ignorer, suppression d'un arrêt de transport public obsolète, import d'un seul numéro, bilan après un import en masse, fermeture d'un UR sans message). Sur la fermeture d'un UR, la case apparaît dès le niveau 3 quand le rapporteur a déjà reçu notre message, et dès le niveau 4 pour un UR abandonné dont le message de clôture est déjà parti. Un bouton dans chaque onglet (réglages du vérificateur, bas de l'assistant UR, onglet principal) les réaffiche. Les confirmations qui citent une conversation ou envoient un message ne sont jamais passées, pas plus que les actions groupées et les corrections de la carte.
 
 #### Modifié
 
 - Tous les popups ont désormais le même aspect : un titre, la liste de ce qui va changer et Annuler sélectionné par défaut.
+- **Les UR abandonnés ne sont plus fermés en silence.** Ils passent désormais par deux étapes. D'abord un ultime rappel, dans la langue du rapporteur, qui annonce que sans information supplémentaire le signalement sera fermé très prochainement ; l'UR reste ouvert. Sans réponse dans les 3 jours, un court message de clôture part (« faute d'informations supplémentaires, ce signalement va être fermé »), puis l'UR est fermé en *Non identifié*. Entre les deux, la liste indique le nombre de jours restants, sans bouton. Un rapporteur qui répond au rappel fait sortir l'UR de la liste. Les 3 jours partent de la date du rappel dans la conversation : ils tiennent après un rechargement et d'un éditeur à l'autre. Les deux étapes citent le texte exact avant l'envoi ; le lot les traite dès le niveau 4, comme avant.
 
 ### [1.7.0] - 2026-10-13
 

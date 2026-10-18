@@ -12,12 +12,14 @@ import {
   runCloseSelected,
   runCloseStale,
   runCloseTrafficLight,
+  runRemindStale,
   summarize,
   summarizeBatch,
   type CloseOutcome,
 } from "../close";
 import { STALE_AGE_DAYS } from "../detect";
 import { getLocale, t } from "../i18n";
+import { REMINDER_GRACE_DAYS } from "../stale";
 import { log } from "../log";
 import type { UrHighlight } from "../map-highlight";
 import type {
@@ -197,7 +199,7 @@ export class TabUI {
       ),
       criterionCheckbox(
         t("criterionStale", { days: STALE_AGE_DAYS }),
-        t("staleInfo", { days: STALE_AGE_DAYS }),
+        t("staleInfo", { days: STALE_AGE_DAYS, grace: REMINDER_GRACE_DAYS }),
         current.stale,
         toggle("stale"),
       ),
@@ -294,13 +296,20 @@ export class TabUI {
         mapMate: mapMate
           .filter((entry) => entry.state === "ready")
           .map((entry) => entry.id),
+        // A closing message already sent is a Ctrl+Z case: closed one by one, with a look.
         stale: stale
-          .filter((entry) => entry.state === "stale")
+          .filter((entry) => entry.state === "close" && !entry.closingSent)
+          .map((entry) => entry.id),
+        staleRemind: stale
+          .filter((entry) => entry.state === "remind")
           .map((entry) => entry.id),
       },
     );
     const total =
-      batch.speedCamera.length + batch.mapMate.length + batch.stale.length;
+      batch.speedCamera.length +
+      batch.mapMate.length +
+      batch.stale.length +
+      batch.staleRemind.length;
     this.actions.replaceChildren();
     if (!shouldShowCloseSelected(total)) return;
     const all = button(
@@ -308,7 +317,8 @@ export class TabUI {
       () =>
         void this.handle(
           () => runCloseSelected(this.sdk, batch),
-          (outcomes) => summarizeBatch(outcomes, batch.speedCamera),
+          (outcomes) =>
+            summarizeBatch(outcomes, [...batch.speedCamera, ...batch.stale]),
         ),
       "scu-btn scu-btn-primary",
     );
@@ -382,15 +392,25 @@ export class TabUI {
       row.appendChild(el("span", "scu-muted", t("rowPending")));
       return row;
     }
-    const action = button(
-      t("btnCloseStale"),
-      () =>
-        void this.handle(
-          () => runCloseStale(this.sdk, entry.id),
-          (outcomes) => summarize(outcomes, { messagesSent: false }),
-        ),
-      "scu-btn",
-    );
+    // The grace period: the label already says how long, there is nothing to click.
+    if (entry.state === "waiting") return row;
+    const action =
+      entry.state === "remind"
+        ? button(
+            t("btnRemindStale"),
+            () => void this.handle(() => runRemindStale(this.sdk, entry.id)),
+            "scu-btn",
+          )
+        : button(
+            t(entry.closingSent ? "btnCloseStale" : "btnCloseOne"),
+            () =>
+              void this.handle(
+                () => runCloseStale(this.sdk, entry.id),
+                (outcomes) =>
+                  summarize(outcomes, { messagesSent: !entry.closingSent }),
+              ),
+            "scu-btn",
+          );
     action.disabled = isCloseInFlight();
     row.appendChild(action);
     return row;

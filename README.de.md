@@ -133,11 +133,12 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 #### Hinzugefügt
 
-- **"Nicht mehr anzeigen"** bei einfachen Bestätigungen (alle ignorieren, eine veraltete ÖV-Haltestelle löschen, einzelne Hausnummer importieren, Zusammenfassung nach einem Massenimport, eine UR ohne Nachricht schliessen). Beim Schliessen einer UR erscheint das Kästchen ab Level 3, wenn die meldende Person unsere Nachricht schon erhalten hat, und ab Level 4 für eine verwaiste UR. Eine Schaltfläche in jedem Tab (Einstellungen der Prüfung, unten im UR-Assistenten, Haupttab) zeigt sie wieder an. Bestätigungen, die eine Unterhaltung zitieren oder eine Nachricht senden, werden nie übersprungen, ebenso wenig Gruppenaktionen und Korrekturen auf der Karte.
+- **"Nicht mehr anzeigen"** bei einfachen Bestätigungen (alle ignorieren, eine veraltete ÖV-Haltestelle löschen, einzelne Hausnummer importieren, Zusammenfassung nach einem Massenimport, eine UR ohne Nachricht schliessen). Beim Schliessen einer UR erscheint das Kästchen ab Level 3, wenn die meldende Person unsere Nachricht schon erhalten hat, und ab Level 4 für eine verwaiste UR, deren Abschlussnachricht schon gesendet ist. Eine Schaltfläche in jedem Tab (Einstellungen der Prüfung, unten im UR-Assistenten, Haupttab) zeigt sie wieder an. Bestätigungen, die eine Unterhaltung zitieren oder eine Nachricht senden, werden nie übersprungen, ebenso wenig Gruppenaktionen und Korrekturen auf der Karte.
 
 #### Geändert
 
 - Alle Popups sehen jetzt gleich aus: ein Titel, die Liste dessen, was sich ändert, und Abbrechen ist vorausgewählt.
+- **Verwaiste URs werden nicht mehr stillschweigend geschlossen.** Sie durchlaufen jetzt zwei Schritte. Zuerst eine letzte Erinnerung in der Sprache der meldenden Person: Ohne weitere Informationen wird die Meldung demnächst geschlossen; die UR bleibt offen. Kommt innert 3 Tagen keine Antwort, geht eine kurze Abschlussnachricht hinaus («Mangels weiterer Informationen wird diese Meldung geschlossen»), dann wird die UR als *Nicht identifiziert* geschlossen. Dazwischen zeigt die Liste die verbleibenden Tage an, ohne Schaltfläche. Antwortet die meldende Person auf die Erinnerung, verschwindet die UR aus der Liste. Die 3 Tage zählen ab dem Datum der Erinnerung in der Konversation und gelten deshalb auch nach einem Neuladen und von einem Editor zum anderen. Beide Schritte zeigen den genauen Text vor dem Senden; der Stapel behandelt sie wie bisher ab Level 4.
 
 ### [1.7.0] - 2026-10-13
 
