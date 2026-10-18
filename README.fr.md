@@ -133,6 +133,7 @@ et ce projet adhère au [Versionnage Sémantique](https://semver.org/spec/v2.0.0
 
 #### Ajouté
 
+- **Les panneaux des numéros de maison et de l'assistant UR se détachent aussi**, comme celui des noms de rue. Un bouton **Détacher** déplace tout le panneau dans une fenêtre flottante qui reste visible quand WME bascule sur son panneau Sélection ; la fenêtre se déplace, se redimensionne et se rouvre là où vous l'avez laissée. Tant qu'un panneau est détaché, son onglet l'indique et propose **Rattacher** pour le remettre en place. Plusieurs fenêtres peuvent être ouvertes en même temps, la dernière cliquée passe devant. Un raccourci clavier bascule chaque fenêtre ; il n'a pas de touche par défaut, à vous d'en choisir une dans les réglages clavier de WME.
 - **« Ne plus montrer »** sur les confirmations simples (tout ignorer, suppression d'un arrêt de transport public obsolète, import d'un seul numéro, bilan après un import en masse, fermeture d'un UR sans message). Sur la fermeture d'un UR, la case apparaît dès le niveau 3 quand le rapporteur a déjà reçu notre message, et dès le niveau 4 pour un UR abandonné dont le message de clôture est déjà parti. Un bouton dans chaque onglet (réglages du vérificateur, bas de l'assistant UR, onglet principal) les réaffiche. Les confirmations qui citent une conversation ou envoient un message ne sont jamais passées, pas plus que les actions groupées et les corrections de la carte.
 
 #### Modifié

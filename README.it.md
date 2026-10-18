@@ -133,6 +133,7 @@ e questo progetto aderisce al [Versionamento Semantico](https://semver.org/spec/
 
 #### Aggiunto
 
+- **Anche i pannelli dei numeri civici e dell'assistente UR si possono staccare**, come quello dei nomi delle vie. Il pulsante **Stacca** sposta l'intero pannello in una finestra mobile che resta visibile quando WME passa al suo pannello Selezione; la finestra si può spostare e ridimensionare e si riapre dove l'avete lasciata. Finché un pannello è staccato, la sua scheda lo segnala e offre **Aggancia** per rimetterlo a posto. Più finestre possono essere aperte insieme, l'ultima cliccata sta davanti. Una scorciatoia da tastiera attiva o disattiva ogni finestra; non ha un tasto predefinito, sceglietene uno nelle impostazioni della tastiera di WME.
 - **"Non mostrare più"** sulle conferme semplici (ignora tutto, eliminazione di una fermata del trasporto pubblico obsoleta, importazione di un singolo numero civico, riepilogo dopo un'importazione in blocco, chiusura di una UR senza messaggio). Sulla chiusura di una UR la casella appare dal livello 3 quando chi ha segnalato ha già ricevuto il nostro messaggio, e dal livello 4 per una UR abbandonata il cui messaggio di chiusura è già partito. Un pulsante in ogni scheda (impostazioni del verificatore, fondo dell'assistente UR, scheda principale) le mostra di nuovo. Le conferme che citano una conversazione o inviano un messaggio non vengono mai saltate, come le azioni di gruppo e le correzioni sulla mappa.
 
 #### Modificato

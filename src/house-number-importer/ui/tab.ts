@@ -1,4 +1,5 @@
 import type { WmeSDK } from "wme-sdk-typings";
+import { DetachablePanel } from "../../ui/detachable-panel";
 import { groupScriptTab, tabLabelText } from "../../ui/tab-group";
 import { applyThemeClass, watchTheme } from "../../ui/theme";
 import type { Controller, Snapshot } from "../controller";
@@ -53,6 +54,9 @@ function dot(status: PointStatus): HTMLElement {
 export class TabUI {
   private tabPane: HTMLElement | null = null;
   private tabLabel: HTMLElement | null = null;
+  /** Sidebar or floating window; holds the panel's root wherever it lives. */
+  private panel: DetachablePanel | null = null;
+  private detachButton: HTMLButtonElement | null = null;
   /** Checkbox of the master toggle, realigned when the layer checkbox changes the state. */
   private enabledInput: HTMLInputElement | null = null;
   /**
@@ -87,11 +91,32 @@ export class TabUI {
       log.error("Could not register the sidebar tab", err);
       return;
     }
+    this.panel = new DetachablePanel({
+      panelId: "house-numbers",
+      sidebar: this.tabPane,
+      prefix: "hn",
+      icon: "home",
+      labels: () => ({
+        title: t("appName"),
+        dock: t("dock"),
+        dockTitle: t("dockTitle"),
+        detachedNote: t("detachedNote"),
+      }),
+      onModeChange: (detached) => {
+        if (this.detachButton) this.detachButton.hidden = detached;
+      },
+    });
     applyThemeClass(this.tabPane);
     watchTheme(this.tabPane);
     this.buildSkeleton();
     this.controller.onUpdate((snapshot) => this.render(snapshot));
     this.render(this.controller.getSnapshot());
+    this.panel.restore();
+  }
+
+  /** From the keyboard shortcut: the way back to the window once it was docked. */
+  toggleWindow(): void {
+    this.panel?.toggle();
   }
 
   /**
@@ -124,7 +149,11 @@ export class TabUI {
     );
     enabledToggle.classList.add("hn-brand-switch");
     this.enabledInput = enabledToggle.querySelector("input");
-    brand.appendChild(enabledToggle);
+    // Hidden while floating: the window's own bar carries the way back.
+    this.detachButton = button(t("detach"), () => this.panel?.detach(), "hn-btn");
+    this.detachButton.title = t("detachTitle");
+    this.detachButton.hidden = this.panel?.isDetached() ?? false;
+    brand.append(enabledToggle, this.detachButton);
 
     this.banner.replaceChildren(this.bannerText);
 
@@ -139,7 +168,7 @@ export class TabUI {
       this.actionRow,
       this.settingsSection(),
     );
-    this.tabPane.replaceChildren(pane);
+    this.panel?.show(pane);
   }
 
   private render(snapshot: Snapshot): void {

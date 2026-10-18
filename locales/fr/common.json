@@ -276,7 +276,13 @@
     "dlgFactCap": "La limite par action est de {{cap}} ; relancez pour la suite.",
     "dlgNoteNumbers": "Numéros : {{numbers}}",
     "importedCount_one": "{{count}} numéro créé. Rien n'est encore enregistré.",
-    "importedCount_other": "{{count}} numéros créés. Rien n'est encore enregistré."
+    "importedCount_other": "{{count}} numéros créés. Rien n'est encore enregistré.",
+    "detach": "Détacher",
+    "detachTitle": "Déplacer le panneau dans une fenêtre flottante qui reste visible quand WME bascule sur l'onglet Selection",
+    "dock": "Rattacher",
+    "dockTitle": "Remettre le panneau dans l'onglet de la barre latérale",
+    "detachedNote": "Ce panneau est ouvert dans une fenêtre flottante.",
+    "shortcutToggleWindow": "Basculer la fenêtre flottante"
   },
   "speedCameraUrs": {
     "dlgSkip": "Ne plus montrer",
@@ -388,6 +394,12 @@
     "dlgFactFamilyStaleRemind": "{{count}} à relancer : rappel envoyé maintenant, l'UR reste ouvert",
     "summaryReminded": "{{count}} rappel(s) envoyé(s).",
     "remindedReminder": "Les rappels sont déjà partis ; les UR restent ouverts, rien à sauvegarder.",
-    "skipStage": "son état a changé entre-temps (déjà relancé, ou pas encore le moment)"
+    "skipStage": "son état a changé entre-temps (déjà relancé, ou pas encore le moment)",
+    "detach": "Détacher",
+    "detachTitle": "Déplacer le panneau dans une fenêtre flottante qui reste visible quand WME bascule sur l'onglet Selection",
+    "dock": "Rattacher",
+    "dockTitle": "Remettre le panneau dans l'onglet de la barre latérale",
+    "detachedNote": "Ce panneau est ouvert dans une fenêtre flottante.",
+    "shortcutToggleWindow": "Basculer la fenêtre flottante"
   }
 }

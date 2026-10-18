@@ -133,6 +133,7 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 #### Hinzugefügt
 
+- **Auch die Panels der Hausnummern und des UR-Assistenten lassen sich abtrennen**, wie das der Strassennamen. Die Schaltfläche **Abtrennen** verschiebt das ganze Panel in ein schwebendes Fenster, das sichtbar bleibt, wenn WME zum Auswahl-Panel wechselt; das Fenster lässt sich verschieben und in der Grösse ändern und öffnet sich wieder dort, wo Sie es gelassen haben. Solange ein Panel abgetrennt ist, zeigt sein Tab dies an und bietet **Andocken**, um es zurückzuholen. Mehrere Fenster können gleichzeitig offen sein, das zuletzt angeklickte liegt vorne. Ein Tastenkürzel schaltet jedes Fenster um; es hat keine Standardtaste, wählen Sie eine in den Tastatureinstellungen von WME.
 - **"Nicht mehr anzeigen"** bei einfachen Bestätigungen (alle ignorieren, eine veraltete ÖV-Haltestelle löschen, einzelne Hausnummer importieren, Zusammenfassung nach einem Massenimport, eine UR ohne Nachricht schliessen). Beim Schliessen einer UR erscheint das Kästchen ab Level 3, wenn die meldende Person unsere Nachricht schon erhalten hat, und ab Level 4 für eine verwaiste UR, deren Abschlussnachricht schon gesendet ist. Eine Schaltfläche in jedem Tab (Einstellungen der Prüfung, unten im UR-Assistenten, Haupttab) zeigt sie wieder an. Bestätigungen, die eine Unterhaltung zitieren oder eine Nachricht senden, werden nie übersprungen, ebenso wenig Gruppenaktionen und Korrekturen auf der Karte.
 
 #### Geändert

@@ -1,4 +1,5 @@
 import type { WmeSDK } from "wme-sdk-typings";
+import { DetachablePanel } from "../../ui/detachable-panel";
 import { buildSection, button, el, icon } from "../../ui/dom";
 import { groupScriptTab, tabLabelText } from "../../ui/tab-group";
 import { clearSkipped, hasSkipped } from "../../ui/skipped-confirms";
@@ -81,6 +82,9 @@ export class TabUI {
     "scu-btn",
   );
   private mapMateSection: HTMLDetailsElement | null = null;
+  /** Sidebar or floating window; holds the panel's root wherever it lives. */
+  private panel: DetachablePanel | null = null;
+  private detachButton: HTMLButtonElement | null = null;
 
   constructor(
     private sdk: WmeSDK,
@@ -100,11 +104,32 @@ export class TabUI {
       log.error("Could not register the sidebar tab", err);
       return;
     }
+    this.panel = new DetachablePanel({
+      panelId: "ur-assistant",
+      sidebar: this.tabPane,
+      prefix: "scu",
+      icon: "warning",
+      labels: () => ({
+        title: t("appName"),
+        dock: t("dock"),
+        dockTitle: t("dockTitle"),
+        detachedNote: t("detachedNote"),
+      }),
+      onModeChange: (detached) => {
+        if (this.detachButton) this.detachButton.hidden = detached;
+      },
+    });
     applyThemeClass(this.tabPane);
     watchTheme(this.tabPane);
     this.buildSkeleton();
     this.scanner.onUpdate(() => this.render());
     this.render();
+    this.panel.restore();
+  }
+
+  /** From the keyboard shortcut: the way back to the window once it was docked. */
+  toggleWindow(): void {
+    this.panel?.toggle();
   }
 
   private buildSkeleton(): void {
@@ -112,9 +137,18 @@ export class TabUI {
     const pane = el("div", "scu-pane");
 
     const brand = el("div", "scu-brand");
+    // Hidden while floating: the window's own bar carries the way back.
+    this.detachButton = button(
+      t("detach"),
+      () => this.panel?.detach(),
+      "scu-btn scu-brand-action",
+    );
+    this.detachButton.title = t("detachTitle");
+    this.detachButton.hidden = this.panel?.isDetached() ?? false;
     brand.append(
       icon("warning", "scu-brand-icon"),
       el("span", "scu-brand-title", t("appName")),
+      this.detachButton,
     );
 
     this.banner.replaceChildren(this.bannerText);
@@ -170,7 +204,7 @@ export class TabUI {
       this.staleSection,
       this.resetSkippedButton,
     );
-    this.tabPane.replaceChildren(pane);
+    this.panel?.show(pane);
   }
 
   private buildCriteria(): void {

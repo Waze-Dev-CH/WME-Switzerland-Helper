@@ -276,7 +276,13 @@
     "dlgFactCap": "The per-action limit is {{cap}}; run it again for the rest.",
     "dlgNoteNumbers": "Numbers: {{numbers}}",
     "importedCount_one": "{{count}} house number created. Nothing is saved yet.",
-    "importedCount_other": "{{count}} house numbers created. Nothing is saved yet."
+    "importedCount_other": "{{count}} house numbers created. Nothing is saved yet.",
+    "detach": "Detach",
+    "detachTitle": "Move the panel into a floating window that stays visible when WME switches to the Selection tab",
+    "dock": "Dock",
+    "dockTitle": "Put the panel back into the sidebar tab",
+    "detachedNote": "This panel is open in a floating window.",
+    "shortcutToggleWindow": "Toggle the floating window"
   },
   "speedCameraUrs": {
     "dlgSkip": "Don't show again",
@@ -388,6 +394,12 @@
     "dlgFactFamilyStaleRemind": "{{count}} to remind: reminder sent now, the UR stays open",
     "summaryReminded": "{{count}} reminder(s) sent.",
     "remindedReminder": "The reminders are already sent; the URs stay open, nothing to save.",
-    "skipStage": "its state changed in the meantime (already reminded, or not yet due)"
+    "skipStage": "its state changed in the meantime (already reminded, or not yet due)",
+    "detach": "Detach",
+    "detachTitle": "Move the panel into a floating window that stays visible when WME switches to the Selection tab",
+    "dock": "Dock",
+    "dockTitle": "Put the panel back into the sidebar tab",
+    "detachedNote": "This panel is open in a floating window.",
+    "shortcutToggleWindow": "Toggle the floating window"
   }
 }

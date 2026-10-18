@@ -9,7 +9,7 @@ import { type ActivationContext, setCheckerEnabled } from "./activation";
 import { createStreetNameProvider } from "./name-verdict";
 import { IdbTileStore } from "./geoadmin/idb-store";
 import { TileFetcher } from "./geoadmin/tiles";
-import { resolveLocale, setLocale } from "./i18n";
+import { resolveLocale, setLocale, t } from "./i18n";
 import { log } from "./log";
 import { HighlightLayer, registerLayerCheckbox, setLayerCheckbox } from "./map-layer";
 import { Scanner } from "./scan";
@@ -17,7 +17,7 @@ import { registerShortcuts } from "./shortcuts";
 import { SettingsStore } from "./settings";
 import { EditPanelBox } from "./ui/edit-panel";
 import { TabUI } from "./ui/tab";
-import { createWindowMode } from "./ui/window-mode";
+import { createWindowMode } from "../ui/window-mode";
 
 // Own scriptId so the checker gets its own Scripts-sidebar tab and layer checkbox:
 // registerScriptTab() throws if the host's scriptId already owns a tab, so the feature
@@ -90,7 +90,26 @@ export async function initStreetNameChecker(): Promise<void> {
   tabRef = tab;
   await tab.init();
 
-  const windowMode = createWindowMode(settings, tab);
+  // The window lives in the checker's own settings, where it was first stored, so an
+  // editor's detached panel and its place survive the move to the shared window.
+  const windowMode = createWindowMode({
+    store: {
+      getMode: () => settings.get().windowMode,
+      setMode: (windowMode) => settings.update({ windowMode }),
+      getRect: () => settings.get().windowRect,
+      setRect: (windowRect) => settings.update({ windowRect }),
+    },
+    labels: () => ({
+      id: "chk-window",
+      icon: "road",
+      title: t("appName"),
+      dockLabel: t("dock"),
+      dockTitle: t("dockTitle"),
+    }),
+    // Working surface into the window, options left in the sidebar tab.
+    onDetach: (body) => tab.setContainers(body, tab.sidebarPane()),
+    onDock: () => tab.setContainers(tab.sidebarPane(), tab.sidebarPane()),
+  });
   detachHandler = () => windowMode.detach();
   windowMode.restore();
 

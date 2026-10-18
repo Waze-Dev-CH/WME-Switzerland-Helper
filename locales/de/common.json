@@ -276,7 +276,13 @@
     "dlgFactCap": "Das Limit pro Aktion beträgt {{cap}}; für den Rest erneut ausführen.",
     "dlgNoteNumbers": "Nummern: {{numbers}}",
     "importedCount_one": "{{count}} Hausnummer erstellt. Noch nichts gespeichert.",
-    "importedCount_other": "{{count}} Hausnummern erstellt. Noch nichts gespeichert."
+    "importedCount_other": "{{count}} Hausnummern erstellt. Noch nichts gespeichert.",
+    "detach": "Abtrennen",
+    "detachTitle": "Das Panel in ein schwebendes Fenster verschieben, das sichtbar bleibt, wenn WME zum Selection-Tab wechselt",
+    "dock": "Andocken",
+    "dockTitle": "Das Panel zurück in den Sidebar-Tab setzen",
+    "detachedNote": "Dieses Panel ist in einem schwebenden Fenster geöffnet.",
+    "shortcutToggleWindow": "Schwebendes Fenster umschalten"
   },
   "speedCameraUrs": {
     "dlgSkip": "Nicht mehr anzeigen",
@@ -388,6 +394,12 @@
     "dlgFactFamilyStaleRemind": "{{count}} zu erinnern: Erinnerung wird jetzt gesendet, der UR bleibt offen",
     "summaryReminded": "{{count}} Erinnerung(en) gesendet.",
     "remindedReminder": "Die Erinnerungen sind bereits gesendet; die URs bleiben offen, nichts zu speichern.",
-    "skipStage": "sein Zustand hat sich inzwischen geändert (bereits erinnert, oder noch nicht an der Reihe)"
+    "skipStage": "sein Zustand hat sich inzwischen geändert (bereits erinnert, oder noch nicht an der Reihe)",
+    "detach": "Abtrennen",
+    "detachTitle": "Das Panel in ein schwebendes Fenster verschieben, das sichtbar bleibt, wenn WME zum Selection-Tab wechselt",
+    "dock": "Andocken",
+    "dockTitle": "Das Panel zurück in den Sidebar-Tab setzen",
+    "detachedNote": "Dieses Panel ist in einem schwebenden Fenster geöffnet.",
+    "shortcutToggleWindow": "Schwebendes Fenster umschalten"
   }
 }

@@ -97,6 +97,7 @@ export async function initHouseNumberImporter(): Promise<void> {
   new EditPanelBox(sdk, controller, settings).init();
   registerShortcuts(sdk, controller, settings, {
     toggleLayer: () => setImporterEnabled(activation, !settings.get().enabled, "shortcut"),
+    toggleWindow: () => tab.toggleWindow(),
   });
 
   controller.start();

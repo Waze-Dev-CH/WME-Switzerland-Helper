@@ -276,7 +276,13 @@
     "dlgFactCap": "Il limite per azione è {{cap}}; rilanciate per il resto.",
     "dlgNoteNumbers": "Numeri: {{numbers}}",
     "importedCount_one": "{{count}} numero civico creato. Non è ancora stato salvato nulla.",
-    "importedCount_other": "{{count}} numeri civici creati. Non è ancora stato salvato nulla."
+    "importedCount_other": "{{count}} numeri civici creati. Non è ancora stato salvato nulla.",
+    "detach": "Stacca",
+    "detachTitle": "Sposta il pannello in una finestra mobile che resta visibile quando WME passa alla scheda Selection",
+    "dock": "Aggancia",
+    "dockTitle": "Rimetti il pannello nella scheda della barra laterale",
+    "detachedNote": "Questo pannello è aperto in una finestra mobile.",
+    "shortcutToggleWindow": "Attiva o disattiva la finestra mobile"
   },
   "speedCameraUrs": {
     "dlgSkip": "Non mostrare più",
@@ -388,6 +394,12 @@
     "dlgFactFamilyStaleRemind": "{{count}} da sollecitare: promemoria inviato ora, la UR resta aperta",
     "summaryReminded": "{{count}} promemoria inviato/i.",
     "remindedReminder": "I promemoria sono già stati inviati; le UR restano aperte, niente da salvare.",
-    "skipStage": "il suo stato è cambiato nel frattempo (già sollecitata, o non ancora il momento)"
+    "skipStage": "il suo stato è cambiato nel frattempo (già sollecitata, o non ancora il momento)",
+    "detach": "Stacca",
+    "detachTitle": "Sposta il pannello in una finestra mobile che resta visibile quando WME passa alla scheda Selection",
+    "dock": "Aggancia",
+    "dockTitle": "Rimetti il pannello nella scheda della barra laterale",
+    "detachedNote": "Questo pannello è aperto in una finestra mobile.",
+    "shortcutToggleWindow": "Attiva o disattiva la finestra mobile"
   }
 }
