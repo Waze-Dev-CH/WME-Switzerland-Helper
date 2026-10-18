@@ -381,6 +381,7 @@
     "askBodyRailroadCrossing": "In der Schweiz werden Bahnübergänge standardmässig nicht auf der Karte angezeigt, ausser sie sind wirklich gefährlich.\n\nFalls das bei diesem der Fall ist, sagen Sie es uns bitte, indem Sie hier antworten: Wo genau befindet er sich, und was macht ihn gefährlich?",
     "kindRailroadCrossing": "Bahnübergang",
     "skipRoadUnknown": "seine Strasse ist nicht geladen oder ist eine Autobahn",
+    "skipNoRailroad": "in der Nähe ist keine Bahnlinie geladen",
     "staleReminderBody": "Guten Tag,\n\nAuf unsere Frage zu Ihrer Meldung haben wir noch keine Antwort erhalten.\n\nOhne weitere Informationen von Ihnen wird diese Meldung demnächst geschlossen. Falls sie noch aktuell ist, antworten Sie einfach hier.",
     "staleClosingBody": "Guten Tag,\n\nMangels weiterer Informationen wird diese Meldung geschlossen.\n\nFalls das Problem weiterhin besteht, melden Sie es gerne erneut in der Waze-App.",
     "btnRemindStale": "Erinnern",

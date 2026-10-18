@@ -6,6 +6,7 @@ import {
   isAbandoned,
   isInExtent,
   lastActivity,
+  isNearRailroad,
   isOnFreeway,
   isSpeedCameraUr,
   isStaleCandidate,
@@ -123,6 +124,25 @@ describe("isOnFreeway", () => {
 
   it("is false when no segment is loaded", () => {
     expect(isOnFreeway(ur, [])).toBe(false);
+  });
+});
+
+describe("isNearRailroad", () => {
+  const ur = makeMapMateUr(1, "RAILROAD_CROSSING");
+
+  it("is true with a railroad within 100 m, even behind the closer road it crosses", () => {
+    // 0.0008° of latitude is about 89 m.
+    const segments = [makeSegment(1, 46.50001), makeSegment(18, 46.5008)];
+    expect(isNearRailroad(ur, segments)).toBe(true);
+  });
+
+  it("is false when the railroad is beyond 100 m", () => {
+    expect(isNearRailroad(ur, [makeSegment(18, 46.5012)])).toBe(false);
+  });
+
+  it("is false with only roads, or nothing, loaded", () => {
+    expect(isNearRailroad(ur, [makeSegment(1, 46.5001)])).toBe(false);
+    expect(isNearRailroad(ur, [])).toBe(false);
   });
 });
 

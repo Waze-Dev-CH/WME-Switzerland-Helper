@@ -229,7 +229,9 @@ triage) and `stale.ts` (abandoned URs' step) → `TabUI`. `close.ts` is the only
   are mapped only when really dangerous); any other code gets nothing. `askMapMate` only
   comments: the UR **stays open** and the outcome is `"asked"`. A `MISSING_TRAFFIC_LIGHT`
   is asked about only when `isKnownOffFreeway`; on a freeway it belongs to the
-  traffic-light family, on an unloaded road it waits.
+  traffic-light family, on an unloaded road it waits. A `RAILROAD_CROSSING` only when
+  `isNearRailroad`: a WME railroad segment (type 18) loaded within
+  `RAILROAD_MAX_DISTANCE_M` (100); no track loaded means no question.
 - Map Mate never gets a question once anyone but Map_Team has commented (`mayAskMapMate`),
   with no override, and never twice: `wasMessaged`, plus `isMapMateQuestion` on the
   conversation, as a second check behind `hasDiscussion`.
