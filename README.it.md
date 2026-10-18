@@ -131,6 +131,10 @@ e questo progetto aderisce al [Versionamento Semantico](https://semver.org/spec/
 
 ### [Non pubblicato]
 
+#### Modificato
+
+- **Le segnalazioni Map Mate di passaggio a livello vengono proposte solo vicino a una ferrovia.** L'assistente UR propone la sua domanda solo se un segmento WME di tipo ferrovia è caricato entro 100 m dalla segnalazione; una segnalazione in piena campagna non riceve più un messaggio automatico.
+
 ### [1.8.0] - 2026-10-18
 
 #### Aggiunto

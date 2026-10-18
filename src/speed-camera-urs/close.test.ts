@@ -906,6 +906,24 @@ describe("askMapMate", () => {
     }
   });
 
+  it("asks about a level crossing only next to a loaded railroad", async () => {
+    const crossing = (id: number) => makeMapMateUr(id, "RAILROAD_CROSSING");
+    const track = makeSdk([crossing(1)], {
+      segments: [makeSegment(18, 46.5005)],
+    });
+    expect((await askMapMate(track.sdk, 1)).result).toBe("asked");
+
+    for (const segments of [[], [makeSegment(1, 46.5001)]]) {
+      const { sdk, calls } = makeSdk([crossing(2)], { segments });
+      expect(await askMapMate(sdk, 2)).toEqual({
+        id: 2,
+        result: "skipped",
+        reason: "skipNoRailroad",
+      });
+      expect(calls).toEqual([]);
+    }
+  });
+
   it("skips, reading nothing, a UR that is not a Map Mate case any more", async () => {
     const urs = [
       makeMapMateUr(1, "INCORRECT_ROUTE", { isOpen: false }),

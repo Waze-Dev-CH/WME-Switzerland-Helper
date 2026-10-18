@@ -381,6 +381,7 @@
     "askBodyRailroadCrossing": "En Suisse, les passages à niveau ne sont pas indiqués sur la carte par défaut, sauf s'ils sont vraiment dangereux.\n\nSi c'est le cas de celui-ci, n'hésitez pas à nous le dire en répondant ici : où se trouve-t-il exactement, et qu'est-ce qui le rend dangereux ?",
     "kindRailroadCrossing": "Passage à niveau",
     "skipRoadUnknown": "sa route n'est pas chargée, ou c'est une autoroute",
+    "skipNoRailroad": "aucune voie ferrée n'est chargée à proximité",
     "staleReminderBody": "Bonjour,\n\nNous n'avons pas encore reçu de réponse à notre question concernant votre signalement.\n\nSans information supplémentaire de votre part, ce signalement sera fermé très prochainement. S'il est toujours d'actualité, il vous suffit de répondre ici.",
     "staleClosingBody": "Bonjour,\n\nFaute d'informations supplémentaires, ce signalement va être fermé.\n\nSi le problème persiste, n'hésitez pas à le signaler à nouveau dans l'application Waze.",
     "btnRemindStale": "Relancer",

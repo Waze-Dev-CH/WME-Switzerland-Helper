@@ -7,6 +7,7 @@ import { alreadyMessaged, staleSession, wasMessaged } from "./close";
 import {
   isInExtent,
   isKnownOffFreeway,
+  isNearRailroad,
   isOnFreeway,
   isSpeedCameraUr,
   isStaleCandidate,
@@ -55,6 +56,9 @@ export interface MapMateEntry extends TrafficLightEntry {
 }
 
 type MapMateCandidate = { ur: MapUpdateRequest; kind: MapMateKind };
+
+const isRailroadCrossingUr = (ur: MapUpdateRequest) =>
+  mapMateKind(ur) === "railroadCrossing";
 
 export interface ScanSnapshot {
   entries: UrEntry[];
@@ -209,8 +213,10 @@ export class Scanner {
     const found = onScreen.filter(isSpeedCameraUr);
 
     const candidates = onScreen.filter(isTrafficLightUr);
-    const segments =
-      candidates.length > 0 ? this.sdk.DataModel.Segments.getAll() : [];
+    const needsRoads =
+      candidates.length > 0 ||
+      (this.readMapMate && onScreen.some(isRailroadCrossingUr));
+    const segments = needsRoads ? this.sdk.DataModel.Segments.getAll() : [];
     const lights = candidates.filter((ur) => isOnFreeway(ur, segments));
     this.trafficLights = lights.map((ur) => this.basics(ur));
 
@@ -296,7 +302,8 @@ export class Scanner {
 
   /**
    * A traffic light is asked about only on a known road that is not a freeway: on a
-   * freeway it is likely a speed camera, and on an unloaded road it may be one.
+   * freeway it is likely a speed camera, and on an unloaded road it may be one. A level
+   * crossing only next to a railroad: in the middle of nowhere the question makes no sense.
    */
   private mapMateCandidate(
     ur: MapUpdateRequest,
@@ -306,7 +313,9 @@ export class Scanner {
     if (!kind) return [];
     const lightOnUnknownRoad =
       kind === "trafficLight" && !isKnownOffFreeway(ur, segments);
-    return lightOnUnknownRoad ? [] : [{ ur, kind }];
+    const crossingWithoutTrack =
+      kind === "railroadCrossing" && !isNearRailroad(ur, segments);
+    return lightOnUnknownRoad || crossingWithoutTrack ? [] : [{ ur, kind }];
   }
 
   private toMapMateEntry({ ur, kind }: MapMateCandidate): MapMateEntry[] {

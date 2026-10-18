@@ -389,6 +389,30 @@ describe("Scanner Map Mate reports", () => {
     ]);
   });
 
+  it("lists a level crossing only next to a railroad", async () => {
+    const urs = [
+      makeMapMateUr(1, "RAILROAD_CROSSING"),
+      makeMapMateUr(2, "RAILROAD_CROSSING", {
+        geometry: { type: "Point", coordinates: [6.65, 46.6] },
+      }),
+    ];
+    const segments = [
+      makeSegment(18, 46.5005),
+      makeSegment(1, 46.6001, [6.64, 6.66]),
+    ];
+    const { sdk, calls } = makeSdk(urs, { segments });
+    const scanner = new Scanner(sdk, { now: () => NOW });
+    scanner.setReadMapMate(true);
+
+    await scanner.rescan();
+
+    // 2 was reported in the middle of the fields: its conversation is not even read.
+    expect(kindsOf(scanner.getSnapshot())).toEqual([
+      [1, "railroadCrossing", "ready"],
+    ]);
+    expect(calls).toEqual(["details:1"]);
+  });
+
   it("does not need a road for the other cases", async () => {
     const scanner = new Scanner(
       makeSdk([makeMapMateUr(1, "INCORRECT_SPEED_LIMIT")]).sdk,

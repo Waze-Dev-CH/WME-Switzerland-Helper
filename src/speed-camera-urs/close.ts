@@ -7,6 +7,7 @@ import {
   ageInDays,
   lastActivity,
   isKnownOffFreeway,
+  isNearRailroad,
   isOnFreeway,
   isSpeedCameraUr,
   isStaleCandidate,
@@ -70,6 +71,8 @@ export type SkipReason =
   | "skipNotFreeway"
   /** A traffic light whose road is not loaded, or turned out to be a freeway. */
   | "skipRoadUnknown"
+  /** A level crossing with no railroad loaded nearby. */
+  | "skipNoRailroad"
   /** An abandoned UR no longer at the step the editor clicked: reminded already, or not due. */
   | "skipStage";
 export type FailReason =
@@ -454,6 +457,11 @@ export async function askMapMate(
     !isKnownOffFreeway(ur, sdk.DataModel.Segments.getAll());
   if (lightOnUnknownRoad)
     return { id, result: "skipped", reason: "skipRoadUnknown" };
+  const crossingWithoutTrack =
+    kind === "railroadCrossing" &&
+    !isNearRailroad(ur, sdk.DataModel.Segments.getAll());
+  if (crossingWithoutTrack)
+    return { id, result: "skipped", reason: "skipNoRailroad" };
 
   if (inFlight.has(id))
     return { id, result: "skipped", reason: "skipConversation" };

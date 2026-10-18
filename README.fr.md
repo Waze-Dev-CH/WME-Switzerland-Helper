@@ -131,6 +131,10 @@ et ce projet adhère au [Versionnage Sémantique](https://semver.org/spec/v2.0.0
 
 ### [Non publié]
 
+#### Modifié
+
+- **Les signalements Map Mate de passage à niveau ne sont proposés qu'à proximité d'une voie ferrée.** L'assistant UR ne propose sa question que si un segment WME de type voie ferrée est chargé à moins de 100 m du signalement ; un signalement en pleine campagne ne reçoit plus de message automatique.
+
 ### [1.8.0] - 2026-10-18
 
 #### Ajouté

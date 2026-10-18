@@ -235,8 +235,11 @@ export const FREEWAY_MAX_DISTANCE_M = 30;
 
 type SegmentFields = Pick<Segment, "geometry" | "roadType">;
 
-/** About 110 m north-south and 75 m east-west in Switzerland: well beyond the limit. */
-const BBOX_MARGIN_DEG = 0.001;
+/**
+ * About 220 m north-south and 150 m east-west in Switzerland: beyond both limits, the
+ * freeway's and the railroad's.
+ */
+const BBOX_MARGIN_DEG = 0.002;
 
 /**
  * A cheap pre-check before the exact distance. The scan runs on every segment event, and
@@ -305,6 +308,39 @@ export function isKnownOffFreeway(
 ): boolean {
   const type = closestRoadType(ur, segments);
   return type !== null && type !== FREEWAY_ROAD_TYPE;
+}
+
+/** ROAD_TYPE.RAILROAD in the SDK, for the same reason as FREEWAY_ROAD_TYPE. */
+const RAILROAD_ROAD_TYPE = 18;
+
+/**
+ * How far the track may be from a level-crossing report. A voice report lands where the
+ * driver spoke, often a little past the crossing, so wider than for a freeway.
+ */
+export const RAILROAD_MAX_DISTANCE_M = 100;
+
+/**
+ * Whether a railroad segment is loaded within RAILROAD_MAX_DISTANCE_M. Any track in range
+ * counts, not only the closest segment: the road crossing it is always closer.
+ *
+ * Not loaded reads as no track: the level-crossing question is then not offered, and the
+ * scanner looks again when segments arrive. A track missing from WME errs the same way,
+ * on the side of sending nothing.
+ */
+export function isNearRailroad(
+  ur: Pick<MapUpdateRequest, "geometry">,
+  segments: readonly SegmentFields[],
+): boolean {
+  const [lon, lat] = ur.geometry.coordinates;
+  if (lon === undefined || lat === undefined) return false;
+  const where = point([lon, lat]);
+  return segments.some(
+    (segment) =>
+      segment.roadType === RAILROAD_ROAD_TYPE &&
+      bboxNear(segment, lon, lat) &&
+      pointToLineDistance(where, segment.geometry, { units: "meters" }) <=
+        RAILROAD_MAX_DISTANCE_M,
+  );
 }
 
 /** `extent` is the map's GeoJSON bbox: [west, south, east, north]. */
