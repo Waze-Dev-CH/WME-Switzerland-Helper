@@ -6,7 +6,7 @@
  * Licensed under the repository's GNU AGPL v3.0 or later (see /src note in README).
  */
 import type { WmeSDK } from "wme-sdk-typings";
-import { normalizeLocale, setLocale } from "./i18n";
+import { normalizeLocale, setLocale, t } from "./i18n";
 import { log } from "./log";
 import { UrHighlight } from "./map-highlight";
 import { Scanner } from "./scanner";
@@ -37,7 +37,30 @@ export async function initSpeedCameraUrs(): Promise<void> {
   scanner.setReadMapMate(settings.criteria.mapMate);
   const highlight = new UrHighlight(sdk);
   highlight.init();
-  await new TabUI(sdk, scanner, highlight, settings).init();
+  const tab = new TabUI(sdk, scanner, highlight, settings);
+  await tab.init();
+  registerWindowShortcut(sdk, () => tab.toggleWindow());
   scanner.start();
   log.info(`ready (SDK ${sdk.getSDKVersion()}, WME ${sdk.getWMEVersion()})`);
+}
+
+/**
+ * No default keys: Alt+W already belongs to the street-name window, and most free Alt
+ * combinations are WME's. The editor binds one in WME's keyboard settings if they want it.
+ */
+function registerWindowShortcut(sdk: WmeSDK, toggle: () => void): void {
+  try {
+    sdk.Shortcuts.createShortcut({
+      shortcutId: "scu-toggle-window",
+      description: t("shortcutToggleWindow"),
+      shortcutKeys: null,
+      callback: toggle,
+    });
+  } catch (err) {
+    // Likely a second init (Tampermonkey re-injection): the first binding stays.
+    log.warn(
+      "Window shortcut already registered; keeping the existing binding",
+      err,
+    );
+  }
 }

@@ -8,6 +8,8 @@ import {
   capBatch,
   closeMany,
   closeStale,
+  remindStale,
+  staleSession,
   alreadyMessaged,
   closeOne,
   closeTrafficLight,
@@ -22,7 +24,12 @@ import {
   makeTrafficLightUr,
   makeUr,
 } from "./fake-sdk";
-import { buildMapMateQuestion, buildMessage } from "./message";
+import {
+  buildMapMateQuestion,
+  buildMessage,
+  buildStaleClosing,
+  buildStaleReminder,
+} from "./message";
 
 const comment = { createdOn: 0, text: "is it fixed?", userName: "editor" };
 
@@ -192,6 +199,7 @@ describe("a conversation that already holds our message", () => {
       speedCamera: [1],
       mapMate: [],
       stale: [],
+      staleRemind: [],
     });
 
     expect(outcomes).toEqual([
@@ -231,7 +239,12 @@ describe("closeMany", () => {
     const { sdk, calls } = makeSdk([makeUr(1)], { rank: 1 });
 
     expect(
-      await closeMany(sdk, { speedCamera: [1], mapMate: [], stale: [] }),
+      await closeMany(sdk, {
+        speedCamera: [1],
+        mapMate: [],
+        stale: [],
+        staleRemind: [],
+      }),
     ).toBeNull();
     expect(calls).toEqual([]);
   });
@@ -244,6 +257,7 @@ describe("closeMany", () => {
       speedCamera: urs.map((ur) => ur.id),
       mapMate: [],
       stale: [],
+      staleRemind: [],
     });
 
     expect(outcomes).toHaveLength(BATCH_CAP);
@@ -260,6 +274,7 @@ describe("closeMany", () => {
       speedCamera: [1, 2, 3],
       mapMate: [],
       stale: [],
+      staleRemind: [],
     });
 
     expect(outcomes?.map((o) => o.result)).toEqual([
@@ -366,6 +381,7 @@ describe("closeTrafficLight", () => {
       speedCamera: [1],
       mapMate: [],
       stale: [],
+      staleRemind: [],
     });
 
     expect(outcomes).toEqual([
@@ -382,32 +398,73 @@ const NOW = 1_760_000_000_000 + 30 * DAY;
 const road = { description: "Missing road" };
 const mapTeam = { createdOn: 0, text: "auto", userName: "Map_Team" };
 
-describe("closeStale", () => {
-  it("closes as not-identified without any message, Map_Team comments allowed", async () => {
-    const { sdk, calls, sent } = makeSdk([makeUr(1, road)], {
-      comments: { 1: [mapTeam] },
-    });
+/** Our reminder, sent `days` ago by an editor. */
+const reminder = (days: number, lang: "fr" | "de" = "fr") => ({
+  createdOn: NOW - days * DAY,
+  text: buildStaleReminder(lang),
+  userName: "editor",
+});
 
-    expect(await closeStale(sdk, 1, NOW)).toEqual({ id: 1, result: "closed" });
-    expect(calls).toEqual(["details:1", "close:1:not-identified"]);
-    expect(sent).toEqual([]);
-    expect(sdk.DataModel.MapUpdateRequests.addComment).not.toHaveBeenCalled();
+describe("remindStale", () => {
+  it("sends the reminder in the reporter's language and leaves the UR open", async () => {
+    const ur = makeUr(1, {
+      ...road,
+      userPreferences: { language: "deutsch" } as never,
+    });
+    const { sdk, calls, sent } = makeSdk([ur], { comments: { 1: [mapTeam] } });
+
+    expect(await remindStale(sdk, 1, NOW)).toEqual({
+      id: 1,
+      result: "reminded",
+    });
+    expect(calls).toEqual(["details:1", "comment:1"]);
+    expect(sent).toEqual([{ id: 1, text: buildStaleReminder("de") }]);
+    expect(ur.isOpen).toBe(true);
+    expect(staleSession(1)).toEqual({ remindedOn: NOW, closingSent: false });
   });
 
-  it("closes one an editor asked about, unanswered for 14 days", async () => {
+  it("reminds one an editor asked about, unanswered for 14 days", async () => {
     const asked = { ...comment, createdOn: NOW - 20 * DAY };
     const { sdk } = makeSdk([makeUr(1, road)], {
       comments: { 1: [mapTeam, asked] },
     });
 
-    expect(await closeStale(sdk, 1, NOW)).toEqual({ id: 1, result: "closed" });
+    expect((await remindStale(sdk, 1, NOW)).result).toBe("reminded");
+  });
+
+  it("never reminds twice, even when WME's conversation does not show the first one yet", async () => {
+    const { sdk, sent } = makeSdk([makeUr(1, road)]);
+
+    await remindStale(sdk, 1, NOW);
+    expect(await remindStale(sdk, 1, NOW + DAY)).toEqual({
+      id: 1,
+      result: "skipped",
+      reason: "skipStage",
+    });
+    expect(sent).toHaveLength(1);
+  });
+
+  it("skips one whose reminder is already in the conversation", async () => {
+    const { sdk, sent } = makeSdk([makeUr(1, road)], {
+      comments: { 1: [reminder(1)] },
+    });
+
+    expect(await remindStale(sdk, 1, NOW)).toEqual({
+      id: 1,
+      result: "skipped",
+      reason: "skipStage",
+    });
+    expect(sent).toEqual([]);
   });
 
   it("skips one asked about only 3 days ago", async () => {
     const recent = { ...mapTeam, createdOn: NOW - 3 * DAY };
-    const { sdk } = makeSdk([makeUr(1, road)], { comments: { 1: [recent] } });
+    const { sdk, sent } = makeSdk([makeUr(1, road)], {
+      comments: { 1: [recent] },
+    });
 
-    expect((await closeStale(sdk, 1, NOW)).result).toBe("skipped");
+    expect((await remindStale(sdk, 1, NOW)).result).toBe("skipped");
+    expect(sent).toEqual([]);
   });
 
   it("re-reads the conversation and skips a UR whose reporter replied meanwhile", async () => {
@@ -416,12 +473,124 @@ describe("closeStale", () => {
       comments: { 1: [mapTeam, reply] },
     });
 
-    expect(await closeStale(sdk, 1, NOW)).toEqual({
+    expect(await remindStale(sdk, 1, NOW)).toEqual({
       id: 1,
       result: "skipped",
       reason: "skipConversation",
     });
     expect(calls).toEqual(["details:1"]);
+  });
+
+  it("reports a failed send and remembers nothing", async () => {
+    const { sdk } = makeSdk([makeUr(1, road)], { failComment: [1] });
+
+    expect(await remindStale(sdk, 1, NOW)).toEqual({
+      id: 1,
+      result: "failed",
+      reason: "errComment",
+    });
+    expect(staleSession(1).remindedOn).toBeNull();
+  });
+});
+
+describe("closeStale", () => {
+  it("sends the closing message, then closes as not-identified", async () => {
+    const { sdk, calls, sent } = makeSdk([makeUr(1, road)], {
+      comments: { 1: [mapTeam, reminder(4)] },
+    });
+
+    expect(await closeStale(sdk, 1, NOW)).toEqual({ id: 1, result: "closed" });
+    expect(calls).toEqual(["details:1", "comment:1", "close:1:not-identified"]);
+    expect(sent).toEqual([{ id: 1, text: buildStaleClosing("fr") }]);
+    expect(wasMessaged(1)).toBe(true);
+  });
+
+  it("finds a reminder written in another language", async () => {
+    const { sdk } = makeSdk([makeUr(1, road)], {
+      comments: { 1: [reminder(4, "de")] },
+    });
+
+    expect((await closeStale(sdk, 1, NOW)).result).toBe("closed");
+  });
+
+  it("refuses to close before the three days have passed", async () => {
+    const { sdk, calls } = makeSdk([makeUr(1, road)], {
+      comments: { 1: [reminder(2)] },
+    });
+
+    expect(await closeStale(sdk, 1, NOW)).toEqual({
+      id: 1,
+      result: "skipped",
+      reason: "skipStage",
+    });
+    expect(calls).toEqual(["details:1"]);
+  });
+
+  it("refuses to close one never reminded", async () => {
+    const { sdk, calls } = makeSdk([makeUr(1, road)], {
+      comments: { 1: [mapTeam] },
+    });
+
+    expect(await closeStale(sdk, 1, NOW)).toEqual({
+      id: 1,
+      result: "skipped",
+      reason: "skipStage",
+    });
+    expect(calls).toEqual(["details:1"]);
+  });
+
+  it("skips one whose reporter answered the reminder", async () => {
+    const reply = { ...comment, userName: null, createdOn: NOW - DAY };
+    const { sdk, sent } = makeSdk([makeUr(1, road)], {
+      comments: { 1: [reminder(4), reply] },
+    });
+
+    expect(await closeStale(sdk, 1, NOW)).toEqual({
+      id: 1,
+      result: "skipped",
+      reason: "skipConversation",
+    });
+    expect(sent).toEqual([]);
+  });
+
+  it("keeps the reminder when WME returns it without its author", async () => {
+    const nameless = { ...reminder(4), userName: null };
+    const { sdk } = makeSdk([makeUr(1, road)], {
+      comments: { 1: [nameless] },
+    });
+
+    expect((await closeStale(sdk, 1, NOW)).result).toBe("closed");
+  });
+
+  it("closes without sending again when the closing message is already there", async () => {
+    const closing = {
+      createdOn: NOW - DAY,
+      text: buildStaleClosing("fr"),
+      userName: "editor",
+    };
+    const { sdk, calls, sent } = makeSdk([makeUr(1, road)], {
+      comments: { 1: [reminder(5), closing] },
+    });
+
+    expect(await closeStale(sdk, 1, NOW)).toEqual({ id: 1, result: "closed" });
+    expect(calls).toEqual(["details:1", "close:1:not-identified"]);
+    expect(sent).toEqual([]);
+  });
+
+  it("leaves the UR open and untouched when the closing message fails", async () => {
+    const ur = makeUr(1, road);
+    const { sdk, calls } = makeSdk([ur], {
+      comments: { 1: [reminder(4)] },
+      failComment: [1],
+    });
+
+    expect(await closeStale(sdk, 1, NOW)).toEqual({
+      id: 1,
+      result: "failed",
+      reason: "errComment",
+    });
+    expect(calls).not.toContain("close:1:not-identified");
+    expect(ur.isOpen).toBe(true);
   });
 
   it("skips, without reading anything, a UR that is no longer a candidate", async () => {
@@ -448,6 +617,11 @@ describe("closeStale", () => {
     });
 
     expect(await closeStale(sdk, 1, NOW)).toEqual({
+      id: 1,
+      result: "skipped",
+      reason: "skipRoadUnknown",
+    });
+    expect(await remindStale(sdk, 1, NOW)).toEqual({
       id: 1,
       result: "skipped",
       reason: "skipRoadUnknown",
@@ -502,8 +676,11 @@ describe("closeStale", () => {
     expect(calls).toEqual([]);
   });
 
-  it("reports a closure failure", async () => {
-    const { sdk } = makeSdk([makeUr(1, road)], { failClose: [1] });
+  it("reports a closure failure after the message left", async () => {
+    const { sdk } = makeSdk([makeUr(1, road)], {
+      comments: { 1: [reminder(4)] },
+      failClose: [1],
+    });
 
     expect(await closeStale(sdk, 1, NOW)).toEqual({
       id: 1,
@@ -526,8 +703,9 @@ describe("canBatchStale", () => {
         speedCamera: [1],
         mapMate: [],
         stale: [2],
+        staleRemind: [],
       }),
-    ).toEqual({ speedCamera: [], mapMate: [], stale: [] });
+    ).toEqual({ speedCamera: [], mapMate: [], stale: [], staleRemind: [] });
   });
 });
 
@@ -536,10 +714,32 @@ describe("capBatch", () => {
     const speedCamera = Array.from({ length: 40 }, (_, i) => i + 1);
     const stale = Array.from({ length: 20 }, (_, i) => i + 101);
 
-    const capped = capBatch({ speedCamera, mapMate: [], stale });
+    const capped = capBatch({
+      speedCamera,
+      mapMate: [],
+      stale,
+      staleRemind: [201],
+    });
 
     expect(capped.speedCamera).toHaveLength(40);
     expect(capped.stale).toEqual(stale.slice(0, BATCH_CAP - 40));
+    expect(capped.staleRemind).toEqual([]);
+  });
+
+  it("puts the abandoned closures before the reminders", () => {
+    const capped = capBatch({
+      speedCamera: [],
+      mapMate: [],
+      stale: [1, 2],
+      staleRemind: [3, 4],
+    });
+
+    expect(capped).toEqual({
+      speedCamera: [],
+      mapMate: [],
+      stale: [1, 2],
+      staleRemind: [3, 4],
+    });
   });
 });
 
@@ -549,7 +749,7 @@ describe("closeMany with abandoned URs", () => {
 
     const outcomes = await closeMany(
       sdk,
-      { speedCamera: [1], mapMate: [], stale: [2] },
+      { speedCamera: [1], mapMate: [], stale: [2], staleRemind: [] },
       NOW,
     );
 
@@ -561,15 +761,20 @@ describe("closeMany with abandoned URs", () => {
     const { sdk, calls } = makeSdk([makeUr(1, road)], { rank: 2 });
 
     expect(
-      await closeMany(sdk, { speedCamera: [], mapMate: [], stale: [1] }, NOW),
+      await closeMany(
+        sdk,
+        { speedCamera: [], mapMate: [], stale: [1], staleRemind: [] },
+        NOW,
+      ),
     ).toBeNull();
     expect(calls).toEqual([]);
   });
 
-  it("shares the cap, speed cameras first, and never messages an abandoned UR", async () => {
+  it("shares the cap, speed cameras first, and sends each abandoned UR its closing message", async () => {
     const cameras = Array.from({ length: 40 }, (_, i) => makeUr(i + 1));
     const old = Array.from({ length: 20 }, (_, i) => makeUr(i + 101, road));
-    const { sdk, sent } = makeSdk([...cameras, ...old], { rank: 3 });
+    const comments = Object.fromEntries(old.map((u) => [u.id, [reminder(4)]]));
+    const { sdk, sent } = makeSdk([...cameras, ...old], { rank: 3, comments });
 
     const outcomes = await closeMany(
       sdk,
@@ -577,6 +782,7 @@ describe("closeMany with abandoned URs", () => {
         speedCamera: cameras.map((u) => u.id),
         mapMate: [],
         stale: old.map((u) => u.id),
+        staleRemind: [],
       },
       NOW,
     );
@@ -586,7 +792,34 @@ describe("closeMany with abandoned URs", () => {
       old.slice(0, 10).map((u) => u.id),
     );
     expect(outcomes?.every((o) => o.result === "closed")).toBe(true);
-    expect(sent.map((s) => s.id)).toEqual(cameras.map((u) => u.id));
+    const closings = sent.filter((s) => s.text === buildStaleClosing("fr"));
+    expect(closings.map((s) => s.id)).toEqual(
+      old.slice(0, 10).map((u) => u.id),
+    );
+  });
+
+  it("reminds after closing, and leaves the reminded URs open", async () => {
+    const urs = [makeUr(1, road), makeUr(2, road)];
+    const { sdk, sent } = makeSdk(urs, {
+      rank: 3,
+      comments: { 1: [reminder(4)] },
+    });
+
+    const outcomes = await closeMany(
+      sdk,
+      { speedCamera: [], mapMate: [], stale: [1], staleRemind: [2] },
+      NOW,
+    );
+
+    expect(outcomes?.map((o) => [o.id, o.result])).toEqual([
+      [1, "closed"],
+      [2, "reminded"],
+    ]);
+    expect(sent).toEqual([
+      { id: 1, text: buildStaleClosing("fr") },
+      { id: 2, text: buildStaleReminder("fr") },
+    ]);
+    expect(urs[1]?.isOpen).toBe(true);
   });
 });
 
@@ -716,11 +949,11 @@ describe("closeMany with Map Mate reports", () => {
       makeMapMateUr(2, "INCORRECT_ROUTE"),
       makeUr(3, road),
     ];
-    const { sdk } = makeSdk(urs, { rank: 3 });
+    const { sdk } = makeSdk(urs, { rank: 3, comments: { 3: [reminder(4)] } });
 
     const outcomes = await closeMany(
       sdk,
-      { speedCamera: [1], mapMate: [2], stale: [3] },
+      { speedCamera: [1], mapMate: [2], stale: [3], staleRemind: [] },
       NOW,
     );
 
@@ -737,7 +970,11 @@ describe("closeMany with Map Mate reports", () => {
     });
 
     expect(
-      await closeMany(sdk, { speedCamera: [], mapMate: [1], stale: [] }, NOW),
+      await closeMany(
+        sdk,
+        { speedCamera: [], mapMate: [1], stale: [], staleRemind: [] },
+        NOW,
+      ),
     ).toBeNull();
     expect(calls).toEqual([]);
   });
@@ -756,6 +993,7 @@ describe("closeMany with Map Mate reports", () => {
         speedCamera: cameras.map((u) => u.id),
         mapMate: reports.map((u) => u.id),
         stale: [201],
+        staleRemind: [],
       },
       NOW,
     );
@@ -781,6 +1019,20 @@ describe("summarize with questions", () => {
       { id: 2, result: "closed" },
     ]);
     expect(text).toContain("Save to record the closures.");
+  });
+});
+
+describe("summarize with reminders", () => {
+  it("counts the reminders and says there is nothing to save", () => {
+    const text = summarize([{ id: 1, result: "reminded" }]);
+    expect(text).toContain("1 reminder(s) sent.");
+    expect(text).toContain("The reminders are already sent");
+    expect(text).not.toContain("UR #1");
+  });
+
+  it("says when an abandoned UR moved on since the list was drawn", () => {
+    const text = summarize([{ id: 4, result: "skipped", reason: "skipStage" }]);
+    expect(text).toContain("UR #4: its state changed in the meantime");
   });
 });
 

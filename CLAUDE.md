@@ -106,7 +106,7 @@ first-day editor installed it:
 | Own SDK instance and `scriptId` (`index.ts`) | `registerScriptTab()` throws if the host's scriptId already owns a tab |
 | Own i18next instance (`i18n.ts`) | The checker's language is a per-feature preference; sharing the host singleton would flip the whole UI. Strings still live in `locales/<lang>/common.json`, under `streetCheck` |
 | DOM injection into the segment edit panel (`src/ui/edit-panel-host.ts`) | The SDK exposes no extension point there. **One** container is mounted, and each feature registers a slot with a declared rank; previously each feature prepended its own box on its own retry schedule, so their order depended on which retry won and could flip between selections. A slot that has nothing to say returns `null` and leaves no trace; the host removes itself when every slot does. The containment rule is unchanged, the DOM is only a mount point |
-| Floating window injected into `document.body` (`ui/floating-window.ts`, `ui/window-mode.ts`) | WME switches the sidebar to its Selection panel the moment a segment is clicked, hiding the tab exactly when it is being used. The SDK offers no way to keep a script tab visible, and no window or panel API. The window only hosts DOM the tab already builds; scanning, selection and editing still go through SDK events |
+| Floating windows injected into `document.body` (`src/ui/floating-window.ts`, `window-mode.ts`, `detachable-panel.ts`) | WME switches the sidebar to its Selection panel the moment something is clicked on the map, hiding the tab exactly when it is being used. The SDK offers no way to keep a script tab visible, and no window or panel API. The windows only host DOM the tabs already build; scanning, selection and editing still go through SDK events. The street-name checker splits its panel (list in the window, options in the sidebar) and keeps its window in its own settings; the house-number and UR panels move whole through `DetachablePanel`, their state in `wme-ch-helper.windows` (`window-state.ts`). Windows sit below the dialogs (z-index 9000/9001 < 10000), the last one touched on top. Only the checker's toggle has default keys (Alt+W); the others are registered unbound |
 | Reordering our own tabs in the Scripts bar (`src/ui/tab-group.ts`) | The SDK's `Sidebar` module exposes only `registerScriptTab()` and `removeScriptTab()`, neither taking arguments: no ordering, grouping, icon or colour. Label and pane are moved together so a pairing by position survives; every failure is silent, and the tabs then simply keep their native place, still prefixed `CH ·` |
 | Canton flags as base64 data URIs (`ui/canton-flags.ts`) | Rollup has no SVG asset loader in this setup |
 | `GM_xmlhttpRequest` rather than `fetch` (`geoadmin/client.ts`) | WME's CSP blocks `connect-src` to geo.admin.ch |
@@ -168,7 +168,7 @@ them. Entry point: `initSpeedCameraUrs()` (`index.ts`), called from `main.user.t
 importer, with its own scriptId for the same reason.
 
 Pipeline: `Scanner` (scanner.ts: data-model events and map extent) → `detect.ts` (prefix,
-triage) → `TabUI`. `close.ts` is the only module that writes.
+triage) and `stale.ts` (abandoned URs' step) → `TabUI`. `close.ts` is the only module that writes.
 
 - `map-highlight.ts`: the SDK cannot open a UR's panel (`setSelection` does not accept
   update requests), so a click in the list centres, zooms to `FOCUS_ZOOM` and blinks a ring
@@ -196,16 +196,30 @@ triage) → `TabUI`. `close.ts` is the only module that writes.
   per language, detect.ts); a named one never is, since editors paste that question by
   hand. `hasDiscussion` ignores Map_Team only. A nameless comment with any other text is
   the reporter.
-- Abandoned URs (`isStaleCandidate` prefilter, `isAbandoned` verdict, detect.ts): open,
+- Abandoned URs (`isStaleCandidate` prefilter, `isAbandoned` for the first step, detect.ts): open,
   editable, any type, **no activity for more than `STALE_AGE_DAYS` (14) days** (latest
   comment, or the report when there is none), and the reporter does **not** have the last
   word among the people (`reporterHasLastWord`: Map_Team is left out, its automatic question
   can land after the reporter's reply). The scanner caches what the conversation said and
   decides at each publish, so a UR crossing the 14 days shows up without a reload. A question from Map_Team or an editor left unanswered is exactly what this family
-  closes; a UR whose reporter wrote last is never abandoned, someone owes them an answer.
-  Map Mate voice reports (`source === "REPORTING_AGENT"`) never qualify. Closed as
-  not-identified **without any message**. The scanner reads their conversations only when
-  the "Abandoned" box is checked, after the speed cameras' and Map Mate's.
+  follows up; a UR whose reporter wrote last is never abandoned, someone owes them an answer.
+  Map Mate voice reports (`source === "REPORTING_AGENT"`) never qualify. The scanner reads
+  their conversations only when the "Abandoned" box is checked, after the speed cameras' and
+  Map Mate's, and caches the conversation itself: the step depends on the time.
+- Abandoned URs go through **two steps** (`staleStage`, stale.ts): `remind` (our last
+  reminder, `remindStale`, the UR stays open), then `waiting` for `REMINDER_GRACE_DAYS` (3)
+  with no button, then `close` (`closeStale`: closing message, then not-identified, comment
+  first as for speed cameras). The reminder text says "very soon" and names **no delay** on
+  purpose; the 3 days are the script's own count, from the reminder's `createdOn` in the
+  conversation, so they survive a reload and another editor's machine. Both texts are
+  recognised by their body in any language (`isStaleReminder`, `isStaleClosing`,
+  message.ts). Our own text is never the reporter's, even when WME drops its author. The
+  reminder counts only while it is the latest comment among the people: an editor writing
+  after it starts the 14 days over; the reporter writing after it drops the UR. WME may
+  return its cached conversation without our new comment, so `staleSession(id)` (close.ts:
+  `reminded` map, `messaged` set) stands in for it, or the UR would be reminded twice.
+  A closing message already in the conversation (Ctrl+Z) means close only, never send again;
+  such a UR is closed one by one, never in a batch.
 - Overlaps: a speed camera is never "abandoned", it always gets the message. A traffic light
   on a freeway is never "abandoned" either, or it would reach a batch through the back door.
 - Map Mate reports (`mapMateKind`, detect.ts): `source === "REPORTING_AGENT"`, type
@@ -228,12 +242,13 @@ triage) → `TabUI`. `close.ts` is the only module that writes.
 
 **Safety rules:**
 
-- `BATCH_MIN_RANK` (level 3, speed cameras and Map Mate), `STALE_BATCH_MIN_RANK` (level 4)
-  and `BATCH_CAP` (50, the whole batch: speed cameras, then Map Mate, then abandoned) live in
+- `BATCH_MIN_RANK` (level 3, speed cameras and Map Mate), `STALE_BATCH_MIN_RANK` (level 4,
+  reminders and closures alike) and `BATCH_CAP` (50, the whole batch: speed cameras, then
+  Map Mate, then abandoned closures, then reminders) live in
   `close.ts` and are enforced in `closeMany`, not only in the tab. One batch button covers
   what is ticked and allowed; it is hidden when that is empty.
 - Any comment keeps a speed camera out of the batch, and any comment but Map_Team's keeps
-  a Map Mate report out; abandoned URs follow their own rule (`isAbandoned`). `wasMessaged` covers Ctrl+Z: the closure
+  a Map Mate report out; abandoned URs follow their own rule (`staleStage`). `wasMessaged` covers Ctrl+Z: the closure
   is undone but the message is not, and WME's cached conversation may not show it yet.
 - A UR already messaged is never messaged again: `alreadyMessaged` is true when
   `wasMessaged(id)` (this session) or a comment contains the official text (`isOfficialMessage`,
@@ -248,7 +263,8 @@ triage) → `TabUI`. `close.ts` is the only module that writes.
   prefix, `askMapMate` and `closeStale` refuse a light not known to be off a freeway.
 - Messages, freeway traffic lights and any confirmation that quotes a conversation never
   carry a "don't show again" box; the flow tests assert it. The only skippable URs
-  confirmations close without sending anything (`scu.closeOnly`, `scu.closeStale`).
+  confirmations close without sending anything (`scu.closeOnly`, and `scu.closeStale` only
+  when the closing message already left). Reminding never carries the box.
 - Every UR is re-read right before writing; one closed in the meantime is skipped. The UR's
   state is live, but `getUpdateRequestDetails` may return the conversation already in WME's
   data model (the SDK offers no forced refresh), so a very recent comment can be missing.

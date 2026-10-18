@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  CASCADE_STEP_PX,
   clampRect,
   defaultRect,
   dragTo,
@@ -111,6 +112,19 @@ describe("defaultRect", () => {
     const r = defaultRect(small);
     expect(r.w).toBeLessThanOrEqual(small.width);
     expect(r.x).toBeGreaterThanOrEqual(0);
+  });
+
+  it("opens each further window one step down and to the left", () => {
+    const first = defaultRect(SCREEN);
+    const second = defaultRect(SCREEN, 1);
+    expect(second.x).toBe(first.x - CASCADE_STEP_PX);
+    expect(second.y).toBe(first.y + CASCADE_STEP_PX);
+  });
+
+  it("keeps a deep cascade on screen", () => {
+    const r = defaultRect(SCREEN, 100);
+    expect(r.x).toBeGreaterThanOrEqual(0);
+    expect(r.y).toBeLessThanOrEqual(SCREEN.height - TITLE_BAR_GRAB_PX);
   });
 });
 

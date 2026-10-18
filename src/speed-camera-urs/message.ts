@@ -123,3 +123,39 @@ export function mayAskMapMate(
 export function kindLabel(kind: MapMateKind): string {
   return t(KIND_LABEL[kind]);
 }
+
+/**
+ * The last reminder before an abandoned UR is closed. It names no delay: the three days are
+ * the script's own count (REMINDER_GRACE_DAYS), and a date in the text would be wrong as
+ * soon as an editor waits a day longer.
+ */
+export function buildStaleReminder(lang: LocaleCode): string {
+  const body = tIn(lang, "staleReminderBody");
+  const signature = tIn(lang, "messageSignature");
+  return `${body}\n\n${signature}`;
+}
+
+/** Sent right before the closure, so the reporter is not left with a silent "closed". */
+export function buildStaleClosing(lang: LocaleCode): string {
+  const body = tIn(lang, "staleClosingBody");
+  const signature = tIn(lang, "messageSignature");
+  return `${body}\n\n${signature}`;
+}
+
+/**
+ * Whether a comment is our reminder, any language. Its date is what the three days count
+ * from, so it has to be found again after a reload or on another editor's machine.
+ */
+export function isStaleReminder(text: string): boolean {
+  return containsBody(text, "staleReminderBody");
+}
+
+/** Whether a comment is our closing message: after a Ctrl+Z it must not be sent twice. */
+export function isStaleClosing(text: string): boolean {
+  return containsBody(text, "staleClosingBody");
+}
+
+function containsBody(text: string, key: StringKey): boolean {
+  const comment = collapseSpaces(text);
+  return ORDER.some((lang) => comment.includes(collapseSpaces(tIn(lang, key))));
+}

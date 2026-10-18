@@ -6,8 +6,26 @@ import {
   closeSelectedSpec,
   closeStaleSpec,
   excerpt,
+  remindStaleSpec,
 } from "./confirm-spec";
-import { buildMapMateQuestion, buildMessage } from "./message";
+import type { MapMateKind } from "./detect";
+import type { LocaleCode } from "./i18n";
+import {
+  buildMapMateQuestion,
+  buildMessage,
+  buildStaleClosing,
+  buildStaleReminder,
+} from "./message";
+
+/** The batch's languages; abandoned closures in French, as their count is what matters. */
+function selected(
+  speedCamera: LocaleCode[],
+  mapMate: Array<{ kind: MapMateKind; lang: LocaleCode }>,
+  staleCount: number,
+) {
+  const stale = Array.from({ length: staleCount }, (): LocaleCode => "fr");
+  return { speedCamera, mapMate, stale, staleRemind: [] };
+}
 
 describe("closeOneSpec", () => {
   it("quotes the exact message in the reporter's language, with the irreversibility warning", () => {
@@ -48,37 +66,71 @@ describe("closeOnlySpec", () => {
   });
 });
 
+describe("remindStaleSpec", () => {
+  it("quotes the reminder, says the UR stays open and gives the idle days", () => {
+    const spec = remindStaleSpec(7, "de", 32);
+
+    expect(spec.title).toBe("Remind UR #7");
+    expect(spec.facts).toEqual([
+      "The message below goes to the reporter now.",
+      "The UR stays open for their answer.",
+      "No activity for 32 days.",
+    ]);
+    expect(spec.quotes?.[0]?.options).toEqual([
+      { lang: "de", langLabel: "German", text: buildStaleReminder("de") },
+    ]);
+    expect(spec.warning).toContain("cannot be withdrawn");
+    expect(spec.confirmLabel).toBe("Send");
+    expect(spec.skip).toBeUndefined();
+  });
+});
+
 describe("closeStaleSpec", () => {
-  it("states the closure, that nothing is sent and the age; no quote, no warning", () => {
-    const spec = closeStaleSpec(7, 32);
+  it("quotes the closing message, with the days since the reminder and the warning", () => {
+    const spec = closeStaleSpec(7, "it", 4, false);
 
     expect(spec.title).toBe("Close UR #7");
     expect(spec.facts).toEqual([
+      "The message below goes to the reporter now.",
       "The UR is closed as Not identified.",
-      "No message is sent to the reporter.",
-      "No activity for 32 days.",
+      "Reminded 4 days ago, no answer.",
+    ]);
+    expect(spec.quotes?.[0]?.options).toEqual([
+      { lang: "it", langLabel: "Italian", text: buildStaleClosing("it") },
+    ]);
+    expect(spec.warning).toContain("cannot be withdrawn");
+    expect(spec.confirmLabel).toBe("Send and close");
+  });
+
+  it("never carries the skip option while it sends", () => {
+    const skip = { label: "Don't show again", isSkipped: false, remember() {} };
+
+    expect(closeStaleSpec(7, "fr", 4, false, skip).skip).toBeUndefined();
+  });
+
+  it("only closes, quoting nothing, when the closing message already left", () => {
+    const skip = { label: "Don't show again", isSkipped: false, remember() {} };
+    const spec = closeStaleSpec(7, "fr", 4, true, skip);
+
+    expect(spec.facts).toEqual([
+      "The UR is closed as Not identified.",
+      "The closing message is already in the conversation; it is not sent again.",
     ]);
     expect(spec.quotes).toBeUndefined();
     expect(spec.warning).toBeUndefined();
     expect(spec.confirmLabel).toBe("Close");
-  });
-
-  it("carries the skip option only when given one", () => {
-    const skip = { label: "Don't show again", isSkipped: false, remember() {} };
-
-    expect(closeStaleSpec(7, 32).skip).toBeUndefined();
-    expect(closeStaleSpec(7, 32, skip).skip).toBe(skip);
+    expect(spec.skip).toBe(skip);
   });
 });
 
 describe("closeSelectedSpec", () => {
   it("describes each family of a mixed batch, and quotes the message", () => {
-    const spec = closeSelectedSpec(["fr", "de"], [], 3, "fr");
+    const spec = closeSelectedSpec(selected(["fr", "de"], [], 3), "fr");
 
     expect(spec.title).toBe("Handle 5 UR(s)");
     expect(spec.facts).toEqual([
       "2 speed camera(s): message sent now, then closed as Not identified",
-      "3 abandoned: closed as Not identified, without any message",
+      "3 abandoned: closing message sent now, then closed as Not identified",
     ]);
     expect(spec.quotes?.[0]?.options.map((option) => option.lang)).toEqual([
       "fr",
@@ -88,19 +140,57 @@ describe("closeSelectedSpec", () => {
     expect(spec.confirmLabel).toBe("Send and close");
   });
 
-  it("quotes nothing and warns of nothing when only abandoned URs go", () => {
-    const spec = closeSelectedSpec([], [], 4, "fr");
+  it("quotes the closing message and the reminder of the abandoned URs, in their languages", () => {
+    const spec = closeSelectedSpec(
+      {
+        speedCamera: [],
+        mapMate: [],
+        stale: ["de", "de"],
+        staleRemind: ["it", "fr"],
+      },
+      "fr",
+    );
 
+    expect(spec.title).toBe("Handle 4 UR(s)");
     expect(spec.facts).toEqual([
-      "4 abandoned: closed as Not identified, without any message",
+      "2 abandoned: closing message sent now, then closed as Not identified",
+      "2 to remind: reminder sent now, the UR stays open",
     ]);
-    expect(spec.quotes).toBeUndefined();
-    expect(spec.warning).toBeUndefined();
-    expect(spec.confirmLabel).toBe("Close");
+    expect(spec.quotes?.map((block) => block.label)).toEqual([
+      "Closing message sent",
+      "Reminder sent",
+    ]);
+    expect(spec.quotes?.[0]?.options).toEqual([
+      {
+        lang: "de",
+        langLabel: "German",
+        count: 2,
+        text: buildStaleClosing("de"),
+      },
+    ]);
+    expect(spec.quotes?.[1]?.options.map((o) => o.text)).toEqual([
+      buildStaleReminder("fr"),
+      buildStaleReminder("it"),
+    ]);
+    expect(spec.warning).toContain("cannot be withdrawn");
+    expect(spec.confirmLabel).toBe("Send and close");
+  });
+
+  it("labels the button Send when only reminders go", () => {
+    const spec = closeSelectedSpec(
+      { speedCamera: [], mapMate: [], stale: [], staleRemind: ["fr"] },
+      "fr",
+    );
+
+    expect(spec.confirmLabel).toBe("Send");
+    expect(spec.warning).toContain("cannot be withdrawn");
   });
 
   it("offers every language of the batch, with its count and exact text", () => {
-    const spec = closeSelectedSpec(["de", "fr", "fr", "it"], [], 0, "en");
+    const spec = closeSelectedSpec(
+      selected(["de", "fr", "fr", "it"], [], 0),
+      "en",
+    );
 
     expect(spec.quotes?.[0]?.options).toEqual([
       { lang: "fr", langLabel: "French", count: 2, text: buildMessage("fr") },
@@ -111,7 +201,7 @@ describe("closeSelectedSpec", () => {
   });
 
   it("shows the editor's own language first when the batch has it", () => {
-    const spec = closeSelectedSpec(["fr", "fr", "de"], [], 0, "de");
+    const spec = closeSelectedSpec(selected(["fr", "fr", "de"], [], 0), "de");
 
     expect(spec.quotes?.[0]?.options.map((option) => option.lang)).toEqual([
       "de",
@@ -121,7 +211,7 @@ describe("closeSelectedSpec", () => {
 
   it("needs no hint when the batch speaks a single language", () => {
     expect(
-      closeSelectedSpec(["fr", "fr"], [], 0, "fr").quotes?.[0]?.hint,
+      closeSelectedSpec(selected(["fr", "fr"], [], 0), "fr").quotes?.[0]?.hint,
     ).toBeUndefined();
   });
 });
@@ -158,13 +248,15 @@ describe("askMapMateSpec", () => {
 describe("closeSelectedSpec with Map Mate", () => {
   it("adds a family line and one quote per case, in a fixed order", () => {
     const spec = closeSelectedSpec(
-      ["fr"],
-      [
-        { kind: "route", lang: "de" },
-        { kind: "trafficLight", lang: "fr" },
-        { kind: "route", lang: "fr" },
-      ],
-      2,
+      selected(
+        ["fr"],
+        [
+          { kind: "route", lang: "de" },
+          { kind: "trafficLight", lang: "fr" },
+          { kind: "route", lang: "fr" },
+        ],
+        2,
+      ),
       "fr",
     );
 
@@ -172,25 +264,32 @@ describe("closeSelectedSpec with Map Mate", () => {
     expect(spec.facts).toEqual([
       "1 speed camera(s): message sent now, then closed as Not identified",
       "3 Map Mate: question sent now, the UR stays open",
-      "2 abandoned: closed as Not identified, without any message",
+      "2 abandoned: closing message sent now, then closed as Not identified",
     ]);
     expect(spec.quotes?.map((block) => block.label)).toEqual([
       "Message sent",
       "Question sent · Traffic light",
       "Question sent · Route",
+      "Closing message sent",
     ]);
     expect(spec.quotes?.[2]?.options.map((o) => o.lang)).toEqual(["fr", "de"]);
     expect(spec.warning).toContain("cannot be withdrawn");
   });
 
   it("says Send and close when questions go with closures", () => {
-    const spec = closeSelectedSpec([], [{ kind: "turn", lang: "it" }], 3, "fr");
+    const spec = closeSelectedSpec(
+      selected([], [{ kind: "turn", lang: "it" }], 3),
+      "fr",
+    );
 
     expect(spec.confirmLabel).toBe("Send and close");
   });
 
   it("labels the button Send when only questions go", () => {
-    const spec = closeSelectedSpec([], [{ kind: "turn", lang: "it" }], 0, "fr");
+    const spec = closeSelectedSpec(
+      selected([], [{ kind: "turn", lang: "it" }], 0),
+      "fr",
+    );
 
     expect(spec.confirmLabel).toBe("Send");
     expect(spec.warning).toContain("cannot be withdrawn");

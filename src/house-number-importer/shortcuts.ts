@@ -16,9 +16,14 @@ export function registerShortcuts(
   sdk: WmeSDK,
   controller: Controller,
   settings: SettingsStore,
-  actions: { toggleLayer: () => void },
+  actions: { toggleLayer: () => void; toggleWindow: () => void },
 ): void {
-  const create = (shortcutId: string, description: string, keys: string, callback: () => void) => {
+  const create = (
+    shortcutId: string,
+    description: string,
+    keys: string | null,
+    callback: () => void,
+  ) => {
     try {
       sdk.Shortcuts.createShortcut({ shortcutId, description, shortcutKeys: keys, callback });
     } catch (err) {
@@ -43,4 +48,8 @@ export function registerShortcuts(
   // Deliberately not gated on `enabled`: this is how the feature gets switched back on
   // without hunting for the layer checkbox.
   create("hn-toggle-layer", t("shortcutToggleLayer"), "A+j", () => actions.toggleLayer());
+
+  // No default keys: Alt+W already belongs to the street-name window, and most free Alt
+  // combinations are WME's. The editor binds one in WME's keyboard settings if they want it.
+  create("hn-toggle-window", t("shortcutToggleWindow"), null, () => actions.toggleWindow());
 }

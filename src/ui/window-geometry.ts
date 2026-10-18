@@ -28,11 +28,19 @@ export const TITLE_BAR_GRAB_PX = 30;
 
 export const DEFAULT_SIZE = { w: 460, h: 560 };
 
-/** Starting position: right-hand side, clear of WME's own toolbars. */
-export function defaultRect(viewport: Viewport): WindowRect {
+/** How far each further window opens from the previous one, so none hides another. */
+export const CASCADE_STEP_PX = 28;
+
+/**
+ * Starting position: right-hand side, clear of WME's own toolbars. `cascade` is how many
+ * windows are already open: each new one opens a step down and to the left, so a panel
+ * detached second does not land exactly on top of the first.
+ */
+export function defaultRect(viewport: Viewport, cascade = 0): WindowRect {
   const w = Math.min(DEFAULT_SIZE.w, Math.max(MIN_WIDTH, viewport.width - 40));
   const h = Math.min(DEFAULT_SIZE.h, Math.max(MIN_HEIGHT, viewport.height - 120));
-  return clampRect({ x: viewport.width - w - 60, y: 60, w, h }, viewport);
+  const shift = cascade * CASCADE_STEP_PX;
+  return clampRect({ x: viewport.width - w - 60 - shift, y: 60 + shift, w, h }, viewport);
 }
 
 /**

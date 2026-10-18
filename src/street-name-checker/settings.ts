@@ -1,7 +1,7 @@
 import type { LanguagePreference } from "./i18n";
 import type { IssueStatus } from "./matching/evaluate";
 import { log } from "./log";
-import type { WindowRect } from "./ui/window-geometry";
+import type { WindowRect } from "../ui/window-geometry";
 
 /** Sidebar tab, or a floating window that survives WME's tab switching. */
 export type WindowMode = "sidebar" | "floating";

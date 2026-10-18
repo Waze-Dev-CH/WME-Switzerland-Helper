@@ -19,19 +19,30 @@ export interface FakeNode {
   checked: boolean;
   open: boolean;
   children: FakeNode[];
+  /** Set by the insertion methods, so remove() can find the node's place. */
+  parentNode: FakeNode | null;
   attributes: Record<string, string>;
   listeners: Record<string, Array<(event?: unknown) => void>>;
   style: Record<string, string>;
+  dataset: Record<string, string>;
   append(...nodes: Array<FakeNode | string>): void;
   appendChild(node: FakeNode): FakeNode;
   prepend(...nodes: FakeNode[]): void;
   replaceChildren(...nodes: FakeNode[]): void;
+  remove(): void;
   setAttribute(name: string, value: string): void;
   getAttribute(name: string): string | null;
   addEventListener(type: string, handler: (event?: unknown) => void): void;
   querySelector(selector: string): FakeNode | null;
   /** Test-only: fire the listeners of a type, with an optional event object. */
   dispatch(type: string, event?: unknown): void;
+}
+
+/** Like the DOM: inserting a node takes it out of wherever it was before. */
+function adopt(parent: FakeNode, child: FakeNode, where: "push" | "unshift"): void {
+  child.remove();
+  child.parentNode = parent;
+  parent.children[where](child);
 }
 
 function createNode(tagName: string): FakeNode {
@@ -48,24 +59,34 @@ function createNode(tagName: string): FakeNode {
     checked: false,
     open: false,
     children: [],
+    parentNode: null,
     attributes: {},
     listeners: {},
     style: {},
+    dataset: {},
     append(...nodes) {
       for (const child of nodes) {
         if (typeof child === "string") node.textContent += child;
-        else node.children.push(child);
+        else adopt(node, child, "push");
       }
     },
     appendChild(child) {
-      node.children.push(child);
+      adopt(node, child, "push");
       return child;
     },
     prepend(...nodes) {
-      node.children.unshift(...nodes);
+      for (const child of [...nodes].reverse()) adopt(node, child, "unshift");
     },
     replaceChildren(...nodes) {
-      node.children = [...nodes];
+      for (const child of node.children) child.parentNode = null;
+      node.children = [];
+      for (const child of nodes) adopt(node, child, "push");
+    },
+    remove() {
+      const parent = node.parentNode;
+      if (!parent) return;
+      parent.children = parent.children.filter((child) => child !== node);
+      node.parentNode = null;
     },
     setAttribute(name, value) {
       node.attributes[name] = value;

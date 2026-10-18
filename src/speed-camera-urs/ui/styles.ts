@@ -7,6 +7,7 @@ const CSS = `
 ${tokenRules("scu", [".scu-pane"])}
 ${componentRules("scu")}
 
+.scu-brand-action { margin-left: auto; flex-shrink: 0; }
 .scu-list { display: flex; flex-direction: column; gap: 4px; }
 .scu-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .scu-row-label { font-variant-numeric: tabular-nums; }

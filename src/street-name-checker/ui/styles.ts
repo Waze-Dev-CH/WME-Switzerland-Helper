@@ -24,10 +24,10 @@ export function statusDotRules(): string {
  * two features drifting apart again.
  *
  * What stays below is what only a list of street-name issues needs: the groups and rows,
- * the floating window, the canton badge, the external links, the edit-panel helper box.
+ * the canton badge, the external links, the edit-panel helper box.
  */
 const CSS = `
-${tokenRules("chk", [".chk-pane", ".chk-helper", ".chk-window", ".wmech-edit-host"])}
+${tokenRules("chk", [".chk-pane", ".chk-helper", ".wmech-edit-host"])}
 ${componentRules("chk")}
 ${EDIT_PANEL_HOST_CSS}
 ${statusDotRules()}
@@ -40,56 +40,10 @@ ${statusDotRules()}
 /* Keeps the veil from collapsing onto a one-line list while a rescan runs. */
 .chk-list.chk-busy-active { min-height: 90px; }
 
-/* ---- Floating window ---------------------------------------------------- */
-/* z-index sits below the shared dialogs' 10000 so the fix confirmations stay on top. */
-.chk-window {
-  position: fixed;
-  z-index: 9000;
-  display: flex;
-  flex-direction: column;
-  min-width: 320px;
-  min-height: 220px;
-  resize: both;
-  overflow: hidden;
-  background: var(--chk-bg);
-  color: var(--chk-text);
-  border: 1px solid var(--chk-border);
-  border-radius: var(--chk-radius);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, .35);
-}
-.chk-window-bar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  background: var(--chk-surface);
-  border-bottom: 1px solid var(--chk-border);
-  cursor: move;
-  user-select: none;
-  flex: 0 0 auto;
-  touch-action: none;
-}
-.chk-window-title { flex: 1; font-weight: 600; font-size: 13px; }
-.chk-window-btn {
-  border: 1px solid var(--chk-border);
-  background: var(--chk-bg);
-  color: var(--chk-text);
-  border-radius: 4px;
-  height: 22px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0 8px;
-  font-size: 12px;
-  white-space: nowrap;
-}
-.chk-window-btn:hover { background: var(--chk-surface); }
-/* min-height:0 lets the inner flex column actually shrink instead of overflowing. */
-.chk-window-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-
 /* The sidebar's 100vh budget is meaningless in a window the user sizes: let the
    list take the height the window actually has. */
-.chk-window .chk-pane { height: 100%; }
-.chk-window .chk-groups { max-height: none; flex: 1 1 auto; min-height: 0; }
+.wmech-window .chk-pane { height: 100%; }
+.wmech-window .chk-groups { max-height: none; flex: 1 1 auto; min-height: 0; }
 
 /* Adaptive window: ~340px accounts for the chrome above/below the list, so the
    list uses the available height without pushing Settings out of reach. */

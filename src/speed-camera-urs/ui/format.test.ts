@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { BATCH_CAP } from "../close";
-import type { MapMateEntry, ScanSnapshot, UrEntry } from "../scanner";
+import type {
+  MapMateEntry,
+  ScanSnapshot,
+  StaleEntry,
+  UrEntry,
+} from "../scanner";
 import { DEFAULT_CRITERIA } from "../settings";
 import {
   formatCloseSelectedButton,
@@ -62,6 +67,7 @@ describe("formatStatus", () => {
       trafficLight: false,
       mapMate: false,
       stale: false,
+      staleRemind: [],
     };
     expect(formatStatus(snapshot(), none)).toBe(
       "No family ticked: tick at least one below.",
@@ -98,7 +104,12 @@ describe("formatRowLabel", () => {
 });
 
 describe("selectedBatch", () => {
-  const ready = { speedCamera: [1, 2], mapMate: [5], stale: [10] };
+  const ready = {
+    speedCamera: [1, 2],
+    mapMate: [5],
+    stale: [10],
+    staleRemind: [11],
+  };
   const everyone = { speedCamera: true, mapMate: true, stale: true };
 
   it("takes the speed cameras by default, not Map Mate nor the abandoned URs", () => {
@@ -106,6 +117,7 @@ describe("selectedBatch", () => {
       speedCamera: [1, 2],
       mapMate: [],
       stale: [],
+      staleRemind: [],
     });
   });
 
@@ -125,6 +137,7 @@ describe("selectedBatch", () => {
       speedCamera: [],
       mapMate: [],
       stale: [10],
+      staleRemind: [11],
     });
   });
 
@@ -136,14 +149,19 @@ describe("selectedBatch", () => {
         { speedCamera: true, mapMate: true, stale: false },
         ready,
       ),
-    ).toEqual({ speedCamera: [1, 2], mapMate: [5], stale: [] });
+    ).toEqual({
+      speedCamera: [1, 2],
+      mapMate: [5],
+      stale: [],
+      staleRemind: [],
+    });
     expect(
       selectedBatch(
         criteria,
         { speedCamera: false, mapMate: false, stale: false },
         ready,
       ),
-    ).toEqual({ speedCamera: [], mapMate: [], stale: [] });
+    ).toEqual({ speedCamera: [], mapMate: [], stale: [], staleRemind: [] });
   });
 });
 
@@ -164,16 +182,43 @@ describe("shouldShowCloseSelected", () => {
 });
 
 describe("formatStaleRowLabel", () => {
-  it("adds the days since the last activity to the usual label", () => {
-    const day = 24 * 60 * 60 * 1000;
-    const reportedOn = Date.UTC(2026, 9, 1);
-    const stale = {
-      ...entry(5, "ready"),
-      state: "stale" as const,
-      lastActivity: reportedOn + 5 * day,
-    };
-    const label = formatStaleRowLabel(stale, "en", reportedOn + 20 * day);
+  const day = 24 * 60 * 60 * 1000;
+  const reportedOn = Date.UTC(2026, 9, 1);
+  const stale = (
+    state: StaleEntry["state"],
+    remindedOn: number | null = null,
+  ): StaleEntry => ({
+    ...entry(5, "ready"),
+    state,
+    lastActivity: reportedOn + 5 * day,
+    remindedOn,
+    closingSent: false,
+  });
+
+  it("adds the days since the last activity before the reminder", () => {
+    const label = formatStaleRowLabel(
+      stale("remind"),
+      "en",
+      reportedOn + 20 * day,
+    );
     expect(label).toMatch(/^#5 · DE · .* · 15 d$/);
+  });
+
+  it("counts down the grace period after the reminder, rounding up", () => {
+    const remindedOn = reportedOn + 20 * day;
+    const now = remindedOn + day + 60_000;
+    const label = formatStaleRowLabel(stale("waiting", remindedOn), "en", now);
+    expect(label).toMatch(/ · reminded · closing in 2 d$/);
+  });
+
+  it("says how long ago the reminder went once the closure is due", () => {
+    const remindedOn = reportedOn + 20 * day;
+    const label = formatStaleRowLabel(
+      stale("close", remindedOn),
+      "en",
+      remindedOn + 4 * day,
+    );
+    expect(label).toMatch(/ · reminded 4 d ago$/);
   });
 });
 

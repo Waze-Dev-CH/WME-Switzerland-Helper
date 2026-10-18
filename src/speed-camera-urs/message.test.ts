@@ -3,8 +3,12 @@ import { MAP_MATE_KINDS } from "./detect";
 import {
   buildMapMateQuestion,
   buildMessage,
+  buildStaleClosing,
+  buildStaleReminder,
   isMapMateQuestion,
   isOfficialMessage,
+  isStaleClosing,
+  isStaleReminder,
   kindLabel,
   languageCounts,
   mayAskMapMate,
@@ -215,5 +219,34 @@ describe("mayAskMapMate", () => {
 describe("kindLabel", () => {
   it("names the case in the editor's language", () => {
     expect(kindLabel("speedLimit")).toBe("Speed limit");
+  });
+});
+
+describe("the abandoned URs' messages", () => {
+  it("names no delay in the reminder, and signs both like the other messages", () => {
+    for (const lang of ["fr", "de", "it", "en"] as const) {
+      expect(buildStaleReminder(lang)).not.toMatch(/\d/);
+      expect(buildStaleReminder(lang)).toContain(
+        buildMessage(lang).split("\n\n").pop(),
+      );
+      expect(buildStaleClosing(lang)).toContain(
+        buildMessage(lang).split("\n\n").pop(),
+      );
+    }
+    expect(buildStaleReminder("fr")).toContain("fermé très prochainement");
+  });
+
+  it("recognises each one in any language, whatever the spacing", () => {
+    const squashed = buildStaleReminder("de").replace(/\s+/g, " ");
+    expect(isStaleReminder(squashed)).toBe(true);
+    expect(isStaleClosing(buildStaleClosing("it"))).toBe(true);
+  });
+
+  it("never mistakes one for the other, or for the speed-camera message", () => {
+    expect(isStaleReminder(buildStaleClosing("fr"))).toBe(false);
+    expect(isStaleClosing(buildStaleReminder("fr"))).toBe(false);
+    expect(isOfficialMessage(buildStaleClosing("fr"))).toBe(false);
+    expect(isStaleReminder(buildMessage("fr"))).toBe(false);
+    expect(isStaleReminder("Bonjour, des nouvelles ?")).toBe(false);
   });
 });

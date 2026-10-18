@@ -8,6 +8,7 @@ import {
   makeTrafficLightUr,
   makeUr,
 } from "./fake-sdk";
+import { buildStaleReminder } from "./message";
 import { Scanner, type ScanSnapshot } from "./scanner";
 
 const comment = { createdOn: 0, text: "hello", userName: "editor" };
@@ -209,7 +210,7 @@ describe("Scanner abandoned URs", () => {
       [1, "pending"],
       [2, "pending"],
     ]);
-    expect(stateOf(scanner.getSnapshot())).toEqual([[1, "stale"]]);
+    expect(stateOf(scanner.getSnapshot())).toEqual([[1, "remind"]]);
   });
 
   it("reads the speed cameras' conversations first", async () => {
@@ -251,7 +252,7 @@ describe("Scanner abandoned URs", () => {
     await scanner.rescan();
 
     expect(scanner.getSnapshot().trafficLights.map((e) => e.id)).toEqual([1]);
-    expect(stateOf(scanner.getSnapshot())).toEqual([[2, "stale"]]);
+    expect(stateOf(scanner.getSnapshot())).toEqual([[2, "remind"]]);
   });
 
   it("lists one Map_Team or an editor asked about, unanswered for 14 days", async () => {
@@ -265,7 +266,7 @@ describe("Scanner abandoned URs", () => {
 
     await scanner.rescan();
 
-    expect(stateOf(scanner.getSnapshot())).toEqual([[1, "stale"]]);
+    expect(stateOf(scanner.getSnapshot())).toEqual([[1, "remind"]]);
     expect(scanner.getSnapshot().stale[0]?.lastActivity).toBe(NOW - 20 * DAY);
   });
 
@@ -275,7 +276,7 @@ describe("Scanner abandoned URs", () => {
     const scanner = new Scanner(sdk, { now: () => NOW });
     scanner.setReadStale(true);
     await scanner.rescan();
-    expect(stateOf(scanner.getSnapshot())).toEqual([[1, "stale"]]);
+    expect(stateOf(scanner.getSnapshot())).toEqual([[1, "remind"]]);
 
     comments[1] = [{ ...comment, userName: null, createdOn: NOW - DAY }];
     scanner.forget([1]);
@@ -302,8 +303,8 @@ describe("Scanner abandoned URs", () => {
     await scanner.rescan();
     expect(calls).toEqual(["details:1", "details:2"]);
     expect(stateOf(scanner.getSnapshot())).toEqual([
-      [1, "stale"],
-      [2, "stale"],
+      [1, "remind"],
+      [2, "remind"],
     ]);
   });
 
@@ -432,6 +433,51 @@ describe("Scanner Map Mate reports", () => {
   });
 });
 
+describe("Scanner abandoned URs after the reminder", () => {
+  const reminder = (days: number) => ({
+    createdOn: NOW - days * DAY,
+    text: buildStaleReminder("fr"),
+    userName: "editor",
+  });
+
+  it("follows each UR to its step, with the dates the tab needs", async () => {
+    const urs = [makeUr(1, road), makeUr(2, road), makeUr(3, road)];
+    const { sdk } = makeSdk(urs, {
+      comments: { 1: [mapTeam], 2: [reminder(1)], 3: [reminder(4)] },
+    });
+    const scanner = new Scanner(sdk, { now: () => NOW });
+    scanner.setReadStale(true);
+
+    await scanner.rescan();
+
+    const stale = scanner.getSnapshot().stale;
+    expect(stateOf(scanner.getSnapshot())).toEqual([
+      [1, "remind"],
+      [2, "waiting"],
+      [3, "close"],
+    ]);
+    expect(stale[1]?.remindedOn).toBe(NOW - DAY);
+    expect(stale[2]?.closingSent).toBe(false);
+  });
+
+  it("moves a waiting UR to its closure when the three days pass, without reading again", async () => {
+    let now = NOW;
+    const { sdk, calls } = makeSdk([makeUr(1, road)], {
+      comments: { 1: [reminder(1)] },
+    });
+    const scanner = new Scanner(sdk, { now: () => now });
+    scanner.setReadStale(true);
+    await scanner.rescan();
+    expect(stateOf(scanner.getSnapshot())).toEqual([[1, "waiting"]]);
+
+    now += 2 * DAY;
+    await scanner.rescan();
+
+    expect(stateOf(scanner.getSnapshot())).toEqual([[1, "close"]]);
+    expect(calls).toEqual(["details:1"]);
+  });
+});
+
 describe("Scanner abandoned URs over a long session", () => {
   it("lists a UR the day it passes 14 days idle, without reloading", async () => {
     let now = NOW;
@@ -447,7 +493,7 @@ describe("Scanner abandoned URs over a long session", () => {
     now = NOW + 5 * DAY;
     await scanner.rescan();
 
-    expect(stateOf(scanner.getSnapshot())).toEqual([[1, "stale"]]);
+    expect(stateOf(scanner.getSnapshot())).toEqual([[1, "remind"]]);
     expect(calls).toEqual(["details:1"]);
   });
 });

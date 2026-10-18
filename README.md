@@ -133,11 +133,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
-- **"Don't show again"** on simple confirmations (ignore all, deleting an obsolete public transport stop, single house number import, the summary after a bulk import, closing a UR without a message). On UR closures the box appears from level 3 when the reporter already has our message, and from level 4 for an abandoned UR. A button in each tab (checker settings, bottom of the UR assistant, main tab) shows them again. Confirmations that quote a conversation or bring a message are never skipped, and neither are group actions and map corrections.
+- **The house-number and UR assistant panels can be detached too**, like the street-name one. A **Detach** button moves the whole panel into a floating window that stays visible when WME switches to its Selection panel; the window can be moved and resized, and it reopens where you left it. While a panel is detached, its tab says so and offers **Dock** to bring it back. Several windows can be open at once, the last one clicked on top. A keyboard shortcut toggles each window; it has no default key, assign one in WME's keyboard settings.
+- **"Don't show again"** on simple confirmations (ignore all, deleting an obsolete public transport stop, single house number import, the summary after a bulk import, closing a UR without a message). On UR closures the box appears from level 3 when the reporter already has our message, and from level 4 for an abandoned UR whose closing message already left. A button in each tab (checker settings, bottom of the UR assistant, main tab) shows them again. Confirmations that quote a conversation or bring a message are never skipped, and neither are group actions and map corrections.
 
 #### Changed
 
 - Every popup now has the same look: a title, a list of what is about to change and Cancel selected by default.
+- **Abandoned URs are no longer closed in silence.** They now go through two steps. First a last reminder, in the reporter's language, saying that without further information the report will be closed very soon; the UR stays open. If nobody answers within 3 days, a short closing message goes out ("as no further information was received, this report is being closed"), then the UR is closed as *Not identified*. In between, the list shows how many days are left, with nothing to click. A reporter who answers the reminder takes the UR out of the list. The 3 days count from the reminder in the conversation, so they hold across reloads and between editors. Both steps quote the exact text before sending; the batch handles them from level 4, as before.
 
 ### [1.7.0] - 2026-10-13
 
