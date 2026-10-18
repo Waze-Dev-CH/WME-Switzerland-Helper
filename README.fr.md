@@ -131,6 +131,8 @@ et ce projet adhère au [Versionnage Sémantique](https://semver.org/spec/v2.0.0
 
 ### [Non publié]
 
+### [1.8.0] - 2026-10-18
+
 #### Ajouté
 
 - **Les panneaux des numéros de maison et de l'assistant UR se détachent aussi**, comme celui des noms de rue. Un bouton **Détacher** déplace tout le panneau dans une fenêtre flottante qui reste visible quand WME bascule sur son panneau Sélection ; la fenêtre se déplace, se redimensionne et se rouvre là où vous l'avez laissée. Tant qu'un panneau est détaché, son onglet l'indique et propose **Rattacher** pour le remettre en place. Plusieurs fenêtres peuvent être ouvertes en même temps, la dernière cliquée passe devant. Un raccourci clavier bascule chaque fenêtre ; il n'a pas de touche par défaut, à vous d'en choisir une dans les réglages clavier de WME.

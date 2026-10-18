@@ -131,6 +131,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### [Unreleased]
 
+### [1.8.0] - 2026-10-18
+
 #### Added
 
 - **The house-number and UR assistant panels can be detached too**, like the street-name one. A **Detach** button moves the whole panel into a floating window that stays visible when WME switches to its Selection panel; the window can be moved and resized, and it reopens where you left it. While a panel is detached, its tab says so and offers **Dock** to bring it back. Several windows can be open at once, the last one clicked on top. A keyboard shortcut toggles each window; it has no default key, assign one in WME's keyboard settings.

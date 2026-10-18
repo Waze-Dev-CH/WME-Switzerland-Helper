@@ -131,6 +131,8 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### [Unveröffentlicht]
 
+### [1.8.0] - 2026-10-18
+
 #### Hinzugefügt
 
 - **Auch die Panels der Hausnummern und des UR-Assistenten lassen sich abtrennen**, wie das der Strassennamen. Die Schaltfläche **Abtrennen** verschiebt das ganze Panel in ein schwebendes Fenster, das sichtbar bleibt, wenn WME zum Auswahl-Panel wechselt; das Fenster lässt sich verschieben und in der Grösse ändern und öffnet sich wieder dort, wo Sie es gelassen haben. Solange ein Panel abgetrennt ist, zeigt sein Tab dies an und bietet **Andocken**, um es zurückzuholen. Mehrere Fenster können gleichzeitig offen sein, das zuletzt angeklickte liegt vorne. Ein Tastenkürzel schaltet jedes Fenster um; es hat keine Standardtaste, wählen Sie eine in den Tastatureinstellungen von WME.
