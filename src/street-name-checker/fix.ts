@@ -2,6 +2,7 @@ import type { UserRank, WmeSDK } from "wme-sdk-typings";
 import { t } from "./i18n";
 import { log } from "./log";
 import { issueKey, type Issue } from "./matching/evaluate";
+import { raisesCase } from "./matching/official-case";
 import {
   groupRenameSpec,
   ignoreAllSpec,
@@ -62,7 +63,8 @@ export type FixErrorCode =
   | "errSegmentUnloaded"
   | "errNoCity"
   | "errStreetCreate"
-  | "errGroupFixRank";
+  | "errGroupFixRank"
+  | "errCapitals";
 
 export interface FixOutcome {
   segmentId: number;
@@ -109,6 +111,9 @@ export function fixSegment(
   if (LOCK_STATUSES.has(issue.status)) return fixLock(sdk, issue);
 
   if (!issue.fixable || !issue.suggestion) return fail("errNotFixable");
+  // Already ruled out by evaluate.ts; checked again where the write happens, because two
+  // UIs build these buttons and a group fix would repeat the mistake across a city.
+  if (raisesCase(issue.currentName, issue.suggestion)) return fail("errCapitals");
   if (!sdk.Editing.isEditingAllowed()) return fail("errEditingNotAllowed");
 
   try {

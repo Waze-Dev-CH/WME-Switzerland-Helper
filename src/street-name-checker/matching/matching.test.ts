@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { damerauLevenshtein } from "../matching/distance";
 import {
+  compareNameToCandidate,
   localityFromZipLabel,
   OfficialIndex,
   otherLanguageLabels,
@@ -264,5 +265,44 @@ describe("otherLanguageLabels", () => {
 
   it("returns nothing for a monolingual label", () => {
     expect(otherLanguageLabels("Avenue de Florimont", "Avenue de Florimont")).toEqual([]);
+  });
+});
+
+describe("Geneva's capitals (register convention)", () => {
+  const geneva = (label: string) =>
+    makeOfficial(label, { zipLabel: "1205 Genève", comName: "Genève", comFosnr: 6621 });
+  const index = new OfficialIndex([
+    geneva("Rue SCHAUB"),
+    geneva("Rue MICHELI-DU-CREST"),
+    geneva("Boulevard D'YVOY"),
+    makeOfficial("Route de la STEP", { zipLabel: "1950 Sion", comName: "Sion", comFosnr: 6266 }),
+  ]);
+
+  it("takes a family name in title case as the exact name", () => {
+    expect(index.lookup("Rue Schaub")?.level).toBe("exact");
+  });
+
+  it("suggests the title case to a name copied in capitals", () => {
+    const match = index.lookup("Rue SCHAUB");
+    expect(match?.level).toBe("cosmetic");
+    expect(match?.entry.namePart).toBe("Rue Schaub");
+  });
+
+  it("takes a particle in either case as the exact name", () => {
+    expect(index.lookup("Rue Micheli-du-Crest")?.level).toBe("exact");
+    expect(index.lookup("Boulevard d'Yvoy")?.level).toBe("exact");
+  });
+
+  it("keeps capitals outside Geneva, where they are acronyms", () => {
+    const match = index.lookup("Route de la Step");
+    expect(match?.level).toBe("cosmetic");
+    expect(match?.entry.namePart).toBe("Route de la STEP");
+  });
+
+  it("compares one-to-one against the register spelling", () => {
+    expect(compareNameToCandidate("Boulevard d'Yvoy", "Boulevard D'Yvoy", "Boulevard D'YVOY")).toBe(
+      "exact",
+    );
+    expect(compareNameToCandidate("Boulevard d'Yvoy", "Boulevard D'Yvoy")).toBe("cosmetic");
   });
 });

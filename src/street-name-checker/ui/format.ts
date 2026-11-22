@@ -83,6 +83,7 @@ export function formatNote(note: IssueNote | null): string {
   const parts: string[] = [];
   if (note.unofficial) parts.push(t("noteUnofficial"));
   if (note.planned) parts.push(t("notePlanned"));
+  if (note.uncertainCase) parts.push(t("noteUncertainCase"));
   if (note.fullLabel) parts.push(t("noteFullLabel", { label: note.fullLabel }));
   if (note.existsIn) parts.push(t("noteExistsIn", { place: note.existsIn }));
   if (note.ownDistanceM !== undefined) parts.push(t("noteOwnDistance", { m: note.ownDistanceM }));

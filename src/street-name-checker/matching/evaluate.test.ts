@@ -450,3 +450,54 @@ describe("issueKey", () => {
     expect(issueKey({ ...base, currentName: null })).toContain("42 NOT_FOUND");
   });
 });
+
+describe("evaluateSegment: capitals", () => {
+  const geneva = (label: string) =>
+    makeOfficial(label, { zipLabel: "1205 Genève", comName: "Genève", comFosnr: 6621 });
+  const capitalsIndex = new OfficialIndex([
+    geneva("Rue SCHAUB"),
+    geneva("Rue MICHELI-DU-CREST"),
+    makeOfficial("Route de la STEP", { zipLabel: "1950 Sion", comName: "Sion", comFosnr: 6266 }),
+  ]);
+  const judge = (name: string, city: string) =>
+    evaluateSegment(makeSegment(), makeAddress(name, [], city), capitalsIndex, settings);
+
+  it("leaves a Geneva family name in title case alone", () => {
+    expect(judge("Rue Schaub", "Genève").kind).toBe("ok");
+  });
+
+  it("takes a particle's case from the Waze name", () => {
+    const verdict = judge("Rue Micheli-du-Cret", "Genève");
+    expect(verdict.kind).toBe("issue");
+    if (verdict.kind !== "issue") return;
+    expect(verdict.issue.suggestion).toBe("Rue Micheli-du-Crest");
+    expect(verdict.issue.fixable).toBe(true);
+  });
+
+  it("offers no one-click fix when a particle's case is unknown", () => {
+    const verdict = judge("Rue Micheli Crest", "Genève");
+    expect(verdict.kind).toBe("issue");
+    if (verdict.kind !== "issue") return;
+    expect(verdict.issue.suggestion).toBe("Rue Micheli-DU-Crest");
+    expect(verdict.issue.fixable).toBe(false);
+    expect(verdict.issue.note?.uncertainCase).toBe(true);
+  });
+
+  it("never offers to turn a word into capitals, in any canton", () => {
+    const verdict = judge("Route de la Step", "Sion");
+    expect(verdict.kind).toBe("issue");
+    if (verdict.kind !== "issue") return;
+    expect(verdict.issue.suggestion).toBe("Route de la STEP");
+    expect(verdict.issue.fixable).toBe(false);
+    expect(verdict.issue.note?.uncertainCase).toBe(true);
+  });
+
+  it("still fixes a name whose capitals were already there", () => {
+    const verdict = judge("Rte de la STEP", "Sion");
+    expect(verdict.kind).toBe("issue");
+    if (verdict.kind !== "issue") return;
+    expect(verdict.issue.suggestion).toBe("Route de la STEP");
+    expect(verdict.issue.fixable).toBe(true);
+    expect(verdict.issue.note?.uncertainCase).toBeUndefined();
+  });
+});

@@ -131,6 +131,10 @@ e questo progetto aderisce al [Versionamento Semantico](https://semver.org/spec/
 
 ### [Non pubblicato]
 
+#### Corretto
+
+- **Nomi delle strade: le maiuscole ginevrine non vengono più proposte.** Il registro scrive i cognomi ginevrini in maiuscolo («Rue SCHAUB»); il controllo segnalava «Rue Schaub» come errore tipografico e proponeva di correggerlo, strada dopo strada. Questi nomi vengono ora letti con le maiuscole normali: «Rue Schaub» è corretto, e un nome già copiato in maiuscolo riceve come suggerimento la forma normale. Una particella di cui il registro non indica le maiuscole («Micheli-DU-Crest») segue il nome Waze, oppure va corretta a mano. In tutti i cantoni lo script non mette più una parola in maiuscolo: un simile suggerimento resta visibile, senza pulsante di correzione.
+
 ### [1.8.1] - 2026-10-18
 
 #### Modificato

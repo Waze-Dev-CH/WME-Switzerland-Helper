@@ -81,6 +81,13 @@ automatically.
 - `geoadmin/idb-store.ts`: IndexedDB tile cache, degrades to a no-op when unavailable.
 - `prompt.ts`: injectable dialog helpers over `ui/dialog.ts` (they take a `ConfirmSpec`), so
   the fix flows stay testable without a DOM.
+- `matching/official-case.ts`: Geneva's register writes family names in capitals
+  ("Rue SCHAUB"), a convention and not the name. Geneva entries (BFS 66xx) are indexed
+  title-cased, so "Rue Schaub" is exact and "Rue SCHAUB" the typo. Particles (`DU`, `LE`,
+  `D'`) cannot be told by the register: they take the Waze name's case or the suggestion is
+  not fixable. Outside Geneva capitals are acronyms (SBB, STEP), left alone. In every canton
+  `raisesCase` forbids turning a word of the current name into capitals, checked in
+  `evaluate.ts` (no button) and again in `fixSegment`.
 
 **Safety rules for anything that writes to the map.** The script is public, so assume a
 first-day editor installed it:
