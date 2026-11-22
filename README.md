@@ -131,6 +131,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### [Unreleased]
 
+### [1.8.2] - 2026-11-22
+
 #### Fixed
 
 - **Street-name check: Geneva's capitals are no longer suggested.** The register writes Geneva family names in capitals ("Rue SCHAUB"); the checker flagged "Rue Schaub" as a typography error and offered to fix it, street after street. These names are now read in normal case: "Rue Schaub" is correct, and a name already copied in capitals gets the normal case as its suggestion. A particle whose case the register cannot tell ("Micheli-DU-Crest") follows the Waze name, or is left to fix by hand. In every canton, the script no longer turns a word into capitals: such a suggestion stays visible, without a fix button.

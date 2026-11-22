@@ -131,6 +131,8 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### [Unveröffentlicht]
 
+### [1.8.2] - 2026-11-22
+
 #### Behoben
 
 - **Strassennamen: Genfer Grossbuchstaben werden nicht mehr vorgeschlagen.** Das Verzeichnis schreibt Genfer Familiennamen in Grossbuchstaben ("Rue SCHAUB"); die Prüfung meldete "Rue Schaub" als Typografiefehler und bot die Korrektur an, Strasse für Strasse. Diese Namen werden jetzt in normaler Schreibweise gelesen: "Rue Schaub" ist korrekt, und ein bereits in Grossbuchstaben übernommener Name erhält die normale Schreibweise als Vorschlag. Ein Partikel, dessen Schreibweise das Verzeichnis offenlässt ("Micheli-DU-Crest"), folgt dem Waze-Namen oder bleibt von Hand zu korrigieren. In allen Kantonen setzt das Skript kein Wort mehr in Grossbuchstaben: Ein solcher Vorschlag bleibt sichtbar, aber ohne Korrekturknopf.
