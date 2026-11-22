@@ -131,6 +131,10 @@ et ce projet adhère au [Versionnage Sémantique](https://semver.org/spec/v2.0.0
 
 ### [Non publié]
 
+#### Corrigé
+
+- **Nom des rues : les capitales genevoises ne sont plus proposées.** Le registre écrit les noms de famille genevois en capitales (« Rue SCHAUB ») ; le vérificateur signalait « Rue Schaub » comme une erreur de typographie et proposait de la corriger, rue après rue. Ces noms sont désormais lus en casse normale : « Rue Schaub » est correct, et un nom déjà recopié en capitales reçoit la casse normale comme suggestion. Une particule dont le registre ne dit pas la casse (« Micheli-DU-Crest ») suit le nom Waze, ou reste à corriger à la main. Dans tous les cantons, le script ne met plus un mot en capitales : une telle suggestion reste visible, sans bouton de correction.
+
 ### [1.8.1] - 2026-10-18
 
 #### Modifié

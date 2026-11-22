@@ -47,6 +47,16 @@ describe("formatNote", () => {
     expect(formatNote(null)).toBe("");
   });
 
+  it("says why a suggestion's case has no fix button, in every language", () => {
+    for (const lang of ["en", "fr", "de", "it"] as const) {
+      setLocale(lang);
+      const text = formatNote({ uncertainCase: true });
+      expect(text).not.toBe("");
+      expect(text).not.toBe("noteUncertainCase");
+    }
+    setLocale("en");
+  });
+
   it("leaves slashes and apostrophes alone (the note is rendered as text)", () => {
     // i18next escapes interpolated values by default; these notes go to textContent, so
     // the escaping showed up as "Kapellweg &#x2F; Chemin de la Chapelle" on the map.

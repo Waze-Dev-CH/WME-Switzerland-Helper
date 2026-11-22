@@ -113,6 +113,18 @@ describe("fixSegment", () => {
     expect(updates).toHaveLength(0);
   });
 
+  it("refuses to turn a word into capitals, even on an issue marked fixable", () => {
+    const { sdk, updates } = makeSdk();
+    const outcome = fixSegment(
+      sdk,
+      issue({ status: "COSMETIC", currentName: "Rue Schaub", suggestion: "Rue SCHAUB" }),
+      DEFAULT_SETTINGS,
+    );
+    expect(outcome.ok).toBe(false);
+    expect(outcome.errorCode).toBe("errCapitals");
+    expect(updates).toHaveLength(0);
+  });
+
   it("refuses non-fixable issues", () => {
     const { sdk } = makeSdk();
     const outcome = fixSegment(

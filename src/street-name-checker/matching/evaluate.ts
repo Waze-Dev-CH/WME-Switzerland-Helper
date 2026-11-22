@@ -2,6 +2,7 @@ import type { LineString } from "geojson";
 import type { Segment, SegmentAddress } from "wme-sdk-typings";
 import type { Settings } from "../settings";
 import { isRouteDesignation, k1 } from "./normalize";
+import { raisesCase, resolveOfficialCase } from "./official-case";
 import {
   compareNameToCandidate,
   type IndexedEntry,
@@ -66,6 +67,11 @@ export interface IssueNote {
   currentLock?: number;
   /** Expected lock LEVEL (1-6) for the road type; the fix converts it back to lockRank. */
   expectedLock?: number;
+  /**
+   * The suggestion's case is not one the script will write: a Geneva particle the register
+   * cannot tell ("Micheli-DU-Crest"), or a word that would turn into capitals. Not fixable.
+   */
+  uncertainCase?: boolean;
 }
 
 export interface Issue {
@@ -134,6 +140,44 @@ export function evaluateSegment(
   nearest: NearestResult | null = null,
   /** Resolved Swiss country id, or null when unknown (then no segment is excluded). */
   swissCountryId: number | null = null,
+): Verdict {
+  const verdict = judgeSegment(segment, address, index, settings, nearest, swissCountryId);
+  if (verdict.kind !== "issue") return verdict;
+  return { kind: "issue", issue: settleCase(verdict.issue, index) };
+}
+
+/**
+ * Put the suggestion in the case the script is willing to write. One exit point rather than
+ * one per verdict, so a new verdict cannot forget it.
+ *
+ * A Geneva name is indexed recased already; only its particles are still open, and the Waze
+ * name settles them when it has the same word. Whatever is left uncertain, or would turn a
+ * word of the current name into capitals, stays visible as a hint but loses its fix button.
+ * fix.ts refuses the capitals again, since two UIs build those buttons.
+ */
+function settleCase(issue: Issue, index: OfficialIndex): Issue {
+  if (!issue.suggestion) return issue;
+  const register = index.registerSpelling(issue.suggestion);
+  const resolved = register
+    ? resolveOfficialCase(register, issue.currentName)
+    : { name: issue.suggestion, certain: true };
+  const certain = resolved.certain && !raisesCase(issue.currentName, resolved.name);
+  if (certain) return { ...issue, suggestion: resolved.name };
+  return {
+    ...issue,
+    suggestion: resolved.name,
+    note: { ...(issue.note ?? {}), uncertainCase: true },
+    fixable: false,
+  };
+}
+
+function judgeSegment(
+  segment: Segment,
+  address: SegmentAddress,
+  index: OfficialIndex,
+  settings: Settings,
+  nearest: NearestResult | null,
+  swissCountryId: number | null,
 ): Verdict {
   if (!settings.checkedRoadTypes.includes(segment.roadType)) return { kind: "skipped" };
   // The register only covers Switzerland; foreign segments in border viewports
@@ -332,7 +376,11 @@ export function evaluateSegment(
   // street under the segment. Resolves cases the set-based lookup dropped as
   // ambiguous (two stems or two fuzzy candidates) - proximity disambiguates.
   if (nearest && nearest.distanceM <= SUGGEST_MAX_M) {
-    const level = compareNameToCandidate(currentName, nearest.entry.namePart);
+    const level = compareNameToCandidate(
+      currentName,
+      nearest.entry.namePart,
+      nearest.entry.registerName,
+    );
     if (level && level !== "exact") {
       const statusByLevel = {
         cosmetic: "COSMETIC",

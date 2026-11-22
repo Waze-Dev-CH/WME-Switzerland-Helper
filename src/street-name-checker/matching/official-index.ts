@@ -1,6 +1,7 @@
 import type { OfficialStreet } from "../geoadmin/types";
 import { damerauLevenshtein } from "./distance";
 import { bareStem, foldAccents, k0, k1, k2, stemKey } from "./normalize";
+import { resolveOfficialCase, sameUpToOfficialCase, writesNamesInCapitals } from "./official-case";
 
 /**
  * Stem used to MATCH a name against the stem index. Names without a way-type
@@ -15,13 +16,18 @@ function queryStem(primaryK2Key: string): string | null {
  * One-to-one comparison of a Waze name against a single candidate (typically
  * the official street under the segment): same cascade as the index lookup
  * but without ambiguity concerns, since the candidate is spatially determined.
+ * `registerName` is the candidate's register spelling when the index recased it.
  */
 export function compareNameToCandidate(
   query: string,
   candidate: string,
+  registerName?: string,
 ): "exact" | "cosmetic" | "variant" | "near" | "stem" | null {
   if (k0(query) === k0(candidate)) return "exact";
-  if (k1(query) === k1(candidate)) return "cosmetic";
+  if (k1(query) === k1(candidate)) {
+    const sameName = registerName !== undefined && sameUpToOfficialCase(query, registerName);
+    return sameName ? "exact" : "cosmetic";
+  }
   const queryKeys = k2(query);
   const candidateKeys = k2(candidate);
   if (queryKeys.some((key) => candidateKeys.includes(key))) return "variant";
@@ -46,6 +52,11 @@ export interface IndexedEntry {
   street: OfficialStreet;
   /** The name to compare against and to apply on fix. */
   namePart: string;
+  /**
+   * The register's own spelling, present only when `namePart` was recased from it (Geneva's
+   * capitals, see official-case.ts). Kept because it still tells which words were capitals.
+   */
+  registerName?: string;
   /** True when namePart is one side of a slash-separated bilingual label. */
   isSlashPart: boolean;
   /** K1-normalized locality from zip_label ("1003 Lausanne" -> "lausanne"). */
@@ -129,13 +140,18 @@ export class OfficialIndex {
     let entries = 0;
     for (const street of streets) {
       const locality = localityFromZipLabel(street.zipLabel);
+      const capitals = writesNamesInCapitals(street);
       const parts = street.label.includes("/")
         ? [street.label, ...street.label.split("/").map((p) => p.trim()).filter(Boolean)]
         : [street.label];
-      parts.forEach((namePart, i) => {
+      parts.forEach((part, i) => {
+        // Indexed under the name Waze should carry, so "Rue Schaub" is the exact name and
+        // "Rue SCHAUB" the typo, not the other way round.
+        const namePart = capitals ? resolveOfficialCase(part, null).name : part;
         const entry: IndexedEntry = {
           street,
           namePart,
+          ...(namePart !== part ? { registerName: part } : {}),
           isSlashPart: i > 0,
           locality,
         };
@@ -161,6 +177,12 @@ export class OfficialIndex {
     this.streetCount = streets.length;
   }
 
+  /** The register spelling behind an indexed name, when the index recased it. */
+  registerSpelling(name: string): string | null {
+    const entries = this.byK0.get(k0(name)) ?? [];
+    return entries.find((e) => e.registerName !== undefined)?.registerName ?? null;
+  }
+
   /** Every indexed name (full labels and slash parts). */
   get list(): readonly IndexedEntry[] {
     return this.all;
@@ -175,7 +197,14 @@ export class OfficialIndex {
     if (exact) return this.result("exact", exact, locality);
 
     const cosmetic = this.byK1.get(k1(name));
-    if (cosmetic) return this.result("cosmetic", cosmetic, locality);
+    if (cosmetic) {
+      // A particle the index could not recase ("Micheli-DU-Crest") is right in either case.
+      const sameName = cosmetic.filter(
+        (e) => e.registerName !== undefined && sameUpToOfficialCase(name, e.registerName),
+      );
+      if (sameName.length > 0) return this.result("exact", sameName, locality);
+      return this.result("cosmetic", cosmetic, locality);
+    }
 
     // k2() is expensive (NFD + regex + variant expansion); compute the keys once
     // and thread them through the variant/fuzzy/stem stages instead of 3× per lookup.
